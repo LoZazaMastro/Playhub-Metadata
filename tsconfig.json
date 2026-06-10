@@ -1,0 +1,11 @@
+{
+  "name": "Playhub Metadata",
+  "author": "ZazaMastro",
+  "flags": [],
+  "api_version": 1,
+  "publish": {
+    "tags": ["metadata", "library", "non-steam"],
+    "description": "Add clean game metadata and achievements to non-Steam games in Steam Gaming Mode, without external servers.",
+    "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
+  }
+}
