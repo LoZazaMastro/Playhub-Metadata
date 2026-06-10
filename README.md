@@ -1,42 +1,29 @@
-{
-  "name": "playhub-metadata",
-  "version": "0.1.0",
-  "description": "A Decky Loader plugin that adds web metadata and achievements to non-Steam games in Steam Big Picture.",
-  "type": "module",
-  "scripts": {
-    "build": "rollup -c",
-    "watch": "rollup -c -w",
-    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File ./package-win.ps1"
-  },
-  "keywords": [
-    "decky",
-    "plugin",
-    "steam",
-    "metadata",
-    "non-steam"
-  ],
-  "author": "ZazaMastro",
-  "license": "MIT",
-  "devDependencies": {
-    "@decky/rollup": "^1.0.1",
-    "@decky/ui": "^4.7.2",
-    "@types/react": "18.3.3",
-    "@types/react-dom": "18.3.0",
-    "@types/webpack": "^5.28.5",
-    "rollup": "^4.22.5",
-    "typescript": "^5.6.2"
-  },
-  "dependencies": {
-    "@decky/api": "^1.1.2",
-    "react-icons": "^5.3.0",
-    "tslib": "^2.7.0"
-  },
-  "pnpm": {
-    "peerDependencyRules": {
-      "ignoreMissing": [
-        "react",
-        "react-dom"
-      ]
-    }
-  }
-}
+Playhub Metadata
+Recovered Decky Loader plugin project reconstructed from the installable package.
+Contents
+`main.py` — Python backend.
+`src/` — TypeScript/React frontend sources recovered from `dist/index.js.map`.
+`dist/` — bundled frontend from the original package.
+`plugin.json` — Decky plugin manifest.
+`package.json` — npm metadata and scripts from the original package.
+`rollup.config.js` and `tsconfig.json` — project build configuration.
+`package-win.ps1` — Windows helper to create a Decky-installable zip with the correct root folder.
+Build
+```powershell
+pnpm install
+pnpm build
+```
+Package for Decky
+```powershell
+pnpm package
+```
+The package script creates a zip with this structure:
+```text
+Playhub Metadata/
+  main.py
+  package.json
+  plugin.json
+  dist/index.js
+  dist/index.js.map
+```
+Note: the source files were recovered from the sourcemap included in the uploaded installable zip.
