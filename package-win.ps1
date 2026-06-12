@@ -1,21 +1,50 @@
-MIT License
+$ErrorActionPreference = "Stop"
 
-Copyright (c) ZazaMastro
+$PluginFolderName = "Playhub Metadata"
+$Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+$Parent = Split-Path -Parent $Root
+$Version = (Get-Content (Join-Path $Root "package.json") -Raw | ConvertFrom-Json).version
+$StagingRoot = Join-Path $Root "build-package"
+$StagingPlugin = Join-Path $StagingRoot $PluginFolderName
+$ProjectFolderName = "Playhub-Metadata_${Version}_Project"
+$StagingProject = Join-Path $StagingRoot $ProjectFolderName
+$InstallerZip = Join-Path $Parent "Playhub-Metadata_${Version}_Installer.zip"
+$ProjectZip = Join-Path $Parent "Playhub-Metadata_${Version}_Project.zip"
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+$ResolvedRoot = [System.IO.Path]::GetFullPath($Root)
+$ResolvedStaging = [System.IO.Path]::GetFullPath($StagingRoot)
+if (-not $ResolvedStaging.StartsWith($ResolvedRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+  throw "Refusing to remove staging outside project: $ResolvedStaging"
+}
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+if (Test-Path $StagingRoot) { Remove-Item -LiteralPath $StagingRoot -Recurse -Force }
+foreach ($OutputZip in @($InstallerZip, $ProjectZip)) {
+  if (Test-Path $OutputZip) { Remove-Item -LiteralPath $OutputZip -Force }
+}
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+New-Item -ItemType Directory -Path $StagingPlugin | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $StagingPlugin "dist") | Out-Null
+
+Copy-Item (Join-Path $Root "main.py") $StagingPlugin
+Copy-Item (Join-Path $Root "package.json") $StagingPlugin
+Copy-Item (Join-Path $Root "plugin.json") $StagingPlugin
+Copy-Item (Join-Path $Root "dist\index.js") (Join-Path $StagingPlugin "dist")
+if (Test-Path (Join-Path $Root "dist\index.js.map")) {
+  Copy-Item (Join-Path $Root "dist\index.js.map") (Join-Path $StagingPlugin "dist")
+}
+
+Compress-Archive -Path (Join-Path $StagingRoot $PluginFolderName) -DestinationPath $InstallerZip -Force
+
+New-Item -ItemType Directory -Path $StagingProject | Out-Null
+$ProjectExclude = @("build-package", "node_modules", "__pycache__", "work")
+Get-ChildItem -Path $Root -Force | Where-Object {
+  $ProjectExclude -notcontains $_.Name
+} | ForEach-Object {
+  Copy-Item -LiteralPath $_.FullName -Destination $StagingProject -Recurse -Force
+}
+
+Compress-Archive -Path $StagingProject -DestinationPath $ProjectZip -Force
+Remove-Item -LiteralPath $StagingRoot -Recurse -Force
+
+Write-Host "Created $InstallerZip"
+Write-Host "Created $ProjectZip"
