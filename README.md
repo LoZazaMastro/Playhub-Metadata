@@ -1,13 +1,82 @@
-Playhub Metadata
-Recovered Decky Loader plugin project reconstructed from the installable package.
+# Playhub Metadata
 
-Contents
-`main.py` — Python backend.
-`src/` — TypeScript/React frontend sources recovered from `dist/index.js.map`.
-`dist/` — bundled frontend from the original package.
-`plugin.json` — Decky plugin manifest.
-`package.json` — npm metadata and scripts from the original package.
-`rollup.config.js` and `tsconfig.json` — project build configuration.
-`package-win.ps1` — Windows helper to create a Decky-installable zip with the correct root folder.
+Playhub Metadata is a Decky Loader plugin for Windows.
 
-Note: the source files were recovered from the sourcemap included in the uploaded installable zip.
+This plugin is built for Steam Big Picture on Windows, especially for non-Steam
+PC games, Game Pass games, Xbox App games, and emulated games.
+
+The goal is simple: make your Steam Big Picture library feel cleaner, richer,
+and more console-like, even when the games are not from Steam.
+
+It can add metadata, community images and videos, categories, and achievements to non-Steam games,
+including RetroAchievements and Xbox PC achievements.
+
+## Features
+
+- Finds missing game metadata automatically.
+- Adds descriptions, developers, publishers, release dates, ratings, and info fields.
+- Adds screenshots and community media when available.
+- Lets you edit metadata manually for each game.
+
+## Achievements
+
+Playhub Metadata can show achievements for non-Steam games inside Steam Big Picture.
+
+It supports two achievement sources:
+
+- RetroAchievements for ROMs and emulator shortcuts.
+- Xbox / OpenXBL achievements for Xbox PC, Game Pass, Microsoft Store. (Important! You need to use UWPHook to import your games in Steam!).
+
+You can choose the achievement source per game:
+
+- Auto
+- RetroAchievements
+- Xbox
+- Disabled
+
+## Xbox PC Achievements
+
+Playhub Metadata can show Xbox PC / Game Pass achievements directly inside Steam Big Picture for matched UWPHook games.
+
+This means Xbox PC achievements can appear in Steam's interface for non-Steam shortcuts.
+
+To use Xbox achievements, you need an OpenXBL API key first.
+
+## OpenXBL Setup
+
+1. Create an account at `https://xbl.io`.
+2. Open your OpenXBL dashboard.
+3. Copy your API key.
+4. Open Playhub Metadata in Decky.
+5. Paste the API key in the OpenXBL field.
+6. Press `Login`.
+7. Press `Scan Xbox achievements`.
+
+OpenXBL API limits apply, so Playhub keeps scans conservative and uses cache settings to avoid unnecessary requests.
+
+## RetroAchievements Setup
+
+1. Create or open your RetroAchievements account.
+2. Copy your RetroAchievements web API key from your account settings.
+3. Open Playhub Metadata in Decky.
+4. Enter your RetroAchievements username and API key.
+5. Press `Login`.
+
+For individual ROMs, Playhub can try to detect the matching RetroAchievements game automatically. You can also search and select the correct game manually.
+
+## Cache Options
+
+Playhub Metadata lets you choose when achievement data should refresh:
+
+- Hourly
+- Daily
+- Weekly
+- PC session
+- Manually
+
+Manual mode is useful if you want fewer API calls and prefer refreshing only when you explicitly scan or sync.
+
+## Notes
+
+Keep in mind that Playhub Metadata does not turn non-Steam achievements into "real" Steam achievements. It just displays supported achievement data inside Steam Big Picture.
+Xbox achievement data comes from OpenXBL. RetroAchievements data comes from RetroAchievements.
