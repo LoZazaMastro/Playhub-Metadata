@@ -93,6 +93,8 @@ const startScanMissing = callable("start_scan_missing");
 const getScanProgress = callable("get_scan_progress");
 const startRefreshSteamActivities = callable("start_refresh_steam_activities");
 const getActivityRefreshProgress = callable("get_activity_refresh_progress");
+const refetchSteamActivityAssociation = callable("refetch_steam_activity_association");
+const clearSteamActivityAssociation = callable("clear_steam_activity_association");
 const getLocalShortcuts = callable("get_local_shortcuts");
 const getAchievementSettings = callable("get_achievement_settings");
 const getXboxSettings = callable("get_xbox_settings");
@@ -117,6 +119,7 @@ const searchRetroAchievementsGames = callable("search_retroachievements_games");
 var backend = /*#__PURE__*/Object.freeze({
     __proto__: null,
     autoFetchMetadata: autoFetchMetadata,
+    clearSteamActivityAssociation: clearSteamActivityAssociation,
     clearXboxAssociations: clearXboxAssociations,
     enrichCommunityMedia: enrichCommunityMedia,
     fetchAchievements: fetchAchievements,
@@ -130,6 +133,7 @@ var backend = /*#__PURE__*/Object.freeze({
     getScanProgress: getScanProgress,
     getXboxSettings: getXboxSettings,
     loginTrueAchievements: loginTrueAchievements,
+    refetchSteamActivityAssociation: refetchSteamActivityAssociation,
     removeMetadata: removeMetadata,
     resolveRetroAchievementsFromPath: resolveRetroAchievementsFromPath,
     resolveXboxFromShortcut: resolveXboxFromShortcut,
@@ -157,6 +161,11 @@ const STRINGS = {
         refreshActivities: "Refresh Activity",
         refreshingActivities: "Refreshing Activity...",
         activityRefreshComplete: "Activity refresh complete",
+        showActivitiesInHome: "Show Activity in Home",
+        homeActivityCount: "Home games count",
+        homeActivityCountHint: "Choose how many non-Steam games Playhub can show in Home. Max 6; 3 is recommended for performance.",
+        homeActivityMostRecent: "Most recent",
+        homeActivityShuffle: "Shuffle",
         scanning: "Scanning...",
         detected: "Detected non-Steam games",
         saved: "Metadata saved",
@@ -197,6 +206,17 @@ const STRINGS = {
         retroGameNoMatches: "No RetroAchievements results yet.",
         retroGameOk: "Achievements loaded",
         retroGameFailed: "No achievements loaded. Check the RetroAchievements game ID.",
+        retroBulkScan: "Scan RetroAchievements",
+        retroBulkScanning: "Scanning RetroAchievements",
+        retroBulkDetecting: "detecting ROM match",
+        retroBulkSearching: "searching RetroAchievements match",
+        retroBulkApplying: "loading achievement list",
+        retroBulkAppliedOne: "achievements applied",
+        retroBulkSkippedOne: "skipped",
+        retroBulkDone: "RetroAchievements scan complete",
+        retroBulkApplied: "applied",
+        retroBulkSkipped: "skipped",
+        retroBulkNothing: "No ROM/emulator games without RetroAchievements to scan.",
         retroDetectFailed: "No RetroAchievements match found from this game's shortcut path.",
         retroHint: "Paste the numeric RetroAchievements game ID from the game page URL. Leave empty to hide achievements for this game.",
         xboxTitle: "Xbox achievements / OpenXBL",
@@ -236,6 +256,18 @@ const STRINGS = {
         achievementCache_weekly: "Weekly",
         achievementCache_pc_session: "PC session",
         achievementCache_manual: "Manually",
+        steamActivityTitle: "Steam Activity metadata",
+        steamActivityHint: "Manage the Steam title used only for this non-Steam game's Activity and Home news.",
+        steamActivityCurrentMatch: "Current Steam AppID",
+        steamActivityNoCurrentMatch: "No Steam Activity association yet.",
+        steamActivityDisabled: "Steam Activity disabled for this game.",
+        steamActivitySearchTitle: "Title to refetch",
+        steamActivityRefetch: "Refetch from title",
+        steamActivityClear: "Remove association",
+        steamActivityItems: "items",
+        steamActivityRefetchDone: "Steam Activity refreshed",
+        steamActivityClearDone: "Steam Activity association removed",
+        steamActivityNoMatch: "No Steam Activity match found",
         achievementSourceTitle: "Achievement source",
         achievementSourceHint: "Auto keeps RetroAchievements for ROM/emulator shortcuts and uses OpenXBL only for likely Xbox/UWPHook shortcuts.",
         achievementSource_auto: "Auto",
@@ -273,6 +305,11 @@ const STRINGS = {
         refreshActivities: "Aggiorna attività",
         refreshingActivities: "Aggiornamento attività...",
         activityRefreshComplete: "Aggiornamento attività completato",
+        showActivitiesInHome: "Mostra attività nella Home",
+        homeActivityCount: "Numero giochi in Home",
+        homeActivityCountHint: "Scegli quanti giochi non-Steam Playhub può mostrare nella Home. Massimo 6; 3 è consigliato per le prestazioni.",
+        homeActivityMostRecent: "Più recenti",
+        homeActivityShuffle: "Rimescola",
         scanning: "Scansione...",
         detected: "Giochi non Steam rilevati",
         saved: "Metadata salvati",
@@ -313,6 +350,17 @@ const STRINGS = {
         retroGameNoMatches: "Nessun risultato RetroAchievements per ora.",
         retroGameOk: "Obiettivi caricati",
         retroGameFailed: "Nessun obiettivo caricato. Controlla l'ID gioco RetroAchievements.",
+        retroBulkScan: "Scansiona RetroAchievements",
+        retroBulkScanning: "Scansione RetroAchievements",
+        retroBulkDetecting: "rilevamento match ROM",
+        retroBulkSearching: "ricerca match RetroAchievements",
+        retroBulkApplying: "caricamento lista obiettivi",
+        retroBulkAppliedOne: "obiettivi applicati",
+        retroBulkSkippedOne: "saltato",
+        retroBulkDone: "Scansione RetroAchievements completata",
+        retroBulkApplied: "applicati",
+        retroBulkSkipped: "saltati",
+        retroBulkNothing: "Nessun gioco ROM/emulatore senza RetroAchievements da scansionare.",
         retroDetectFailed: "Nessun match RetroAchievements trovato dal percorso del collegamento.",
         retroHint: "Incolla l'ID numerico RetroAchievements dall'URL della pagina del gioco. Lascialo vuoto per nascondere gli obiettivi di questo gioco.",
         xboxTitle: "Obiettivi Xbox / OpenXBL",
@@ -352,6 +400,18 @@ const STRINGS = {
         achievementCache_weekly: "Ogni settimana",
         achievementCache_pc_session: "Sessione PC",
         achievementCache_manual: "Manualmente",
+        steamActivityTitle: "Metadata attività Steam",
+        steamActivityHint: "Gestisci il titolo Steam usato solo per le attività e le news Home di questo gioco non-Steam.",
+        steamActivityCurrentMatch: "AppID Steam associato",
+        steamActivityNoCurrentMatch: "Nessuna associazione attività Steam per ora.",
+        steamActivityDisabled: "Attività Steam disabilitate per questo gioco.",
+        steamActivitySearchTitle: "Titolo da ricaricare",
+        steamActivityRefetch: "Ricarica dal titolo",
+        steamActivityClear: "Rimuovi associazione",
+        steamActivityItems: "elementi",
+        steamActivityRefetchDone: "Attività Steam aggiornate",
+        steamActivityClearDone: "Associazione attività Steam rimossa",
+        steamActivityNoMatch: "Nessun match attività Steam trovato",
         achievementSourceTitle: "Fonte obiettivi",
         achievementSourceHint: "Auto mantiene RetroAchievements per ROM/emulatori e usa OpenXBL solo per collegamenti probabilmente Xbox/UWPHook.",
         achievementSource_auto: "Auto",
@@ -457,6 +517,38 @@ const BACKGROUND_SYNC_CHECK_MS = 60 * 1000;
 const BACKGROUND_SYNC_INITIAL_DELAY_MS = 20 * 1000;
 const BACKGROUND_SYNC_LOCAL_PREFIX = "playhub-metadata:bg-achievement-sync:last";
 const BACKGROUND_SYNC_SESSION_KEY = "playhub-metadata:bg-achievement-sync:pc-session";
+const PLAYHUB_HOME_ACTIVITY_SETTING_KEY$1 = "playhub-metadata:show-activities-in-home";
+const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT$1 = 3;
+const PLAYHUB_HOME_ACTIVITY_MAX_LIMIT$1 = 6;
+const PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY$1 = "playhub-metadata:home-activity-count";
+const PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY$1 = "playhub-metadata:home-activity-shuffle";
+const PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS = 8500;
+const PLAYHUB_HOME_ACTIVITY_CACHE_TTL_MS = 120000;
+const clampPlayhubHomeActivityLimit = (value) => Math.max(1, Math.min(PLAYHUB_HOME_ACTIVITY_MAX_LIMIT$1, Math.round(Number.isFinite(value) ? value : PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT$1)));
+const readPlayhubHomeActivityEnabled = () => {
+    try {
+        return window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY$1) === "1";
+    }
+    catch (_error) {
+        return false;
+    }
+};
+const readPlayhubHomeActivityLimit = () => {
+    try {
+        return clampPlayhubHomeActivityLimit(Number(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY$1) || PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT$1));
+    }
+    catch (_error) {
+        return PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT$1;
+    }
+};
+const readPlayhubHomeActivityShuffleSeed = () => {
+    try {
+        return String(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY$1) || "");
+    }
+    catch (_error) {
+        return "";
+    }
+};
 const shouldShowAchievements = (appId) => {
     const key = String(appId);
     if (achievementsCache[key]?.steam?.nTotal)
@@ -780,7 +872,7 @@ const steamCommunityItemsFromMetadata = (appId, metadata) => interleavedCommunit
             type: 4,
             title: video.title || `${metadata.title} video`,
             description: video.title || metadata.title || "",
-            preview_image_url: video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+            preview_image_url: video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hq720.jpg`,
             full_image_url: video.url || `https://www.youtube.com/watch?v=${video.id}`,
             youtube_video_id: video.id,
             image_width: 1280,
@@ -862,12 +954,16 @@ const steamNewsRawBodyForModal = (value) => String(value || "")
 const steamAppHeaderImage = (steamAppId) => steamAppId ? `https://cdn.akamai.steamstatic.com/steam/apps/${steamAppId}/header.jpg` : "";
 const steamNewsImageCandidatesForMetadata = (_metadata, news) => {
     const rawSources = Array.isArray(news.image_sources) ? news.image_sources : [];
-    return Array.from(new Set([
+    return uniqueExpandedSteamNewsImageUrls([
+        news.event_header_image_url,
+        news.event_cover_image_url,
+        news.event_spotlight_image_url,
+        news.event_title_image_url,
         news.image,
         news.image_url,
         news.preview_image_url,
         ...rawSources,
-    ].map(cleanSteamImageUrl).filter(Boolean)));
+    ]);
 };
 const normaliseActivityNewsKeyText = (value) => String(value || "")
     .replace(/<[^>]*>/g, " ")
@@ -893,7 +989,7 @@ const uniqueSteamNewsForActivity = (metadata) => {
     })
         .slice(0, 12);
 };
-const steamActivityNewsItemsFromMetadata = (appId, metadata) => uniqueSteamNewsForActivity(metadata)
+const steamActivityNewsItemsFromMetadata = (appId, metadata) => metadata?.steam_activity_disabled ? [] : uniqueSteamNewsForActivity(metadata)
     .map((news, index) => {
     const date = Number(news.date || 0) || Math.floor(Date.now() / 1000) - index * 60;
     const imageCandidates = steamNewsImageCandidatesForMetadata(metadata, news);
@@ -914,6 +1010,7 @@ const steamActivityNewsItemsFromMetadata = (appId, metadata) => uniqueSteamNewsF
         localized_title_image: displayImageUrl,
         localized_capsule_image: displayImageUrl,
         localized_spotlight_image: displayImageUrl,
+        localized_header_image: displayImageUrl,
         localized_summary: summary,
         localized_body: rawBody,
         store_url: url,
@@ -1075,6 +1172,36 @@ const cleanSteamImageUrl = (value) => {
         text = text.replace(/^http:\/\//i, "https://");
     return /^https:\/\//i.test(text) ? text : "";
 };
+const expandedSteamNewsImageUrls = (value) => {
+    const cleaned = cleanSteamImageUrl(value);
+    if (!cleaned)
+        return [];
+    const youtubeMatch = cleaned.match(/https:\/\/i\.ytimg\.com\/vi\/([A-Za-z0-9_-]{11})\/[^?#\s]+/i);
+    if (!youtubeMatch)
+        return [cleaned];
+    const videoId = youtubeMatch[1];
+    // hqdefault is 4:3 and often contains black letterboxing. Prefer 16:9
+    // YouTube stills for Steam activity cards, then fall back progressively.
+    return [
+        `https://i.ytimg.com/vi/${videoId}/hq720.jpg`,
+        `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+        cleaned.replace(/\/(?:maxresdefault|hq720|sddefault|hqdefault|mqdefault|default)\.jpg(?:[?#].*)?$/i, "/hqdefault.jpg"),
+    ];
+};
+const uniqueExpandedSteamNewsImageUrls = (values) => {
+    const out = [];
+    const seen = new Set();
+    values.forEach((value) => {
+        expandedSteamNewsImageUrls(value).forEach((url) => {
+            const cleaned = cleanSteamImageUrl(url);
+            if (cleaned && !seen.has(cleaned)) {
+                seen.add(cleaned);
+                out.push(cleaned);
+            }
+        });
+    });
+    return out;
+};
 const collectSteamNewsImages = (steamAppId, item) => {
     const values = [
         item.image,
@@ -1093,7 +1220,7 @@ const collectSteamNewsImages = (steamAppId, item) => {
         values.push(...item.image_sources);
     // Keep the explicit fallback at the end: cards with no embedded artwork should
     // still show the game header, but embedded/event-specific images stay first.
-    return Array.from(new Set(values.map(cleanSteamImageUrl).filter(Boolean)));
+    return uniqueExpandedSteamNewsImageUrls(values);
 };
 const playhubNativeActivityCache = () => {
     const host = globalThis;
@@ -1274,6 +1401,7 @@ const makePlayhubNativePartnerEvent = (appId, steamAppId, item, index) => {
         localized_title_image: [primaryImage],
         localized_capsule_image: [primaryImage],
         localized_spotlight_image: [primaryImage],
+        localized_header_image: [primaryImage],
         library_spotlight: true,
         library_spotlight_text: true,
         referenced_appids: steamAppId ? [steamAppId] : [],
@@ -1367,8 +1495,8 @@ const makePlayhubNativePartnerEvent = (appId, steamAppId, item, index) => {
         BIsEventInFuture: () => false,
         BHasEventEnded: () => false,
         BIsEventActionEnabled: () => false,
-        BShowLibrarySpotlight: () => false,
-        BShowLibrarySpotlightText: () => false,
+        BShowLibrarySpotlight: () => true,
+        BShowLibrarySpotlightText: () => true,
         BIsImageSafeForAllAges: () => true,
         BHasBroadcastEnabled: () => false,
         BEventCanShowBroadcastWidget: () => false,
@@ -1409,8 +1537,8 @@ const makePlayhubNativePartnerEvent = (appId, steamAppId, item, index) => {
         GetTaggedItems: () => [],
         BHasScheduleEnabled: () => false,
         BAllowedSteamStoreSpotlight: () => false,
-        BHasLibaryHomeSpotlight: () => false,
-        BHasLibraryHomeSpotlight: () => false,
+        BHasLibaryHomeSpotlight: () => true,
+        BHasLibraryHomeSpotlight: () => true,
         BHasSaleProductBanners: () => false,
         GetSteamAwardCategory: () => 0,
         GetSteamAwardNomineeCategories: () => [],
@@ -2127,6 +2255,555 @@ const elementLooksSelected = (element) => {
         current = current.parentElement;
     }
     return false;
+};
+const gameHeaderFallbackForHomeActivity = (appId, metadata) => {
+    const steamAppId = Number(metadata.steam_appid || 0);
+    return (metadata.screenshots || [])[0]?.url || (steamAppId ? steamAppHeaderImage(steamAppId) : "");
+};
+let playhubHomeNativeEventsCache = null;
+const invalidatePlayhubHomeNativeEventsCache = () => {
+    playhubHomeNativeEventsCache = null;
+};
+let playhubHomeImageDimensionRefreshTimer;
+const isLikelyDecorativeHomeActivityImage = (url) => /divider|separator|spacer|rule|line|border|footer|headerbar|header_bar|icon|logo|avatar|profile|emoji|badge|button|transparent|blank|discord/i.test(String(url || ""));
+const isLikelySafeHomeActivityImage = (url) => {
+    const lower = String(url || "").toLowerCase();
+    if (!lower || isLikelyDecorativeHomeActivityImage(lower))
+        return false;
+    return /hq720|maxresdefault|sddefault|header\.jpg|capsule|spotlight|library|hero|store_item_assets|cdn\.akamai\.steamstatic|clan\.cloudflare\.steamstatic|1920|1600|1280|1200|1080|800|720|roadmap|calendar|wide|banner/.test(lower);
+};
+const homeActivityImageScore = (url, isFallback = false) => {
+    const clean = cleanSteamImageUrl(url || "");
+    if (!clean)
+        return -1e5;
+    const lower = clean.toLowerCase();
+    if (!isFallback && isLikelyDecorativeHomeActivityImage(lower))
+        return -1e5;
+    let score = isFallback ? 240 : 0;
+    // Prefer Steam event assets that are already intended for Steam surfaces.
+    // The backend places localized_header_image/cover-derived URLs first. Avoid
+    // client-side Image() probing here: it made the Home rail visibly sluggish.
+    if (/localized_header|header_image|event_header|header/.test(lower))
+        score += 360;
+    if (/capsule|spotlight|library|hero|banner/.test(lower))
+        score += isFallback ? 70 : 210;
+    if (/hq720|maxresdefault/.test(lower))
+        score += 190;
+    if (/sddefault/.test(lower))
+        score += 90;
+    if (/roadmap|calendar|schedule|content|update|patch|event|events|screenshot|preview|wide/.test(lower))
+        score += 70;
+    if (/store_capsule|small_capsule|capsule_sm|icon|logo|avatar|badge/.test(lower))
+        score -= 240;
+    if (/\b(?:800x450|1920x622|1920|1600|1280|1200|1080|720)\b/.test(lower))
+        score += 60;
+    return isLikelySafeHomeActivityImage(clean) || isFallback ? score : score - 260;
+};
+const homeSafeImageForActivity = (appId, steamAppId, metadata, item) => {
+    const preferredNativeAssets = uniqueExpandedSteamNewsImageUrls([
+        item.event_header_image_url,
+        item.event_cover_image_url,
+        item.event_spotlight_image_url,
+        item.event_title_image_url,
+    ]).map((url) => normalizeSteamNewsImageUrl(url)).filter(Boolean);
+    // For the Home rail, prefer the same native event header Steam shows at the
+    // very top of the event viewer. Body images are still fallbacks, but they no
+    // longer outrank the curated event assets because tall article images can break
+    // the Steam Home layout.
+    if (preferredNativeAssets[0])
+        return preferredNativeAssets[0];
+    const fallback = normalizeSteamNewsImageUrl(item.fallback_image_url || item.header_image_url || gameHeaderFallbackForHomeActivity(appId, metadata)) || (steamAppId ? steamAppHeaderImage(steamAppId) : "");
+    const candidates = Array.from(new Set(steamNewsImageCandidatesForMetadata(metadata, item)
+        .map((url) => normalizeSteamNewsImageUrl(url))
+        .filter(Boolean)));
+    const scored = candidates
+        .map((url) => ({ url, score: homeActivityImageScore(url, false) }))
+        .filter((row) => row.score > -1e3)
+        .sort((a, b) => b.score - a.score);
+    return scored[0]?.url || fallback || "";
+};
+const clonePlayhubNativeEventForHome = (event, imageUrl) => {
+    const image = cleanSteamImageUrl(imageUrl || "");
+    const images = image ? [image] : [];
+    const clone = {
+        ...event,
+        jsondata: {
+            ...(event?.jsondata || {}),
+            localized_title_image: images,
+            localized_capsule_image: images,
+            localized_spotlight_image: images,
+            localized_header_image: images,
+            library_spotlight: true,
+            library_spotlight_text: true,
+        },
+        __playhubNativeHomeWhatsNew: true,
+        __playhubNativePartnerEvent: true,
+    };
+    clone.GetImgArray = () => images;
+    clone.GetImageFromBeginningOfDescription = () => "";
+    clone.GetImageURL = () => image;
+    clone.GetImageURLWithFallback = () => image;
+    clone.GetImageForSizeAsArrayWithFallback = () => images;
+    clone.BImageNeedScreenshotFallback = () => !image;
+    clone.BHasSomeImage = () => !!image;
+    clone.BHasImage = () => !!image;
+    clone.GetFallbackArtworkScreenshot = () => image;
+    clone.BShowLibrarySpotlight = () => true;
+    clone.BShowLibrarySpotlightText = () => true;
+    clone.BHasLibaryHomeSpotlight = () => true;
+    clone.BHasLibraryHomeSpotlight = () => true;
+    return clone;
+};
+const playhubHomeItemDedupKey = (item) => {
+    const gid = numericSteamNewsGid(item?.event_gid || item?.announcement_gid || item?.news_id || item?.gid || item?.id || "");
+    if (gid && gid !== "0")
+        return `gid:${gid}`;
+    const url = String(item?.url || item?.external_url || item?.link || "").replace(/[?#].*$/, "").toLowerCase();
+    if (url)
+        return `url:${url}`;
+    const title = normaliseActivityNewsKeyText(item?.title || item?.event_name || item?.headline || "");
+    const day = Math.floor((Number(item?.date || item?.posttime || item?.published || 0) || 0) / 86400);
+    return title ? `title:${title}|${day}` : "";
+};
+const PLAYHUB_HOME_DIVERSITY_STOPWORDS = new Set([
+    "the", "and", "with", "for", "from", "into", "your", "you", "game", "games", "edition", "deluxe",
+    "definitive", "enhanced", "remastered", "remaster", "complete", "ultimate", "standard", "goty",
+    "demo", "beta", "alpha", "legacy", "windows", "steam", "playhub", "of", "di", "del", "della",
+    "dei", "degli", "gli", "con", "per", "editione", "edizione", "collection", "bundle", "pack", "episode"
+]);
+const playhubHomeDiversityTokens = (title) => {
+    const normalised = String(title || "")
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/['’`´]/g, "")
+        .replace(/\b(?:i{1,3}|iv|v|vi{0,3}|ix|x|xi|xii|xiii|xiv|xv)\b/g, " ")
+        .replace(/\b\d+(?:st|nd|rd|th)?\b/g, " ")
+        .replace(/[^a-z0-9]+/g, " ");
+    const tokens = normalised
+        .split(/\s+/)
+        .map((token) => token.trim())
+        .filter((token) => token.length >= 3 && !PLAYHUB_HOME_DIVERSITY_STOPWORDS.has(token));
+    return Array.from(new Set(tokens));
+};
+const playhubHomeRowGameTitle = (row) => String(row.metadata?.title || appName(row.appId) || row.metadata?.steam_activity_title || "");
+const playhubHomeRowSeriesKey = (row) => {
+    const tokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(row));
+    if (!tokens.length)
+        return `app:${row.appId}`;
+    // One-token franchises such as Mafia must be treated as one family; two-token
+    // franchises such as Forza Horizon / Tomb Raider should also stay together.
+    return tokens.length === 1 ? tokens[0] : `${tokens[0]} ${tokens[1]}`;
+};
+const playhubHomeRowTitleKey = (row) => {
+    const title = normaliseActivityNewsKeyText(row.item?.title || row.item?.event_name || row.item?.headline || "");
+    if (!title)
+        return "";
+    const day = Math.floor((Number(row.date || row.item?.date || row.item?.posttime || row.item?.published || 0) || 0) / 86400);
+    return `${title}|${day}`;
+};
+const stablePlayhubHash = (value) => {
+    let hash = 2166136261;
+    for (let index = 0; index < value.length; index += 1) {
+        hash ^= value.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+    return hash >>> 0;
+};
+const playhubHomeShuffleValue = (row, seed) => stablePlayhubHash(`${seed}|${row.appId}|${row.key || playhubHomeItemDedupKey(row.item) || ""}`);
+const arePlayhubHomeRowsTooSimilar = (a, b) => {
+    if (a.appId === b.appId)
+        return true;
+    if (playhubHomeRowSeriesKey(a) === playhubHomeRowSeriesKey(b))
+        return true;
+    const aTokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(a));
+    const bTokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(b));
+    if (!aTokens.length || !bTokens.length)
+        return false;
+    const bSet = new Set(bTokens);
+    const common = aTokens.filter((token) => bSet.has(token)).length;
+    if (common < 1)
+        return false;
+    const overlap = common / Math.min(aTokens.length, bTokens.length);
+    const jaccard = common / new Set([...aTokens, ...bTokens]).size;
+    return overlap >= 0.5 || jaccard >= 0.34;
+};
+const selectDiversePlayhubHomeRows = (rows, limit) => {
+    const seed = readPlayhubHomeActivityShuffleSeed();
+    const ordered = rows.slice().sort((a, b) => {
+        if (seed)
+            return playhubHomeShuffleValue(a, seed) - playhubHomeShuffleValue(b, seed);
+        return Number(b.date || 0) - Number(a.date || 0);
+    });
+    const selected = [];
+    const usedAppIds = new Set();
+    const usedSteamAppIds = new Set();
+    const usedSeries = new Set();
+    const usedNewsTitles = new Set();
+    const tryAdd = (row, strictSeries, strictNews) => {
+        if (selected.length >= limit)
+            return true;
+        if (usedAppIds.has(row.appId))
+            return false;
+        const steamAppId = Number(row.steamAppId || 0);
+        if (steamAppId && usedSteamAppIds.has(steamAppId))
+            return false;
+        const seriesKey = playhubHomeRowSeriesKey(row);
+        if (strictSeries && usedSeries.has(seriesKey))
+            return false;
+        if (strictSeries && selected.some((candidate) => arePlayhubHomeRowsTooSimilar(row, candidate)))
+            return false;
+        const newsKey = playhubHomeRowTitleKey(row);
+        if (strictNews && newsKey && usedNewsTitles.has(newsKey))
+            return false;
+        selected.push(row);
+        usedAppIds.add(row.appId);
+        if (steamAppId)
+            usedSteamAppIds.add(steamAppId);
+        if (seriesKey)
+            usedSeries.add(seriesKey);
+        if (newsKey)
+            usedNewsTitles.add(newsKey);
+        return selected.length >= limit;
+    };
+    // Pass 1: one per franchise/series and one per news title. This is the normal path.
+    for (const row of ordered)
+        if (tryAdd(row, true, true))
+            return selected;
+    // Pass 2: allow same news headline only if there are not enough different headlines.
+    for (const row of ordered)
+        if (tryAdd(row, true, false))
+            return selected;
+    // Pass 3: final fallback. Still avoid same app/Steam AppID, but do not leave Home empty.
+    for (const row of ordered)
+        if (tryAdd(row, false, false))
+            return selected;
+    return selected.slice(0, limit);
+};
+const playhubHomeNativePartnerEvents = () => {
+    const enabled = readPlayhubHomeActivityEnabled();
+    const limit = readPlayhubHomeActivityLimit();
+    const shuffleSeed = readPlayhubHomeActivityShuffleSeed();
+    const now = Date.now();
+    if (playhubHomeNativeEventsCache &&
+        playhubHomeNativeEventsCache.enabled === enabled &&
+        playhubHomeNativeEventsCache.limit === limit &&
+        playhubHomeNativeEventsCache.shuffleSeed === shuffleSeed &&
+        now - playhubHomeNativeEventsCache.builtAt < PLAYHUB_HOME_ACTIVITY_CACHE_TTL_MS) {
+        return playhubHomeNativeEventsCache.events;
+    }
+    if (!enabled) {
+        playhubHomeNativeEventsCache = { builtAt: now, enabled, limit, shuffleSeed, events: [] };
+        return [];
+    }
+    const rows = [];
+    for (const [key, metadata] of Object.entries(metadataCache)) {
+        const appId = Number(key);
+        const overview = getOverview(appId);
+        if (!appId || !metadata || !isNonSteamApp(overview))
+            continue;
+        const typedMetadata = metadata;
+        const steamAppId = Number(typedMetadata.steam_appid || 0) || appId;
+        steamActivityNewsItemsFromMetadata(appId, typedMetadata).slice(0, 1).forEach((item, index) => {
+            const dedupKey = playhubHomeItemDedupKey(item);
+            if (!dedupKey)
+                return;
+            rows.push({
+                appId,
+                steamAppId,
+                metadata: typedMetadata,
+                item,
+                index,
+                key: dedupKey,
+                date: Number(item?.date || item?.posttime || item?.published || 0) || 0,
+            });
+        });
+    }
+    const seenRows = new Set();
+    const events = [];
+    const uniqueRows = rows
+        .sort((a, b) => b.date - a.date)
+        .filter((row) => {
+        const titleKey = playhubHomeRowTitleKey(row);
+        const dedupKeys = [row.key, titleKey].filter(Boolean);
+        if (dedupKeys.some((key) => seenRows.has(key)))
+            return false;
+        dedupKeys.forEach((key) => seenRows.add(key));
+        return true;
+    });
+    selectDiversePlayhubHomeRows(uniqueRows, limit)
+        .forEach((row) => {
+        try {
+            const baseEvent = makePlayhubNativePartnerEvent(row.appId, row.steamAppId, row.item, row.index);
+            if (baseEvent) {
+                events.push(clonePlayhubNativeEventForHome(baseEvent, homeSafeImageForActivity(row.appId, row.steamAppId, row.metadata, row.item)));
+            }
+        }
+        catch (error) {
+            console.warn("[Playhub Metadata] unable to build native Home activity", error);
+        }
+    });
+    playhubHomeNativeEventsCache = { builtAt: now, enabled, limit, shuffleSeed, events };
+    return events;
+};
+const playhubHomeEventDedupKey = (event) => {
+    const gid = numericSteamNewsGid(event?.GID || event?.gid || event?.AnnouncementGID || event?.announcement_gid || event?.event_gid || "");
+    if (gid && gid !== "0")
+        return `gid:${gid}`;
+    const url = String(event?.url || event?.GetStoreOrCommunityURL?.() || event?.GetStoreNewsURL?.() || "").replace(/[?#].*$/, "").toLowerCase();
+    if (url)
+        return `url:${url}`;
+    const title = normaliseActivityNewsKeyText(event?.GetNameWithFallback?.() || event?.event_name || event?.title || "");
+    const day = Math.floor((Number(event?.GetPostTimeAndDateUnixSeconds?.() || event?.postTime || event?.date || 0) || 0) / 86400);
+    return title ? `title:${title}|${day}` : "";
+};
+const mergePlayhubHomeEventArrays = (originalEvents, playhubEvents = playhubHomeNativePartnerEvents()) => {
+    if (!readPlayhubHomeActivityEnabled() || !playhubEvents.length) {
+        return Array.isArray(originalEvents) ? originalEvents.filter((event) => !event?.__playhubNativeHomeWhatsNew) : [];
+    }
+    const seen = new Set();
+    const merged = [];
+    const add = (event) => {
+        if (!event)
+            return;
+        const key = playhubHomeEventDedupKey(event);
+        if (!key || key.endsWith(":") || seen.has(key))
+            return;
+        seen.add(key);
+        merged.push(event);
+    };
+    playhubEvents.forEach(add);
+    (Array.isArray(originalEvents) ? originalEvents : [])
+        .filter((event) => !event?.__playhubNativeHomeWhatsNew)
+        .forEach(add);
+    return merged;
+};
+const mergePlayhubHomeNativeEvents = (result) => {
+    if (!result || !readPlayhubHomeActivityEnabled())
+        return result;
+    const playhubEvents = playhubHomeNativePartnerEvents();
+    if (!playhubEvents.length)
+        return result;
+    const originalEvents = Array.isArray(result.eventsToShow) ? result.eventsToShow : [];
+    if (originalEvents.some((event) => event?.__playhubNativeHomeWhatsNew))
+        return result;
+    return {
+        ...result,
+        __playhubNativeHomeWhatsNewMerged: true,
+        bEventsLoaded: true,
+        bInitialLoadPending: false,
+        eventsToShow: mergePlayhubHomeEventArrays(originalEvents, playhubEvents),
+    };
+};
+const replaceSteamObservableArray = (target, values) => {
+    if (!target)
+        return false;
+    try {
+        if (typeof target.replace === "function") {
+            target.replace(values);
+            return true;
+        }
+        if (Array.isArray(target) || typeof target.splice === "function") {
+            target.splice(0, target.length, ...values);
+            return true;
+        }
+    }
+    catch (error) {
+        console.warn("[Playhub Metadata] unable to replace native Home event array", error);
+    }
+    return false;
+};
+const syncPlayhubHomeEventsIntoNativeStore = (store) => {
+    const libraryStore = store || globalThis.libraryEventStore || globalThis.window?.libraryEventStore;
+    if (!libraryStore?.m_vecHomeBestEventsForUser)
+        return false;
+    const current = Array.from(libraryStore.m_vecHomeBestEventsForUser || []);
+    const cleanCurrent = current.filter((event) => !event?.__playhubNativeHomeWhatsNew);
+    const next = readPlayhubHomeActivityEnabled()
+        ? mergePlayhubHomeEventArrays(cleanCurrent, playhubHomeNativePartnerEvents())
+        : cleanCurrent;
+    const changed = next.length !== current.length || next.some((event, index) => event !== current[index]);
+    if (!changed)
+        return true;
+    const replaced = replaceSteamObservableArray(libraryStore.m_vecHomeBestEventsForUser, next);
+    if (replaced) {
+        try {
+            libraryStore.m_bEventsLoaded = true;
+            libraryStore.m_bInitialLoadPending = false;
+        }
+        catch (_error) {
+            // Best effort only; the observable array mutation is the important part.
+        }
+    }
+    return replaced;
+};
+const findSteamWhatsNewHookModule = () => {
+    try {
+        return DFL.findModuleChild((module) => {
+            if (!module || typeof module !== "object")
+                return undefined;
+            if (typeof module.yX === "function" && module.dm && module.IB)
+                return module;
+            for (const prop in module) {
+                const candidate = module[prop];
+                if (candidate && typeof candidate === "object" && typeof candidate.yX === "function" && candidate.dm && candidate.IB) {
+                    return candidate;
+                }
+            }
+            return undefined;
+        });
+    }
+    catch (_error) {
+        return null;
+    }
+};
+const clearPlayhubHomeActivityCards = () => {
+    deepQuerySelectorAll("[data-playhub-home-activity='1']").forEach((element) => element.remove());
+};
+const installPlayhubHomeActivityPatch = (unpatchers) => {
+    // Native-only Home integration. Keep this deliberately light: no DOM cards,
+    // no method-patching loops, and no refresh-on-click. We only merge a small,
+    // cached set of Playhub events into Steam's native event payload/store.
+    clearPlayhubHomeActivityCards();
+    let attempts = 0;
+    let patchedModule = null;
+    let originalHook = null;
+    let refreshTimer;
+    const startupSyncTimers = [];
+    let startupSyncScheduled = false;
+    let refreshRunning = false;
+    let refreshQueued = false;
+    const nativeStore = () => patchedModule?.dm || globalThis.libraryEventStore || globalThis.window?.libraryEventStore;
+    const refreshNativeHomeStore = async () => {
+        const store = nativeStore();
+        if (!store)
+            return;
+        if (refreshRunning) {
+            refreshQueued = true;
+            return;
+        }
+        refreshRunning = true;
+        try {
+            await ensureMetadataCache();
+            syncPlayhubHomeEventsIntoNativeStore(store);
+        }
+        catch (error) {
+            console.warn("[Playhub Metadata] unable to sync native Home activities", error);
+        }
+        finally {
+            refreshRunning = false;
+            if (refreshQueued) {
+                refreshQueued = false;
+                scheduleRefreshNativeHomeStore(PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS);
+            }
+        }
+    };
+    function scheduleRefreshNativeHomeStore(delay = PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS) {
+        if (refreshTimer)
+            window.clearTimeout(refreshTimer);
+        refreshTimer = window.setTimeout(refreshNativeHomeStore, delay);
+    }
+    const scheduleStartupHomeSyncs = () => {
+        if (startupSyncScheduled)
+            return;
+        startupSyncScheduled = true;
+        [900, 2800, 7000, 16000].forEach((delay) => {
+            const timer = window.setTimeout(() => {
+                if (readPlayhubHomeActivityEnabled()) {
+                    invalidatePlayhubHomeNativeEventsCache();
+                    void refreshNativeHomeStore();
+                }
+            }, delay);
+            startupSyncTimers.push(timer);
+        });
+    };
+    const patchOne = (homeModule) => {
+        const store = homeModule?.dm || globalThis.libraryEventStore || globalThis.window?.libraryEventStore;
+        if (!homeModule && !store)
+            return false;
+        if (homeModule && typeof homeModule.yX === "function" && !homeModule.__playhubNativeHomeWhatsNewPatched) {
+            originalHook = homeModule.yX;
+            const patchedHook = function patchedPlayhubNativeHomeWhatsNewHook(...args) {
+                const result = originalHook.apply(this, args);
+                return mergePlayhubHomeNativeEvents(result);
+            };
+            patchedHook.__playhubOriginalHook = originalHook;
+            try {
+                homeModule.yX = patchedHook;
+            }
+            catch (_error) {
+                try {
+                    Object.defineProperty(homeModule, "yX", { value: patchedHook, configurable: true, writable: true });
+                }
+                catch (error) {
+                    console.warn("[Playhub Metadata] unable to patch native Home Whats New hook", error);
+                }
+            }
+            homeModule.__playhubNativeHomeWhatsNewPatched = true;
+        }
+        patchedModule = homeModule || { dm: store };
+        scheduleRefreshNativeHomeStore(900);
+        scheduleStartupHomeSyncs();
+        return true;
+    };
+    const tryInstall = () => patchOne(findSteamWhatsNewHookModule() || { dm: globalThis.libraryEventStore || globalThis.window?.libraryEventStore });
+    if (!tryInstall()) {
+        const timer = window.setInterval(() => {
+            attempts += 1;
+            if (tryInstall() || attempts >= 24)
+                window.clearInterval(timer);
+        }, 1000);
+        unpatchers.push(() => window.clearInterval(timer));
+    }
+    const onNativeHomeRefreshSignal = () => {
+        invalidatePlayhubHomeNativeEventsCache();
+        scheduleRefreshNativeHomeStore();
+    };
+    window.addEventListener("playhub-metadata:updated", onNativeHomeRefreshSignal);
+    window.addEventListener("playhub-metadata:activity-refreshed", onNativeHomeRefreshSignal);
+    window.addEventListener("playhub-metadata:home-activity-setting-changed", onNativeHomeRefreshSignal);
+    unpatchers.push(() => {
+        if (refreshTimer)
+            window.clearTimeout(refreshTimer);
+        startupSyncTimers.forEach((timer) => window.clearTimeout(timer));
+        startupSyncTimers.length = 0;
+        window.removeEventListener("playhub-metadata:updated", onNativeHomeRefreshSignal);
+        window.removeEventListener("playhub-metadata:activity-refreshed", onNativeHomeRefreshSignal);
+        window.removeEventListener("playhub-metadata:home-activity-setting-changed", onNativeHomeRefreshSignal);
+        if (playhubHomeImageDimensionRefreshTimer)
+            window.clearTimeout(playhubHomeImageDimensionRefreshTimer);
+        playhubHomeImageDimensionRefreshTimer = undefined;
+        const store = nativeStore();
+        if (store?.m_vecHomeBestEventsForUser) {
+            const clean = Array.from(store.m_vecHomeBestEventsForUser || []).filter((event) => !event?.__playhubNativeHomeWhatsNew);
+            replaceSteamObservableArray(store.m_vecHomeBestEventsForUser, clean);
+        }
+        if (patchedModule && originalHook && patchedModule.yX?.__playhubOriginalHook === originalHook) {
+            patchedModule.yX = originalHook;
+            patchedModule.__playhubNativeHomeWhatsNewPatched = false;
+        }
+        invalidatePlayhubHomeNativeEventsCache();
+        clearPlayhubHomeActivityCards();
+    });
+};
+const normalizeSteamNewsImageUrl = (value, _steamAppId) => {
+    let url = String(value || "").trim().replace(/\\\//g, "/");
+    try {
+        url = decodeURIComponent(url);
+    }
+    catch (_error) {
+        // Keep original URL if it is not URI-encoded.
+    }
+    const clan = url.match(/\{STEAM_CLAN(?:_[A-Z]+)*_?IMAGE\}\/(\d+)\/([^\s<>\)\]\[]+)/i);
+    if (clan)
+        return `https://clan.cloudflare.steamstatic.com/images/${clan[1]}/${clan[2]}`;
+    if (url.startsWith("//"))
+        return `https:${url}`;
+    if (/^http:\/\//i.test(url))
+        return url.replace(/^http:\/\//i, "https://");
+    if (/^https:\/\//i.test(url))
+        return url;
+    return "";
 };
 const communityPayloadForApp = async (appId) => {
     const overview = getOverview(appId);
@@ -3061,6 +3738,7 @@ const installSteamPatches = () => {
     // intentionally native-only.
     installNativeActivityStorePatch(unpatchers);
     installNativePartnerEventStorePatch(unpatchers);
+    installPlayhubHomeActivityPatch(unpatchers);
     const activityRefreshedListener = () => {
         playhubNativeActivityCache().clear();
         playhubNativePartnerEventCache().clear();
@@ -3721,6 +4399,79 @@ const achievementCachePolicies = [
     "pc_session",
     "manual",
 ];
+const PLAYHUB_HOME_ACTIVITY_SETTING_KEY = "playhub-metadata:show-activities-in-home";
+const PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY = "playhub-metadata:home-activity-count";
+const PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY = "playhub-metadata:home-activity-shuffle";
+const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT = 3;
+const PLAYHUB_HOME_ACTIVITY_MAX_LIMIT = 6;
+const clampHomeActivityCount = (value) => Math.max(1, Math.min(PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, Math.round(Number.isFinite(value) ? value : PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT)));
+const readHomeActivityCount = () => {
+    try {
+        return clampHomeActivityCount(Number(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY) || PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT));
+    }
+    catch (_error) {
+        return PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT;
+    }
+};
+const readShowActivitiesInHome = () => {
+    try {
+        return window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY) === "1";
+    }
+    catch (_error) {
+        return false;
+    }
+};
+const setShowActivitiesInHomeSetting = (enabled) => {
+    try {
+        window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY, enabled ? "1" : "0");
+    }
+    catch (_error) {
+        // Steam's embedded browser may reject storage in unusual states; keep UI optimistic.
+    }
+    window.dispatchEvent(new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+        detail: { enabled },
+    }));
+    window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+const shuffleHomeActivitiesSetting = () => {
+    const value = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+    try {
+        window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY, value);
+    }
+    catch (_error) {
+        // localStorage can fail in odd embedded contexts; the event still asks Steam to resync.
+    }
+    window.dispatchEvent(new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+        detail: { shuffle: value },
+    }));
+    window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+const resetHomeActivitiesToMostRecentSetting = () => {
+    try {
+        window.localStorage.removeItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY);
+    }
+    catch (_error) {
+        // localStorage can fail in odd embedded contexts; the event still asks Steam to resync.
+    }
+    window.dispatchEvent(new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+        detail: { shuffle: "" },
+    }));
+    window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+const setHomeActivityCountSetting = (count) => {
+    const clamped = clampHomeActivityCount(count);
+    try {
+        window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY, String(clamped));
+    }
+    catch (_error) {
+        // Steam's embedded browser may reject storage in unusual states; keep UI optimistic.
+    }
+    window.dispatchEvent(new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+        detail: { count: clamped },
+    }));
+    window.dispatchEvent(new Event("playhub-metadata:updated"));
+    return clamped;
+};
 const useNonSteamGames = () => {
     const [games, setGames] = SP_REACT.useState([]);
     const loadGames = SP_REACT.useCallback(async () => {
@@ -3738,8 +4489,12 @@ const Content = () => {
     const [scanMessage, setScanMessage] = SP_REACT.useState("");
     const [activityBusy, setActivityBusy] = SP_REACT.useState(false);
     const [activityMessage, setActivityMessage] = SP_REACT.useState("");
+    const [showActivitiesInHome, setShowActivitiesInHome] = SP_REACT.useState(readShowActivitiesInHome);
+    const [homeActivityCount, setHomeActivityCount] = SP_REACT.useState(readHomeActivityCount);
     const [xboxBulkBusy, setXboxBulkBusy] = SP_REACT.useState(false);
     const [xboxBulkMessage, setXboxBulkMessage] = SP_REACT.useState("");
+    const [raBulkBusy, setRaBulkBusy] = SP_REACT.useState(false);
+    const [raBulkMessage, setRaBulkMessage] = SP_REACT.useState("");
     const [ra, setRa] = SP_REACT.useState({
         enabled: false,
         username: "",
@@ -3819,6 +4574,128 @@ const Content = () => {
         catch (error) {
             setActivityBusy(false);
             toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+    };
+    const retroAchievementLaunchText = (game) => [game.exe, game.start_dir, game.launch_options, game.shortcut_path, game.name]
+        .map((value) => String(value || ""))
+        .filter(Boolean)
+        .join(" ");
+    const isLikelyRetroAchievementsTarget = (game, source = "auto") => {
+        if (isUwphookGameOption(game))
+            return false;
+        const text = retroAchievementLaunchText(game).toLowerCase().replace(/\\/g, "/");
+        const emulatorHints = [
+            "retroarch",
+            "emulationstation",
+            "emudeck",
+            "launchbox",
+            "pcsx2",
+            "duckstation",
+            "swanstation",
+            "dolphin",
+            "ppsspp",
+            "mame",
+            "fbneo",
+            "finalburn",
+            "fightcade",
+            "mupen",
+            "parallel",
+            "melonds",
+            "desmume",
+            "mgba",
+            "snes9x",
+            "bsnes",
+            "nestopia",
+            "flycast",
+            "redream",
+        ];
+        const romHints = [
+            ".zip", ".7z", ".iso", ".rvz", ".wbfs", ".bin", ".chd", ".cue", ".img", ".pbp",
+            ".z64", ".n64", ".v64", ".nds", ".gba", ".gbc", ".gb",
+            ".sfc", ".smc", ".nes", ".fds", ".cdi", ".gdi", ".m3u",
+            "/roms/", "\\roms\\",
+        ];
+        if (emulatorHints.some((hint) => text.includes(hint)))
+            return true;
+        if (romHints.some((hint) => text.includes(hint.toLowerCase())))
+            return true;
+        return source === "retroachievements";
+    };
+    const scanRetroAchievements = async () => {
+        if (raBulkBusy || xboxBulkBusy || busy)
+            return;
+        if (!ra.enabled || !ra.api_key.trim()) {
+            toaster.toast({ title: t("pluginName"), body: t("retroLoginFailed") });
+            return;
+        }
+        const settings = await getAchievementSettings();
+        const sources = settings.achievement_sources || {};
+        const existingIds = settings.retroachievements.game_ids || {};
+        const targets = games.filter((game) => {
+            const key = String(game.appid);
+            const source = sources[key] || "auto";
+            if (source === "disabled" || source === "xbox")
+                return false;
+            if (existingIds[key])
+                return false;
+            return isLikelyRetroAchievementsTarget(game, source);
+        });
+        if (!targets.length) {
+            toaster.toast({ title: t("pluginName"), body: t("retroBulkNothing") });
+            return;
+        }
+        setRaBulkBusy(true);
+        setRaBulkMessage(`${t("retroBulkScanning")}: 0/${targets.length}`);
+        let assigned = 0;
+        let skipped = 0;
+        try {
+            for (let index = 0; index < targets.length; index += 1) {
+                const game = targets[index];
+                const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setRaBulkMessage(`${prefix}: ${t("retroBulkDetecting")}`);
+                try {
+                    let payload = await resolveRetroAchievementsFromPath(game.appid, retroAchievementLaunchText(game), game.name);
+                    if (!payload?.steam?.nTotal) {
+                        setRaBulkMessage(`${prefix}: ${t("retroBulkSearching")}`);
+                        const results = await searchRetroAchievementsGames(game.name, 8, game.appid);
+                        const best = results[0];
+                        if (best && best.score >= 0.78) {
+                            await setRetroAchievementsGameId(game.appid, best.id);
+                            await setAchievementSource(game.appid, "retroachievements");
+                            clearAchievementsForApp(game.appid);
+                            setRaBulkMessage(`${prefix}: ${t("retroBulkApplying")}`);
+                            payload = await fetchAchievements(game.appid);
+                        }
+                    }
+                    else {
+                        await setAchievementSource(game.appid, "retroachievements");
+                    }
+                    if (payload?.steam?.nTotal) {
+                        applyAchievementPayload(game.appid, payload);
+                        assigned += 1;
+                        setRaBulkMessage(`${prefix}: ${t("retroBulkAppliedOne")}`);
+                    }
+                    else {
+                        skipped += 1;
+                        setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+                    }
+                }
+                catch (_error) {
+                    skipped += 1;
+                    setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+                }
+            }
+            const refreshed = await getAchievementSettings();
+            setRa(refreshed.retroachievements);
+            await refreshRaSettings();
+            setRaBulkMessage(`${t("retroBulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`);
+            toaster.toast({
+                title: t("pluginName"),
+                body: `${t("retroBulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`,
+            });
+        }
+        finally {
+            setRaBulkBusy(false);
         }
     };
     const saveRaSettings = async (next) => {
@@ -4008,7 +4885,13 @@ const Content = () => {
             setXboxBulkBusy(false);
         }
     };
-    return (SP_JSX.jsxs(DFL.PanelSection, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("detected"), ":"] }), " ", games.length] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("saved"), ":"] }), " ", metadataCount] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("missing"), ":"] }), " ", missing] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || !games.length, onClick: scanMissing, children: busy ? t("scanning") : t("scanMissing") }), busy || scanMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: scanMessage || t("scanning") })) : null] }), SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: activityBusy || busy || !games.length, onClick: refreshActivities, children: activityBusy ? t("refreshingActivities") : t("refreshActivities") }), activityBusy || activityMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: activityMessage || t("refreshingActivities") })) : null] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("retroTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("retroEnabled"), checked: ra.enabled, onChange: (checked) => void saveRaSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroLoginHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroUser") }), SP_JSX.jsx(DFL.TextField, { value: ra.username, onChange: (e) => setRa((prev) => ({ ...prev, username: e.target.value })), onBlur: () => void saveRaSettings({ username: ra.username }), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroKey") }), SP_JSX.jsx(DFL.TextField, { value: ra.api_key, onChange: (e) => setRa((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveRaSettings({ api_key: ra.api_key }), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testRaLogin, children: t("retroLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openRetroAchievements, children: t("retroCreateAccount") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("xboxTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("xboxProfile") }), SP_JSX.jsx(DFL.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? (SP_JSX.jsx("div", { style: compactTextStyle, children: xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn") })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: t("xboxLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: t("xboxOpenOpenXbl") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: t("xboxSyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || !games.length, onClick: clearAllXboxMatches, children: t("xboxClearAll") }), xboxBulkBusy || xboxBulkMessage ? (SP_JSX.jsxs("div", { style: inlineStatusStyle, children: [xboxBulkBusy ? SP_JSX.jsx(DFL.Spinner, {}) : null, SP_JSX.jsx("span", { children: xboxBulkMessage })] })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("achievementCacheTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("achievementCacheHint") }), SP_JSX.jsx("div", { style: buttonRowStyle, children: achievementCachePolicies.map((policy) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementCachePolicy(policy), style: {
+    return (SP_JSX.jsxs(DFL.PanelSection, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("detected"), ":"] }), " ", games.length] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("saved"), ":"] }), " ", metadataCount] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("missing"), ":"] }), " ", missing] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || !games.length, onClick: scanMissing, children: busy ? t("scanning") : t("scanMissing") }), busy || scanMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: scanMessage || t("scanning") })) : null] }), SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: activityBusy || busy || !games.length, onClick: refreshActivities, children: activityBusy ? t("refreshingActivities") : t("refreshActivities") }), activityBusy || activityMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: activityMessage || t("refreshingActivities") })) : null] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx(DFL.ToggleField, { label: t("showActivitiesInHome"), checked: showActivitiesInHome, onChange: (checked) => {
+                                setShowActivitiesInHome(checked);
+                                setShowActivitiesInHomeSetting(checked);
+                            } }), SP_JSX.jsx(DFL.SliderField, { label: t("homeActivityCount"), value: homeActivityCount, min: 1, max: PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, step: 1, notchCount: PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, notchTicksVisible: true, showValue: true, onChange: (value) => {
+                                const clamped = setHomeActivityCountSetting(value);
+                                setHomeActivityCount(clamped);
+                            } }), SP_JSX.jsx("div", { style: compactTextStyle, children: t("homeActivityCountHint") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: resetHomeActivitiesToMostRecentSetting, children: t("homeActivityMostRecent") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: shuffleHomeActivitiesSetting, children: t("homeActivityShuffle") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("retroTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("retroEnabled"), checked: ra.enabled, onChange: (checked) => void saveRaSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroLoginHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroUser") }), SP_JSX.jsx(DFL.TextField, { value: ra.username, onChange: (e) => setRa((prev) => ({ ...prev, username: e.target.value })), onBlur: () => void saveRaSettings({ username: ra.username }), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroKey") }), SP_JSX.jsx(DFL.TextField, { value: ra.api_key, onChange: (e) => setRa((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveRaSettings({ api_key: ra.api_key }), style: fieldStyle })] }) }), SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testRaLogin, children: t("retroLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openRetroAchievements, children: t("retroCreateAccount") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: scanRetroAchievements, children: raBulkBusy ? t("retroBulkScanning") : t("retroBulkScan") })] }), raBulkBusy || raBulkMessage ? (SP_JSX.jsxs("div", { style: inlineStatusStyle, children: [raBulkBusy ? SP_JSX.jsx(DFL.Spinner, {}) : null, SP_JSX.jsx("span", { children: raBulkMessage })] })) : null] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("xboxTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("xboxProfile") }), SP_JSX.jsx(DFL.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? (SP_JSX.jsx("div", { style: compactTextStyle, children: xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn") })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: t("xboxLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: t("xboxOpenOpenXbl") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: t("xboxSyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length, onClick: clearAllXboxMatches, children: t("xboxClearAll") }), xboxBulkBusy || xboxBulkMessage ? (SP_JSX.jsxs("div", { style: inlineStatusStyle, children: [xboxBulkBusy ? SP_JSX.jsx(DFL.Spinner, {}) : null, SP_JSX.jsx("span", { children: xboxBulkMessage })] })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("achievementCacheTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("achievementCacheHint") }), SP_JSX.jsx("div", { style: buttonRowStyle, children: achievementCachePolicies.map((policy) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementCachePolicy(policy), style: {
                                     opacity: achievementCachePolicy === policy ? 1 : 0.72,
                                     fontWeight: achievementCachePolicy === policy ? 700 : 400,
                                 }, children: t(`achievementCache_${policy}`) }, policy))) })] }) })] }));
@@ -4036,13 +4919,16 @@ const MetadataPage = () => {
     const [xboxQuery, setXboxQuery] = SP_REACT.useState(appName(appId));
     const [xboxResults, setXboxResults] = SP_REACT.useState([]);
     const [xboxSearching, setXboxSearching] = SP_REACT.useState(false);
+    const [steamActivityQuery, setSteamActivityQuery] = SP_REACT.useState(appName(appId));
+    const [steamActivityBusy, setSteamActivityBusy] = SP_REACT.useState(false);
     const setFormMetadata = SP_REACT.useCallback((next) => {
         setMetadata(next);
         setDeveloperText(personsToText(next.developers));
         setPublisherText(personsToText(next.publishers));
         setReleaseText(epochToDate(next.release_date));
         setRatingText(next.rating == null ? "" : String(next.rating));
-    }, []);
+        setSteamActivityQuery(next.steam_activity_title || next.title || appName(appId));
+    }, [appId]);
     const load = SP_REACT.useCallback(async () => {
         const saved = await getMetadata(appId);
         setFormMetadata(saved || metadataTemplate(appName(appId)));
@@ -4284,6 +5170,54 @@ const MetadataPage = () => {
                 : t("xboxSyncProgressFailed"),
         });
     };
+    const refetchSteamActivityMatch = async () => {
+        if (steamActivityBusy)
+            return;
+        setSteamActivityBusy(true);
+        try {
+            const saved = await refetchSteamActivityAssociation(appId, steamActivityQuery || metadata.title || appName(appId));
+            if (saved) {
+                metadataCache[String(appId)] = saved;
+                setFormMetadata(saved);
+                window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
+                window.dispatchEvent(new Event("playhub-metadata:updated"));
+                toaster.toast({
+                    title: t("pluginName"),
+                    body: saved.steam_news?.length ? t("steamActivityRefetchDone") : t("steamActivityNoMatch"),
+                });
+            }
+            else {
+                toaster.toast({ title: t("pluginName"), body: t("steamActivityNoMatch") });
+            }
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setSteamActivityBusy(false);
+        }
+    };
+    const clearSteamActivityMatch = async () => {
+        if (steamActivityBusy)
+            return;
+        setSteamActivityBusy(true);
+        try {
+            const saved = await clearSteamActivityAssociation(appId);
+            if (saved) {
+                metadataCache[String(appId)] = saved;
+                setFormMetadata(saved);
+                window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
+                window.dispatchEvent(new Event("playhub-metadata:updated"));
+            }
+            toaster.toast({ title: t("pluginName"), body: t("steamActivityClearDone") });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setSteamActivityBusy(false);
+        }
+    };
     const toggleCategory = (category, checked) => {
         setMetadata((prev) => {
             const next = new Set(prev.store_categories || []);
@@ -4308,7 +5242,11 @@ const MetadataPage = () => {
                                                 color: "white",
                                                 background: "rgba(0,0,0,0.28)",
                                                 border: "1px solid rgba(255,255,255,0.18)",
-                                            } }) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("developers") }), SP_JSX.jsx(DFL.TextField, { value: developerText, onChange: (e) => setDeveloperText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("publishers") }), SP_JSX.jsx(DFL.TextField, { value: publisherText, onChange: (e) => setPublisherText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "8rem" }, children: [SP_JSX.jsx("label", { children: t("releaseDate") }), SP_JSX.jsx(DFL.TextField, { value: releaseText, onChange: (e) => setReleaseText(e.target.value), style: fieldStyle })] }), SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "7rem" }, children: [SP_JSX.jsx("label", { children: t("rating") }), SP_JSX.jsx(DFL.TextField, { value: ratingText, onChange: (e) => setRatingText(e.target.value), style: fieldStyle })] })] }) })] }), SP_JSX.jsx(DFL.PanelSection, { title: t("categories"), children: Object.entries(CATEGORY_LABELS).map(([category, label]) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: label, checked: (metadata.store_categories || []).includes(Number(category)), onChange: (checked) => toggleCategory(Number(category), checked) }) }, category))) }), SP_JSX.jsxs(DFL.PanelSection, { title: t("achievementSourceTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("achievementSourceHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: buttonRowStyle, children: ["auto", "retroachievements", "xbox", "disabled"].map((source) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: {
+                                            } }) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("developers") }), SP_JSX.jsx(DFL.TextField, { value: developerText, onChange: (e) => setDeveloperText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("publishers") }), SP_JSX.jsx(DFL.TextField, { value: publisherText, onChange: (e) => setPublisherText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "8rem" }, children: [SP_JSX.jsx("label", { children: t("releaseDate") }), SP_JSX.jsx(DFL.TextField, { value: releaseText, onChange: (e) => setReleaseText(e.target.value), style: fieldStyle })] }), SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "7rem" }, children: [SP_JSX.jsx("label", { children: t("rating") }), SP_JSX.jsx(DFL.TextField, { value: ratingText, onChange: (e) => setRatingText(e.target.value), style: fieldStyle })] })] }) })] }), SP_JSX.jsx(DFL.PanelSection, { title: t("categories"), children: Object.entries(CATEGORY_LABELS).map(([category, label]) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: label, checked: (metadata.store_categories || []).includes(Number(category)), onChange: (checked) => toggleCategory(Number(category), checked) }) }, category))) }), SP_JSX.jsxs(DFL.PanelSection, { title: t("steamActivityTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("steamActivityHint") }), SP_JSX.jsx("div", { style: compactTextStyle, children: metadata.steam_activity_disabled
+                                            ? t("steamActivityDisabled")
+                                            : metadata.steam_appid
+                                                ? `${t("steamActivityCurrentMatch")}: ${metadata.steam_appid}${metadata.steam_news?.length ? ` - ${metadata.steam_news.length} ${t("steamActivityItems")}` : ""}`
+                                                : t("steamActivityNoCurrentMatch") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("steamActivitySearchTitle") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: steamActivityQuery, onChange: (e) => setSteamActivityQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy, onClick: refetchSteamActivityMatch, children: steamActivityBusy ? t("refreshingActivities") : t("steamActivityRefetch") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled), onClick: clearSteamActivityMatch, children: t("steamActivityClear") })] })] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("achievementSourceTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("achievementSourceHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: buttonRowStyle, children: ["auto", "retroachievements", "xbox", "disabled"].map((source) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: {
                                         opacity: achievementSource === source ? 1 : 0.72,
                                         fontWeight: achievementSource === source ? 700 : 400,
                                     }, children: t(`achievementSource_${source}`) }, source))) }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("retroTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raGameId, onChange: (e) => setRaGameId(e.target.value), style: { ...flexFieldStyle, minWidth: "8rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveRaGameId, children: t("save") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectAchievements, children: t("retroGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testAchievements, children: t("retroGameTest") })] }) }), raSettings && !raSettings.enabled ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: compactTextStyle, children: [t("retroEnabled"), ": Off"] }) })) : null, SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raQuery, onChange: (e) => setRaQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: raSearching, onClick: searchAchievements, children: raSearching ? t("searching") : t("retroGameSearch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [raSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !raSearching && !raResults.length ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroGameNoMatches") })) : null, raResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useAchievementResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [result.console ? `${result.console} - ` : "", Math.round(result.score * 100), "% match"] })] }) }, result.id)))] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("xboxPerGameTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxCurrentMatch") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxTitleId, onChange: (e) => setXboxTitleIdState(e.target.value), style: { ...flexFieldStyle, minWidth: "18rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveXboxMatchManual, children: t("save") })] }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectXboxAchievements, children: t("xboxGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: !xboxTitleId, onClick: syncXboxProgress, children: t("xboxSyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: clearXboxMatch, children: t("xboxClearMatch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxQuery, onChange: (e) => setXboxQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: xboxSearching, onClick: searchXbox, children: xboxSearching ? t("searching") : t("xboxGameSearch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: resultsStackStyle, children: [xboxSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !xboxSearching && !xboxResults.length ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxGameNoMatches") })) : null, xboxResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useXboxResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", result.unlocked != null && result.total != null

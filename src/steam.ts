@@ -81,6 +81,41 @@ const BACKGROUND_SYNC_INITIAL_DELAY_MS = 20 * 1000;
 const BACKGROUND_SYNC_LOCAL_PREFIX = "playhub-metadata:bg-achievement-sync:last";
 const BACKGROUND_SYNC_SESSION_KEY = "playhub-metadata:bg-achievement-sync:pc-session";
 
+const PLAYHUB_HOME_ACTIVITY_SETTING_KEY = "playhub-metadata:show-activities-in-home";
+const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT = 3;
+const PLAYHUB_HOME_ACTIVITY_MAX_LIMIT = 6;
+const PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY = "playhub-metadata:home-activity-count";
+const PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY = "playhub-metadata:home-activity-shuffle";
+const PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS = 8500;
+const PLAYHUB_HOME_ACTIVITY_CACHE_TTL_MS = 120000;
+const PLAYHUB_HOME_ACTIVITY_IMAGE_DIMENSION_TTL_MS = 30 * 60 * 1000;
+
+const clampPlayhubHomeActivityLimit = (value: number) =>
+  Math.max(1, Math.min(PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, Math.round(Number.isFinite(value) ? value : PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT)));
+
+const readPlayhubHomeActivityEnabled = () => {
+  try {
+    return window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY) === "1";
+  } catch (_error) {
+    return false;
+  }
+};
+
+const readPlayhubHomeActivityLimit = () => {
+  try {
+    return clampPlayhubHomeActivityLimit(Number(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY) || PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT));
+  } catch (_error) {
+    return PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT;
+  }
+};
+
+const readPlayhubHomeActivityShuffleSeed = () => {
+  try {
+    return String(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY) || "");
+  } catch (_error) {
+    return "";
+  }
+};
 
 const shouldShowAchievements = (appId: number) => {
   const key = String(appId);
@@ -435,7 +470,7 @@ const steamCommunityItemsFromMetadata = (appId: number, metadata: MetadataData) 
         title: video.title || `${metadata.title} video`,
         description: video.title || metadata.title || "",
         preview_image_url:
-          video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hqdefault.jpg`,
+          video.thumbnail || `https://i.ytimg.com/vi/${video.id}/hq720.jpg`,
         full_image_url: video.url || `https://www.youtube.com/watch?v=${video.id}`,
         youtube_video_id: video.id,
         image_width: 1280,
@@ -526,12 +561,16 @@ const steamAppHeaderImage = (steamAppId?: number | null) =>
 
 const steamNewsImageCandidatesForMetadata = (_metadata: MetadataData, news: NonNullable<MetadataData["steam_news"]>[number]) => {
   const rawSources = Array.isArray((news as any).image_sources) ? (news as any).image_sources : [];
-  return Array.from(new Set([
+  return uniqueExpandedSteamNewsImageUrls([
+    (news as any).event_header_image_url,
+    (news as any).event_cover_image_url,
+    (news as any).event_spotlight_image_url,
+    (news as any).event_title_image_url,
     news.image,
     (news as any).image_url,
     (news as any).preview_image_url,
     ...rawSources,
-  ].map(cleanSteamImageUrl).filter(Boolean)));
+  ]);
 };
 
 const steamNewsImageForMetadata = (metadata: MetadataData, news: NonNullable<MetadataData["steam_news"]>[number]) =>
@@ -564,7 +603,7 @@ const uniqueSteamNewsForActivity = (metadata: MetadataData) => {
 };
 
 const steamActivityNewsItemsFromMetadata = (appId: number, metadata: MetadataData) =>
-  uniqueSteamNewsForActivity(metadata)
+  metadata?.steam_activity_disabled ? [] : uniqueSteamNewsForActivity(metadata)
     .map((news, index) => {
       const date = Number(news.date || 0) || Math.floor(Date.now() / 1000) - index * 60;
       const imageCandidates = steamNewsImageCandidatesForMetadata(metadata, news);
@@ -585,6 +624,7 @@ const steamActivityNewsItemsFromMetadata = (appId: number, metadata: MetadataDat
         localized_title_image: displayImageUrl,
         localized_capsule_image: displayImageUrl,
         localized_spotlight_image: displayImageUrl,
+        localized_header_image: displayImageUrl,
         localized_summary: summary,
         localized_body: rawBody,
         store_url: url,
@@ -754,6 +794,36 @@ const cleanSteamImageUrl = (value: unknown) => {
   return /^https:\/\//i.test(text) ? text : "";
 };
 
+const expandedSteamNewsImageUrls = (value: unknown) => {
+  const cleaned = cleanSteamImageUrl(value);
+  if (!cleaned) return [] as string[];
+  const youtubeMatch = cleaned.match(/https:\/\/i\.ytimg\.com\/vi\/([A-Za-z0-9_-]{11})\/[^?#\s]+/i);
+  if (!youtubeMatch) return [cleaned];
+  const videoId = youtubeMatch[1];
+  // hqdefault is 4:3 and often contains black letterboxing. Prefer 16:9
+  // YouTube stills for Steam activity cards, then fall back progressively.
+  return [
+    `https://i.ytimg.com/vi/${videoId}/hq720.jpg`,
+    `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+    cleaned.replace(/\/(?:maxresdefault|hq720|sddefault|hqdefault|mqdefault|default)\.jpg(?:[?#].*)?$/i, "/hqdefault.jpg"),
+  ];
+};
+
+const uniqueExpandedSteamNewsImageUrls = (values: unknown[]) => {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  values.forEach((value) => {
+    expandedSteamNewsImageUrls(value).forEach((url) => {
+      const cleaned = cleanSteamImageUrl(url);
+      if (cleaned && !seen.has(cleaned)) {
+        seen.add(cleaned);
+        out.push(cleaned);
+      }
+    });
+  });
+  return out;
+};
+
 
 
 const collectSteamNewsImages = (steamAppId: number, item: any) => {
@@ -773,7 +843,7 @@ const collectSteamNewsImages = (steamAppId: number, item: any) => {
   if (Array.isArray(item.image_sources)) values.push(...item.image_sources);
   // Keep the explicit fallback at the end: cards with no embedded artwork should
   // still show the game header, but embedded/event-specific images stay first.
-  return Array.from(new Set(values.map(cleanSteamImageUrl).filter(Boolean)));
+  return uniqueExpandedSteamNewsImageUrls(values);
 };
 
 const playhubNativeActivityCache = () => {
@@ -959,6 +1029,7 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     localized_title_image: [primaryImage],
     localized_capsule_image: [primaryImage],
     localized_spotlight_image: [primaryImage],
+    localized_header_image: [primaryImage],
     library_spotlight: true,
     library_spotlight_text: true,
     referenced_appids: steamAppId ? [steamAppId] : [],
@@ -1052,8 +1123,8 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     BIsEventInFuture: () => false,
     BHasEventEnded: () => false,
     BIsEventActionEnabled: () => false,
-    BShowLibrarySpotlight: () => false,
-    BShowLibrarySpotlightText: () => false,
+    BShowLibrarySpotlight: () => true,
+    BShowLibrarySpotlightText: () => true,
     BIsImageSafeForAllAges: () => true,
     BHasBroadcastEnabled: () => false,
     BEventCanShowBroadcastWidget: () => false,
@@ -1094,8 +1165,8 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     GetTaggedItems: () => [],
     BHasScheduleEnabled: () => false,
     BAllowedSteamStoreSpotlight: () => false,
-    BHasLibaryHomeSpotlight: () => false,
-    BHasLibraryHomeSpotlight: () => false,
+    BHasLibaryHomeSpotlight: () => true,
+    BHasLibraryHomeSpotlight: () => true,
     BHasSaleProductBanners: () => false,
     GetSteamAwardCategory: () => 0,
     GetSteamAwardNomineeCategories: () => [],
@@ -2178,6 +2249,841 @@ const steamNewsDateLabel = (date: number) => {
   return dt.toLocaleDateString("it-IT", options);
 };
 
+const ensurePlayhubHomeActivityStyle = () => {
+  if (document.getElementById("playhub-home-activity-style")) return;
+  const style = document.createElement("style");
+  style.id = "playhub-home-activity-style";
+  style.textContent = `
+    .playhub-home-activity-card {
+      position: relative;
+      flex: 0 0 425px;
+      width: 425px;
+      min-width: 425px;
+      height: 405px;
+      border-radius: 10px;
+      overflow: hidden;
+      background: rgb(39, 43, 47);
+      color: rgba(255,255,255,0.92);
+      box-sizing: border-box;
+      cursor: pointer;
+      margin-right: 16px;
+      scroll-snap-align: start;
+      outline: none;
+      box-shadow: 0 0 0 1px rgba(255,255,255,0.04) inset;
+    }
+    .playhub-home-activity-card:hover,
+    .playhub-home-activity-card:focus {
+      box-shadow: 0 0 0 2px rgba(255,255,255,0.38) inset, 0 0 20px rgba(102,192,244,0.20);
+      background: rgb(49, 55, 62);
+    }
+    .playhub-home-activity-card-image {
+      width: 100%;
+      height: 205px;
+      overflow: hidden;
+      background: rgba(0,0,0,0.34);
+    }
+    .playhub-home-activity-card-image img {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: cover;
+      object-position: center;
+    }
+    .playhub-home-activity-card-body {
+      padding: 16px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+    .playhub-home-activity-card-kind {
+      color: rgb(102,192,244);
+      font-size: 15px;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+    .playhub-home-activity-card-date {
+      color: rgba(255,255,255,0.52);
+      font-size: 14px;
+      line-height: 1.2;
+    }
+    .playhub-home-activity-card-title {
+      color: rgba(255,255,255,0.95);
+      font-size: 22px;
+      line-height: 1.16;
+      min-height: 50px;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .playhub-home-activity-card-summary {
+      color: rgba(255,255,255,0.66);
+      font-size: 16px;
+      line-height: 1.25;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+    .playhub-home-activity-card-footer {
+      margin-top: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: rgba(255,255,255,0.58);
+      font-size: 15px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .playhub-home-activity-card-icon {
+      width: 22px;
+      height: 22px;
+      border-radius: 4px;
+      background: rgba(0,0,0,0.38);
+      object-fit: cover;
+      flex: 0 0 22px;
+    }
+  `;
+  document.head.appendChild(style);
+};
+
+const isLibraryHomeRoute = () => /(?:^|\s|#|\/)library\/home(?:[/?#\s]|$)/i.test(currentRoutePath());
+
+const appIconUrlForHomeActivity = (appId: number, metadata?: MetadataData | null) => {
+  const overview = getOverview(appId);
+  const direct = String(
+    overview?.icon_data ||
+    overview?.icon_url ||
+    overview?.strIconURL ||
+    overview?.m_strIconURL ||
+    overview?.assets?.icon ||
+    ""
+  );
+  if (direct) return direct;
+  const steamAppId = Number(metadata?.steam_appid || 0);
+  return steamAppId ? `https://cdn.akamai.steamstatic.com/steamcommunity/public/images/apps/${steamAppId}/icon.jpg` : "";
+};
+
+const gameHeaderFallbackForHomeActivity = (appId: number, metadata: MetadataData) => {
+  const steamAppId = Number(metadata.steam_appid || 0);
+  return (metadata.screenshots || [])[0]?.url || (steamAppId ? steamAppHeaderImage(steamAppId) : "");
+};
+
+const playhubHomeActivityItems = () => {
+  const rows: any[] = [];
+  for (const [key, metadata] of Object.entries(metadataCache)) {
+    const appId = Number(key);
+    const overview = getOverview(appId);
+    if (!appId || !metadata || !isNonSteamApp(overview)) continue;
+    const items = steamActivityNewsItemsFromMetadata(appId, metadata as MetadataData);
+    items.forEach((item: any, index: number) => {
+      const date = Number(item.date || item.time_created || 0) || 0;
+      const steamAppId = Number((metadata as MetadataData).steam_appid || item.appid || appId) || appId;
+      try {
+        makePlayhubNativePartnerEvent(appId, steamAppId, item, index);
+      } catch (_error) {
+        // The Home card can still open via URL even if Steam's event store is not ready.
+      }
+      const candidates = steamNewsImageCandidatesForMetadata(metadata as MetadataData, item);
+      const fallback = normalizeSteamNewsImageUrl(item.fallback_image_url || item.header_image_url || gameHeaderFallbackForHomeActivity(appId, metadata as MetadataData), steamAppId);
+      rows.push({
+        appId,
+        metadata,
+        item,
+        index,
+        date,
+        image: normalizeSteamNewsImageUrl(candidates[0] || item.event_image_url || item.image_url || item.image || item.preview_image_url, steamAppId) || fallback,
+        fallback,
+        icon: appIconUrlForHomeActivity(appId, metadata as MetadataData),
+      });
+    });
+  }
+  return rows
+    .filter((row) => row.item?.title)
+    .sort((a, b) => Number(b.date || 0) - Number(a.date || 0))
+    .slice(0, readPlayhubHomeActivityLimit());
+};
+
+let playhubHomeNativeEventsCache: { builtAt: number; enabled: boolean; limit: number; shuffleSeed: string; events: any[] } | null = null;
+
+const invalidatePlayhubHomeNativeEventsCache = () => {
+  playhubHomeNativeEventsCache = null;
+};
+
+type PlayhubHomeImageDimensions = {
+  width: number;
+  height: number;
+  checkedAt: number;
+  pending?: boolean;
+  failed?: boolean;
+};
+
+const playhubHomeImageDimensionCache = new Map<string, PlayhubHomeImageDimensions>();
+let playhubHomeImageDimensionRefreshTimer: number | undefined;
+
+const schedulePlayhubHomeImageDimensionRefresh = () => {
+  if (playhubHomeImageDimensionRefreshTimer) return;
+  playhubHomeImageDimensionRefreshTimer = window.setTimeout(() => {
+    playhubHomeImageDimensionRefreshTimer = undefined;
+    invalidatePlayhubHomeNativeEventsCache();
+    window.dispatchEvent(new Event("playhub-metadata:home-image-dimensions-ready"));
+  }, 250);
+};
+
+const preloadPlayhubHomeActivityImageDimensions = (url: string) => {
+  const clean = cleanSteamImageUrl(url || "");
+  if (!clean) return;
+  const existing = playhubHomeImageDimensionCache.get(clean);
+  const now = Date.now();
+  if (existing && (existing.pending || now - existing.checkedAt < PLAYHUB_HOME_ACTIVITY_IMAGE_DIMENSION_TTL_MS)) return;
+  playhubHomeImageDimensionCache.set(clean, { width: 0, height: 0, checkedAt: now, pending: true });
+  const image = new Image();
+  let done = false;
+  const finish = (dimensions: Partial<PlayhubHomeImageDimensions>) => {
+    if (done) return;
+    done = true;
+    window.clearTimeout(timer);
+    playhubHomeImageDimensionCache.set(clean, {
+      width: Number(dimensions.width || 0),
+      height: Number(dimensions.height || 0),
+      failed: !!dimensions.failed,
+      checkedAt: Date.now(),
+    });
+    schedulePlayhubHomeImageDimensionRefresh();
+  };
+  const timer = window.setTimeout(() => finish({ failed: true }), 4500);
+  image.onload = () => finish({ width: image.naturalWidth || image.width || 0, height: image.naturalHeight || image.height || 0 });
+  image.onerror = () => finish({ failed: true });
+  image.referrerPolicy = "no-referrer";
+  image.src = clean;
+};
+
+const isLikelyDecorativeHomeActivityImage = (url: string) =>
+  /divider|separator|spacer|rule|line|border|footer|headerbar|header_bar|icon|logo|avatar|profile|emoji|badge|button|transparent|blank|discord/i.test(String(url || ""));
+
+const isLikelySafeHomeActivityImage = (url: string) => {
+  const lower = String(url || "").toLowerCase();
+  if (!lower || isLikelyDecorativeHomeActivityImage(lower)) return false;
+  return /hq720|maxresdefault|sddefault|header\.jpg|capsule|spotlight|library|hero|store_item_assets|cdn\.akamai\.steamstatic|clan\.cloudflare\.steamstatic|1920|1600|1280|1200|1080|800|720|roadmap|calendar|wide|banner/.test(lower);
+};
+
+const homeActivityImageScore = (url: string, isFallback = false) => {
+  const clean = cleanSteamImageUrl(url || "");
+  if (!clean) return -100000;
+  const lower = clean.toLowerCase();
+  if (!isFallback && isLikelyDecorativeHomeActivityImage(lower)) return -100000;
+
+  let score = isFallback ? 240 : 0;
+  // Prefer Steam event assets that are already intended for Steam surfaces.
+  // The backend places localized_header_image/cover-derived URLs first. Avoid
+  // client-side Image() probing here: it made the Home rail visibly sluggish.
+  if (/localized_header|header_image|event_header|header/.test(lower)) score += 360;
+  if (/capsule|spotlight|library|hero|banner/.test(lower)) score += isFallback ? 70 : 210;
+  if (/hq720|maxresdefault/.test(lower)) score += 190;
+  if (/sddefault/.test(lower)) score += 90;
+  if (/roadmap|calendar|schedule|content|update|patch|event|events|screenshot|preview|wide/.test(lower)) score += 70;
+  if (/store_capsule|small_capsule|capsule_sm|icon|logo|avatar|badge/.test(lower)) score -= 240;
+  if (/\b(?:800x450|1920x622|1920|1600|1280|1200|1080|720)\b/.test(lower)) score += 60;
+  return isLikelySafeHomeActivityImage(clean) || isFallback ? score : score - 260;
+};
+
+const homeSafeImageForActivity = (appId: number, steamAppId: number, metadata: MetadataData, item: any) => {
+  const preferredNativeAssets = uniqueExpandedSteamNewsImageUrls([
+    item.event_header_image_url,
+    item.event_cover_image_url,
+    item.event_spotlight_image_url,
+    item.event_title_image_url,
+  ]).map((url) => normalizeSteamNewsImageUrl(url, steamAppId)).filter(Boolean);
+  // For the Home rail, prefer the same native event header Steam shows at the
+  // very top of the event viewer. Body images are still fallbacks, but they no
+  // longer outrank the curated event assets because tall article images can break
+  // the Steam Home layout.
+  if (preferredNativeAssets[0]) return preferredNativeAssets[0];
+
+  const fallback = normalizeSteamNewsImageUrl(item.fallback_image_url || item.header_image_url || gameHeaderFallbackForHomeActivity(appId, metadata), steamAppId) || (steamAppId ? steamAppHeaderImage(steamAppId) : "");
+  const candidates = Array.from(new Set(steamNewsImageCandidatesForMetadata(metadata, item)
+    .map((url) => normalizeSteamNewsImageUrl(url, steamAppId))
+    .filter(Boolean)));
+  const scored = candidates
+    .map((url) => ({ url, score: homeActivityImageScore(url, false) }))
+    .filter((row) => row.score > -1000)
+    .sort((a, b) => b.score - a.score);
+  return scored[0]?.url || fallback || "";
+};
+
+const clonePlayhubNativeEventForHome = (event: any, imageUrl: string) => {
+  const image = cleanSteamImageUrl(imageUrl || "");
+  const images = image ? [image] : [];
+  const clone: any = {
+    ...event,
+    jsondata: {
+      ...(event?.jsondata || {}),
+      localized_title_image: images,
+      localized_capsule_image: images,
+      localized_spotlight_image: images,
+      localized_header_image: images,
+      library_spotlight: true,
+      library_spotlight_text: true,
+    },
+    __playhubNativeHomeWhatsNew: true,
+    __playhubNativePartnerEvent: true,
+  };
+  clone.GetImgArray = () => images;
+  clone.GetImageFromBeginningOfDescription = () => "";
+  clone.GetImageURL = () => image;
+  clone.GetImageURLWithFallback = () => image;
+  clone.GetImageForSizeAsArrayWithFallback = () => images;
+  clone.BImageNeedScreenshotFallback = () => !image;
+  clone.BHasSomeImage = () => !!image;
+  clone.BHasImage = () => !!image;
+  clone.GetFallbackArtworkScreenshot = () => image;
+  clone.BShowLibrarySpotlight = () => true;
+  clone.BShowLibrarySpotlightText = () => true;
+  clone.BHasLibaryHomeSpotlight = () => true;
+  clone.BHasLibraryHomeSpotlight = () => true;
+  return clone;
+};
+
+const playhubHomeItemDedupKey = (item: any) => {
+  const gid = numericSteamNewsGid(item?.event_gid || item?.announcement_gid || item?.news_id || item?.gid || item?.id || "");
+  if (gid && gid !== "0") return `gid:${gid}`;
+  const url = String(item?.url || item?.external_url || item?.link || "").replace(/[?#].*$/, "").toLowerCase();
+  if (url) return `url:${url}`;
+  const title = normaliseActivityNewsKeyText(item?.title || item?.event_name || item?.headline || "");
+  const day = Math.floor((Number(item?.date || item?.posttime || item?.published || 0) || 0) / 86400);
+  return title ? `title:${title}|${day}` : "";
+};
+
+const PLAYHUB_HOME_DIVERSITY_STOPWORDS = new Set([
+  "the", "and", "with", "for", "from", "into", "your", "you", "game", "games", "edition", "deluxe",
+  "definitive", "enhanced", "remastered", "remaster", "complete", "ultimate", "standard", "goty",
+  "demo", "beta", "alpha", "legacy", "windows", "steam", "playhub", "of", "di", "del", "della",
+  "dei", "degli", "gli", "con", "per", "editione", "edizione", "collection", "bundle", "pack", "episode"
+]);
+
+const playhubHomeDiversityTokens = (title: string) => {
+  const normalised = String(title || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/['’`´]/g, "")
+    .replace(/\b(?:i{1,3}|iv|v|vi{0,3}|ix|x|xi|xii|xiii|xiv|xv)\b/g, " ")
+    .replace(/\b\d+(?:st|nd|rd|th)?\b/g, " ")
+    .replace(/[^a-z0-9]+/g, " ");
+  const tokens = normalised
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length >= 3 && !PLAYHUB_HOME_DIVERSITY_STOPWORDS.has(token));
+  return Array.from(new Set(tokens));
+};
+
+const playhubHomeRowGameTitle = (row: { appId: number; metadata: MetadataData }) =>
+  String(row.metadata?.title || appName(row.appId) || row.metadata?.steam_activity_title || "");
+
+const playhubHomeRowSeriesKey = (row: { appId: number; metadata: MetadataData }) => {
+  const tokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(row));
+  if (!tokens.length) return `app:${row.appId}`;
+  // One-token franchises such as Mafia must be treated as one family; two-token
+  // franchises such as Forza Horizon / Tomb Raider should also stay together.
+  return tokens.length === 1 ? tokens[0] : `${tokens[0]} ${tokens[1]}`;
+};
+
+const playhubHomeRowTitleKey = (row: { item?: any; date?: number }) => {
+  const title = normaliseActivityNewsKeyText(row.item?.title || row.item?.event_name || row.item?.headline || "");
+  if (!title) return "";
+  const day = Math.floor((Number(row.date || row.item?.date || row.item?.posttime || row.item?.published || 0) || 0) / 86400);
+  return `${title}|${day}`;
+};
+
+const stablePlayhubHash = (value: string) => {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+};
+
+const playhubHomeShuffleValue = (row: { appId: number; key?: string; item?: any }, seed: string) =>
+  stablePlayhubHash(`${seed}|${row.appId}|${row.key || playhubHomeItemDedupKey(row.item) || ""}`);
+
+const arePlayhubHomeRowsTooSimilar = (a: { appId: number; metadata: MetadataData }, b: { appId: number; metadata: MetadataData }) => {
+  if (a.appId === b.appId) return true;
+  if (playhubHomeRowSeriesKey(a) === playhubHomeRowSeriesKey(b)) return true;
+  const aTokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(a));
+  const bTokens = playhubHomeDiversityTokens(playhubHomeRowGameTitle(b));
+  if (!aTokens.length || !bTokens.length) return false;
+  const bSet = new Set(bTokens);
+  const common = aTokens.filter((token) => bSet.has(token)).length;
+  if (common < 1) return false;
+  const overlap = common / Math.min(aTokens.length, bTokens.length);
+  const jaccard = common / new Set([...aTokens, ...bTokens]).size;
+  return overlap >= 0.5 || jaccard >= 0.34;
+};
+
+const selectDiversePlayhubHomeRows = <T extends { appId: number; steamAppId?: number; metadata: MetadataData; item?: any; date?: number; key?: string }>(rows: T[], limit: number) => {
+  const seed = readPlayhubHomeActivityShuffleSeed();
+  const ordered = rows.slice().sort((a, b) => {
+    if (seed) return playhubHomeShuffleValue(a, seed) - playhubHomeShuffleValue(b, seed);
+    return Number(b.date || 0) - Number(a.date || 0);
+  });
+
+  const selected: T[] = [];
+  const usedAppIds = new Set<number>();
+  const usedSteamAppIds = new Set<number>();
+  const usedSeries = new Set<string>();
+  const usedNewsTitles = new Set<string>();
+
+  const tryAdd = (row: T, strictSeries: boolean, strictNews: boolean) => {
+    if (selected.length >= limit) return true;
+    if (usedAppIds.has(row.appId)) return false;
+    const steamAppId = Number(row.steamAppId || 0);
+    if (steamAppId && usedSteamAppIds.has(steamAppId)) return false;
+    const seriesKey = playhubHomeRowSeriesKey(row);
+    if (strictSeries && usedSeries.has(seriesKey)) return false;
+    if (strictSeries && selected.some((candidate) => arePlayhubHomeRowsTooSimilar(row, candidate))) return false;
+    const newsKey = playhubHomeRowTitleKey(row);
+    if (strictNews && newsKey && usedNewsTitles.has(newsKey)) return false;
+    selected.push(row);
+    usedAppIds.add(row.appId);
+    if (steamAppId) usedSteamAppIds.add(steamAppId);
+    if (seriesKey) usedSeries.add(seriesKey);
+    if (newsKey) usedNewsTitles.add(newsKey);
+    return selected.length >= limit;
+  };
+
+  // Pass 1: one per franchise/series and one per news title. This is the normal path.
+  for (const row of ordered) if (tryAdd(row, true, true)) return selected;
+  // Pass 2: allow same news headline only if there are not enough different headlines.
+  for (const row of ordered) if (tryAdd(row, true, false)) return selected;
+  // Pass 3: final fallback. Still avoid same app/Steam AppID, but do not leave Home empty.
+  for (const row of ordered) if (tryAdd(row, false, false)) return selected;
+  return selected.slice(0, limit);
+};
+
+const playhubHomeNativePartnerEvents = () => {
+  const enabled = readPlayhubHomeActivityEnabled();
+  const limit = readPlayhubHomeActivityLimit();
+  const shuffleSeed = readPlayhubHomeActivityShuffleSeed();
+  const now = Date.now();
+  if (
+    playhubHomeNativeEventsCache &&
+    playhubHomeNativeEventsCache.enabled === enabled &&
+    playhubHomeNativeEventsCache.limit === limit &&
+    playhubHomeNativeEventsCache.shuffleSeed === shuffleSeed &&
+    now - playhubHomeNativeEventsCache.builtAt < PLAYHUB_HOME_ACTIVITY_CACHE_TTL_MS
+  ) {
+    return playhubHomeNativeEventsCache.events;
+  }
+  if (!enabled) {
+    playhubHomeNativeEventsCache = { builtAt: now, enabled, limit, shuffleSeed, events: [] };
+    return [];
+  }
+
+  const rows: { appId: number; steamAppId: number; metadata: MetadataData; item: any; index: number; date: number; key: string }[] = [];
+  for (const [key, metadata] of Object.entries(metadataCache)) {
+    const appId = Number(key);
+    const overview = getOverview(appId);
+    if (!appId || !metadata || !isNonSteamApp(overview)) continue;
+    const typedMetadata = metadata as MetadataData;
+    const steamAppId = Number(typedMetadata.steam_appid || 0) || appId;
+    steamActivityNewsItemsFromMetadata(appId, typedMetadata).slice(0, 1).forEach((item: any, index: number) => {
+      const dedupKey = playhubHomeItemDedupKey(item);
+      if (!dedupKey) return;
+      rows.push({
+        appId,
+        steamAppId,
+        metadata: typedMetadata,
+        item,
+        index,
+        key: dedupKey,
+        date: Number(item?.date || item?.posttime || item?.published || 0) || 0,
+      });
+    });
+  }
+
+  const seenRows = new Set<string>();
+  const events: any[] = [];
+  const uniqueRows = rows
+    .sort((a, b) => b.date - a.date)
+    .filter((row) => {
+      const titleKey = playhubHomeRowTitleKey(row);
+      const dedupKeys = [row.key, titleKey].filter(Boolean);
+      if (dedupKeys.some((key) => seenRows.has(key))) return false;
+      dedupKeys.forEach((key) => seenRows.add(key));
+      return true;
+    });
+
+  selectDiversePlayhubHomeRows(uniqueRows, limit)
+    .forEach((row) => {
+      try {
+        const baseEvent = makePlayhubNativePartnerEvent(row.appId, row.steamAppId, row.item, row.index);
+        if (baseEvent) {
+          events.push(clonePlayhubNativeEventForHome(baseEvent, homeSafeImageForActivity(row.appId, row.steamAppId, row.metadata, row.item)));
+        }
+      } catch (error) {
+        console.warn("[Playhub Metadata] unable to build native Home activity", error);
+      }
+    });
+
+  playhubHomeNativeEventsCache = { builtAt: now, enabled, limit, shuffleSeed, events };
+  return events;
+};
+
+const playhubHomeEventDedupKey = (event: any) => {
+  const gid = numericSteamNewsGid(event?.GID || event?.gid || event?.AnnouncementGID || event?.announcement_gid || event?.event_gid || "");
+  if (gid && gid !== "0") return `gid:${gid}`;
+  const url = String(event?.url || event?.GetStoreOrCommunityURL?.() || event?.GetStoreNewsURL?.() || "").replace(/[?#].*$/, "").toLowerCase();
+  if (url) return `url:${url}`;
+  const title = normaliseActivityNewsKeyText(event?.GetNameWithFallback?.() || event?.event_name || event?.title || "");
+  const day = Math.floor((Number(event?.GetPostTimeAndDateUnixSeconds?.() || event?.postTime || event?.date || 0) || 0) / 86400);
+  return title ? `title:${title}|${day}` : "";
+};
+
+const mergePlayhubHomeEventArrays = (originalEvents: any[], playhubEvents = playhubHomeNativePartnerEvents()) => {
+  if (!readPlayhubHomeActivityEnabled() || !playhubEvents.length) {
+    return Array.isArray(originalEvents) ? originalEvents.filter((event) => !event?.__playhubNativeHomeWhatsNew) : [];
+  }
+  const seen = new Set<string>();
+  const merged: any[] = [];
+  const add = (event: any) => {
+    if (!event) return;
+    const key = playhubHomeEventDedupKey(event);
+    if (!key || key.endsWith(":" ) || seen.has(key)) return;
+    seen.add(key);
+    merged.push(event);
+  };
+  playhubEvents.forEach(add);
+  (Array.isArray(originalEvents) ? originalEvents : [])
+    .filter((event) => !event?.__playhubNativeHomeWhatsNew)
+    .forEach(add);
+  return merged;
+};
+
+const mergePlayhubHomeNativeEvents = (result: any) => {
+  if (!result || !readPlayhubHomeActivityEnabled()) return result;
+  const playhubEvents = playhubHomeNativePartnerEvents();
+  if (!playhubEvents.length) return result;
+  const originalEvents = Array.isArray(result.eventsToShow) ? result.eventsToShow : [];
+  if (originalEvents.some((event: any) => event?.__playhubNativeHomeWhatsNew)) return result;
+  return {
+    ...result,
+    __playhubNativeHomeWhatsNewMerged: true,
+    bEventsLoaded: true,
+    bInitialLoadPending: false,
+    eventsToShow: mergePlayhubHomeEventArrays(originalEvents, playhubEvents),
+  };
+};
+
+const replaceSteamObservableArray = (target: any, values: any[]) => {
+  if (!target) return false;
+  try {
+    if (typeof target.replace === "function") {
+      target.replace(values);
+      return true;
+    }
+    if (Array.isArray(target) || typeof target.splice === "function") {
+      target.splice(0, target.length, ...values);
+      return true;
+    }
+  } catch (error) {
+    console.warn("[Playhub Metadata] unable to replace native Home event array", error);
+  }
+  return false;
+};
+
+const syncPlayhubHomeEventsIntoNativeStore = (store?: any) => {
+  const libraryStore = store || (globalThis as any).libraryEventStore || (globalThis as any).window?.libraryEventStore;
+  if (!libraryStore?.m_vecHomeBestEventsForUser) return false;
+  const current = Array.from(libraryStore.m_vecHomeBestEventsForUser || []);
+  const cleanCurrent = current.filter((event: any) => !event?.__playhubNativeHomeWhatsNew);
+  const next = readPlayhubHomeActivityEnabled()
+    ? mergePlayhubHomeEventArrays(cleanCurrent, playhubHomeNativePartnerEvents())
+    : cleanCurrent;
+  const changed = next.length !== current.length || next.some((event, index) => event !== current[index]);
+  if (!changed) return true;
+  const replaced = replaceSteamObservableArray(libraryStore.m_vecHomeBestEventsForUser, next);
+  if (replaced) {
+    try {
+      libraryStore.m_bEventsLoaded = true;
+      libraryStore.m_bInitialLoadPending = false;
+    } catch (_error) {
+      // Best effort only; the observable array mutation is the important part.
+    }
+  }
+  return replaced;
+};
+
+const findSteamWhatsNewHookModule = () => {
+  try {
+    return findModuleChild((module: any) => {
+      if (!module || typeof module !== "object") return undefined;
+      if (typeof module.yX === "function" && module.dm && module.IB) return module;
+      for (const prop in module) {
+        const candidate = module[prop];
+        if (candidate && typeof candidate === "object" && typeof candidate.yX === "function" && candidate.dm && candidate.IB) {
+          return candidate;
+        }
+      }
+      return undefined;
+    });
+  } catch (_error) {
+    return null;
+  }
+};
+
+const findPlayhubHomeNewsRail = () => {
+  const newsTab = findVisibleTextElement("Novità") || findVisibleTextElement("What's New") || findVisibleTextElement("News") || findVisibleTextElement("Novità");
+  const tabBottom = newsTab?.getBoundingClientRect?.().bottom || 70;
+  const candidates = deepQuerySelectorAll("div").map((element) => {
+    if (!(element instanceof HTMLElement) || !visibleElement(element)) return null;
+    if (element.closest("[data-playhub-home-activity='1']")) return null;
+    const rect = element.getBoundingClientRect();
+    if (rect.width < 800 || rect.height < 220 || rect.height > 520) return null;
+    if (rect.top < tabBottom - 40 || rect.top > tabBottom + 520) return null;
+    const children = Array.from(element.children).filter((child) => {
+      if (!(child instanceof HTMLElement) || !visibleElement(child)) return false;
+      if (child.hasAttribute("data-playhub-home-activity")) return false;
+      const childRect = child.getBoundingClientRect();
+      return childRect.width >= 220 && childRect.width <= 620 && childRect.height >= 220 && childRect.height <= 470;
+    });
+    if (children.length < 2) return null;
+    const overflowX = window.getComputedStyle(element).overflowX;
+    const scrollBonus = element.scrollWidth > rect.width + 80 || /auto|scroll/i.test(overflowX) ? 80 : 0;
+    const topScore = Math.max(0, 260 - Math.abs(rect.top - (tabBottom + 55)));
+    const childScore = Math.min(children.length, 8) * 20;
+    const depthPenalty = elementDepth(element) * 2;
+    return { element, score: scrollBonus + topScore + childScore - depthPenalty };
+  }).filter(Boolean) as { element: HTMLElement; score: number }[];
+  candidates.sort((a, b) => b.score - a.score);
+  return candidates[0]?.element || null;
+};
+
+const clearPlayhubHomeActivityCards = () => {
+  deepQuerySelectorAll("[data-playhub-home-activity='1']").forEach((element) => element.remove());
+};
+
+const createPlayhubHomeActivityCard = (row: any) => {
+  const { appId, metadata, item } = row;
+  const card = document.createElement("div");
+  card.className = "playhub-home-activity-card";
+  card.tabIndex = 0;
+  card.setAttribute("role", "button");
+  card.setAttribute("data-focusable", "true");
+  card.setAttribute("data-playhub-home-activity", "1");
+  card.setAttribute("data-playhub-appid", String(appId));
+  const url = String(item.url || item.external_url || item.link || "");
+  const activate = () => openExternalActivityUrl(url, metadata?.steam_appid || null, item.gid || item.id || item.news_id);
+  card.onclick = activate;
+  card.onkeydown = (event) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      activate();
+    }
+  };
+
+  const imageWrap = document.createElement("div");
+  imageWrap.className = "playhub-home-activity-card-image";
+  const image = document.createElement("img");
+  image.referrerPolicy = "no-referrer";
+  image.loading = "lazy";
+  image.alt = "";
+  image.onerror = () => {
+    if (row.fallback && image.src !== row.fallback) {
+      image.src = row.fallback;
+      return;
+    }
+    image.style.display = "none";
+  };
+  if (row.image || row.fallback) image.src = row.image || row.fallback;
+  imageWrap.appendChild(image);
+
+  const body = document.createElement("div");
+  body.className = "playhub-home-activity-card-body";
+  const kind = document.createElement("div");
+  kind.className = "playhub-home-activity-card-kind";
+  kind.textContent = activityNewsKindLabel(item);
+  const date = document.createElement("div");
+  date.className = "playhub-home-activity-card-date";
+  date.textContent = row.date ? `${String(navigator.language || "").toLowerCase().startsWith("it") ? "Pubblicato" : "Published"} ${steamNewsDateLabel(row.date)}` : "";
+  const title = document.createElement("div");
+  title.className = "playhub-home-activity-card-title";
+  title.textContent = cleanSteamNewsDisplayText(item.title || item.event_name || "");
+  const summaryText = isPlayhubPatchNoteActivity(item) ? "" : cleanSteamNewsDisplayText(item.summary || item.description || "");
+  body.append(kind, date, title);
+  if (summaryText) {
+    const summary = document.createElement("div");
+    summary.className = "playhub-home-activity-card-summary";
+    summary.textContent = summaryText;
+    body.appendChild(summary);
+  }
+  const footer = document.createElement("div");
+  footer.className = "playhub-home-activity-card-footer";
+  if (row.icon) {
+    const icon = document.createElement("img");
+    icon.className = "playhub-home-activity-card-icon";
+    icon.referrerPolicy = "no-referrer";
+    icon.src = row.icon;
+    icon.onerror = () => icon.remove();
+    footer.appendChild(icon);
+  }
+  const footerText = document.createElement("span");
+  footerText.textContent = metadata?.title || appName(appId);
+  footer.appendChild(footerText);
+  body.appendChild(footer);
+
+  card.append(imageWrap, body);
+  return card;
+};
+
+const renderPlayhubHomeActivities = async () => {
+  if (!readPlayhubHomeActivityEnabled() || !isLibraryHomeRoute()) {
+    clearPlayhubHomeActivityCards();
+    return;
+  }
+  await ensureMetadataCache();
+  const rail = findPlayhubHomeNewsRail();
+  if (!rail) return;
+  const items = playhubHomeActivityItems();
+  clearPlayhubHomeActivityCards();
+  if (!items.length) return;
+  ensurePlayhubHomeActivityStyle();
+  const fragment = document.createDocumentFragment();
+  items.slice().reverse().forEach((row) => {
+    fragment.insertBefore(createPlayhubHomeActivityCard(row), fragment.firstChild);
+  });
+  rail.insertBefore(fragment, rail.firstElementChild);
+};
+
+const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
+  // Native-only Home integration. Keep this deliberately light: no DOM cards,
+  // no method-patching loops, and no refresh-on-click. We only merge a small,
+  // cached set of Playhub events into Steam's native event payload/store.
+  clearPlayhubHomeActivityCards();
+  let attempts = 0;
+  let patchedModule: any = null;
+  let originalHook: any = null;
+  let refreshTimer: number | undefined;
+  const startupSyncTimers: number[] = [];
+  let startupSyncScheduled = false;
+  let refreshRunning = false;
+  let refreshQueued = false;
+
+  const nativeStore = () => patchedModule?.dm || (globalThis as any).libraryEventStore || (globalThis as any).window?.libraryEventStore;
+
+  const refreshNativeHomeStore = async () => {
+    const store = nativeStore();
+    if (!store) return;
+    if (refreshRunning) {
+      refreshQueued = true;
+      return;
+    }
+    refreshRunning = true;
+    try {
+      await ensureMetadataCache();
+      syncPlayhubHomeEventsIntoNativeStore(store);
+    } catch (error) {
+      console.warn("[Playhub Metadata] unable to sync native Home activities", error);
+    } finally {
+      refreshRunning = false;
+      if (refreshQueued) {
+        refreshQueued = false;
+        scheduleRefreshNativeHomeStore(PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS);
+      }
+    }
+  };
+
+  function scheduleRefreshNativeHomeStore(delay = PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS) {
+    if (refreshTimer) window.clearTimeout(refreshTimer);
+    refreshTimer = window.setTimeout(refreshNativeHomeStore, delay);
+  }
+
+  const scheduleStartupHomeSyncs = () => {
+    if (startupSyncScheduled) return;
+    startupSyncScheduled = true;
+    [900, 2800, 7000, 16000].forEach((delay) => {
+      const timer = window.setTimeout(() => {
+        if (readPlayhubHomeActivityEnabled()) {
+          invalidatePlayhubHomeNativeEventsCache();
+          void refreshNativeHomeStore();
+        }
+      }, delay);
+      startupSyncTimers.push(timer);
+    });
+  };
+
+  const patchOne = (homeModule: any): boolean => {
+    const store = homeModule?.dm || (globalThis as any).libraryEventStore || (globalThis as any).window?.libraryEventStore;
+    if (!homeModule && !store) return false;
+
+    if (homeModule && typeof homeModule.yX === "function" && !homeModule.__playhubNativeHomeWhatsNewPatched) {
+      originalHook = homeModule.yX;
+      const patchedHook = function patchedPlayhubNativeHomeWhatsNewHook(this: any, ...args: any[]) {
+        const result = originalHook.apply(this, args);
+        return mergePlayhubHomeNativeEvents(result);
+      };
+      patchedHook.__playhubOriginalHook = originalHook;
+      try {
+        homeModule.yX = patchedHook;
+      } catch (_error) {
+        try {
+          Object.defineProperty(homeModule, "yX", { value: patchedHook, configurable: true, writable: true });
+        } catch (error) {
+          console.warn("[Playhub Metadata] unable to patch native Home Whats New hook", error);
+        }
+      }
+      homeModule.__playhubNativeHomeWhatsNewPatched = true;
+    }
+
+    patchedModule = homeModule || { dm: store };
+    scheduleRefreshNativeHomeStore(900);
+    scheduleStartupHomeSyncs();
+    return true;
+  };
+
+  const tryInstall = () => patchOne(findSteamWhatsNewHookModule() || { dm: (globalThis as any).libraryEventStore || (globalThis as any).window?.libraryEventStore });
+
+  if (!tryInstall()) {
+    const timer = window.setInterval(() => {
+      attempts += 1;
+      if (tryInstall() || attempts >= 24) window.clearInterval(timer);
+    }, 1000);
+    unpatchers.push(() => window.clearInterval(timer));
+  }
+
+  const onNativeHomeRefreshSignal = () => {
+    invalidatePlayhubHomeNativeEventsCache();
+    scheduleRefreshNativeHomeStore();
+  };
+  window.addEventListener("playhub-metadata:updated", onNativeHomeRefreshSignal);
+  window.addEventListener("playhub-metadata:activity-refreshed", onNativeHomeRefreshSignal);
+  window.addEventListener("playhub-metadata:home-activity-setting-changed", onNativeHomeRefreshSignal as EventListener);
+
+  unpatchers.push(() => {
+    if (refreshTimer) window.clearTimeout(refreshTimer);
+    startupSyncTimers.forEach((timer) => window.clearTimeout(timer));
+    startupSyncTimers.length = 0;
+    window.removeEventListener("playhub-metadata:updated", onNativeHomeRefreshSignal);
+    window.removeEventListener("playhub-metadata:activity-refreshed", onNativeHomeRefreshSignal);
+    window.removeEventListener("playhub-metadata:home-activity-setting-changed", onNativeHomeRefreshSignal as EventListener);
+    if (playhubHomeImageDimensionRefreshTimer) window.clearTimeout(playhubHomeImageDimensionRefreshTimer);
+    playhubHomeImageDimensionRefreshTimer = undefined;
+    const store = nativeStore();
+    if (store?.m_vecHomeBestEventsForUser) {
+      const clean = Array.from(store.m_vecHomeBestEventsForUser || []).filter((event: any) => !event?.__playhubNativeHomeWhatsNew);
+      replaceSteamObservableArray(store.m_vecHomeBestEventsForUser, clean);
+    }
+    if (patchedModule && originalHook && patchedModule.yX?.__playhubOriginalHook === originalHook) {
+      patchedModule.yX = originalHook;
+      patchedModule.__playhubNativeHomeWhatsNewPatched = false;
+    }
+    invalidatePlayhubHomeNativeEventsCache();
+    clearPlayhubHomeActivityCards();
+  });
+};
+
 const ensurePlayhubActivityStyle = () => {
   if (document.getElementById("playhub-activity-news-style")) return;
   const style = document.createElement("style");
@@ -2595,9 +3501,16 @@ const renderPlayhubActivityNewsDom = (
       imageWrap.style.overflow = "hidden";
       imageWrap.style.borderRadius = "6px";
       imageWrap.style.alignSelf = "center";
-      const primaryImage = normalizeSteamNewsImageUrl(item.event_image_url || item.image_url || item.image || item.preview_image_url, metadata?.steam_appid || null);
+      const imageSourceList = uniqueExpandedSteamNewsImageUrls([
+        item.event_image_url,
+        item.image_url,
+        item.image,
+        item.preview_image_url,
+        ...(Array.isArray(item.image_sources) ? item.image_sources : []),
+      ]);
       const fallbackHeader = normalizeSteamNewsImageUrl(item.fallback_image_url || item.header_image_url, metadata?.steam_appid || null);
-      const displayImage = primaryImage || fallbackHeader;
+      const displaySources = Array.from(new Set([...imageSourceList, fallbackHeader].filter(Boolean)));
+      let imageSourceIndex = 0;
       const image = document.createElement("img");
       image.className = "playhub-activity-news-image";
       image.referrerPolicy = "no-referrer";
@@ -2606,15 +3519,16 @@ const renderPlayhubActivityNewsDom = (
       imageFallback.className = "playhub-activity-news-image-fallback";
       imageFallback.textContent = metadata?.title || "Steam News";
       image.onerror = () => {
-        if (fallbackHeader && image.src !== fallbackHeader) {
-          image.src = fallbackHeader;
+        imageSourceIndex += 1;
+        if (displaySources[imageSourceIndex]) {
+          image.src = displaySources[imageSourceIndex];
           return;
         }
         image.style.display = "none";
         imageFallback.style.display = "flex";
       };
-      if (displayImage) {
-        image.src = displayImage;
+      if (displaySources[0]) {
+        image.src = displaySources[0];
       } else {
         image.style.display = "none";
         imageFallback.style.display = "flex";
@@ -2858,9 +3772,16 @@ const PlayhubActivityNewsOverlay = ({ appId, force = false, source = "route" }: 
       );
     }
     const isPatchNote = isPlayhubPatchNoteActivity(item);
-    const imageUrl = normalizeSteamNewsImageUrl(item.event_image_url || item.image_url || item.image || item.preview_image_url, metadata?.steam_appid || null);
+    const imageSourceList = uniqueExpandedSteamNewsImageUrls([
+      item.event_image_url,
+      item.image_url,
+      item.image,
+      item.preview_image_url,
+      ...(Array.isArray(item.image_sources) ? item.image_sources : []),
+    ]);
     const fallbackImageUrl = normalizeSteamNewsImageUrl(item.fallback_image_url || item.header_image_url, metadata?.steam_appid || null);
-    const displayImageUrl = imageUrl || fallbackImageUrl;
+    const displayImageSources = Array.from(new Set([...imageSourceList, fallbackImageUrl].filter(Boolean)));
+    const displayImageUrl = displayImageSources[0] || "";
     const url = String(item.url || item.external_url || item.link || "");
     const visual = isPatchNote
       ? React.createElement("div", {
@@ -2882,8 +3803,10 @@ const PlayhubActivityNewsOverlay = ({ appId, force = false, source = "route" }: 
               loading: "lazy",
               onError: (event: any) => {
                 const img = event.currentTarget as HTMLImageElement;
-                if (fallbackImageUrl && img.src !== fallbackImageUrl) {
-                  img.src = fallbackImageUrl;
+                const currentIndex = Math.max(0, displayImageSources.indexOf(img.src));
+                const next = displayImageSources[currentIndex + 1];
+                if (next) {
+                  img.src = next;
                   return;
                 }
                 img.style.display = "none";
@@ -4127,6 +5050,7 @@ export const installSteamPatches = (): Unpatch => {
   // intentionally native-only.
   installNativeActivityStorePatch(unpatchers);
   installNativePartnerEventStorePatch(unpatchers);
+  installPlayhubHomeActivityPatch(unpatchers);
   const activityRefreshedListener = () => {
     playhubNativeActivityCache().clear();
     playhubNativePartnerEventCache().clear();

@@ -57,6 +57,14 @@ export const startRefreshSteamActivities = callable<
 export const getActivityRefreshProgress = callable<[], ScanProgress>(
   "get_activity_refresh_progress"
 );
+export const refetchSteamActivityAssociation = callable<
+  [appId: number, title?: string],
+  MetadataData | null
+>("refetch_steam_activity_association");
+export const clearSteamActivityAssociation = callable<
+  [appId: number],
+  MetadataData | null
+>("clear_steam_activity_association");
 export const getLocalShortcuts = callable<[], GameOption[]>(
   "get_local_shortcuts"
 );

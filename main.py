@@ -87,6 +87,8 @@ ROM_EXTENSIONS = {
     ".zip",
     ".7z",
     ".iso",
+    ".rvz",
+    ".wbfs",
     ".bin",
     ".chd",
     ".cue",
@@ -537,6 +539,20 @@ class Plugin:
     async def get_activity_refresh_progress(self) -> dict[str, Any]:
         return self._activity_refresh_progress
 
+    async def refetch_steam_activity_association(
+        self, app_id: int, title: str = ""
+    ) -> dict[str, Any] | None:
+        return await asyncio.to_thread(
+            self._refetch_steam_activity_association_sync, app_id, title
+        )
+
+    async def clear_steam_activity_association(
+        self, app_id: int
+    ) -> dict[str, Any] | None:
+        return await asyncio.to_thread(
+            self._clear_steam_activity_association_sync, app_id
+        )
+
     async def get_local_shortcuts(self) -> list[dict[str, Any]]:
         return await asyncio.to_thread(self._read_steam_shortcuts)
 
@@ -919,6 +935,87 @@ class Plugin:
         self._scan_progress["status"] = "completed"
         self._scan_progress["current"] = ""
 
+
+    def _steam_activity_blocked_appids(self, metadata: dict[str, Any]) -> set[int]:
+        blocked: set[int] = set()
+        for value in metadata.get("steam_activity_blocked_appids") or []:
+            appid = self._safe_int(value)
+            if appid:
+                blocked.add(appid)
+        return blocked
+
+    def _steam_activity_blocked_titles(self, metadata: dict[str, Any]) -> set[str]:
+        blocked: set[str] = set()
+        for value in metadata.get("steam_activity_blocked_titles") or []:
+            title = self._normalise_match_title(str(value or ""))
+            if title:
+                blocked.add(title)
+        return blocked
+
+    def _clear_steam_activity_association_sync(self, app_id: int) -> dict[str, Any] | None:
+        self._load_data()
+        key = str(int(app_id))
+        metadata = self._data["metadata"].get(key)
+        if not isinstance(metadata, dict):
+            return None
+        next_metadata = dict(metadata)
+        current_appid = self._safe_int(metadata.get("steam_appid"))
+        blocked_appids = self._steam_activity_blocked_appids(metadata)
+        if current_appid:
+            blocked_appids.add(current_appid)
+        blocked_titles = self._steam_activity_blocked_titles(metadata)
+        for title_value in (
+            metadata.get("steam_activity_title"),
+            metadata.get("title"),
+        ):
+            clean_blocked_title = self._clean_game_title(str(title_value or ""))
+            if clean_blocked_title:
+                blocked_titles.add(self._normalise_match_title(clean_blocked_title))
+        next_metadata["steam_activity_disabled"] = True
+        next_metadata["steam_activity_title"] = self._clean_game_title(str(metadata.get("steam_activity_title") or metadata.get("title") or ""))
+        next_metadata["steam_activity_blocked_appids"] = sorted(blocked_appids)[-12:]
+        next_metadata["steam_activity_blocked_titles"] = sorted(blocked_titles)[-12:]
+        next_metadata["steam_appid"] = None
+        next_metadata["steam_store_url"] = ""
+        next_metadata["steam_news"] = []
+        next_metadata["steam_news_enriched_at"] = 0
+        saved = self._sanitize_metadata(next_metadata)
+        self._data["metadata"][key] = saved
+        self._save_data()
+        return saved
+
+    def _refetch_steam_activity_association_sync(
+        self, app_id: int, title: str = ""
+    ) -> dict[str, Any] | None:
+        self._load_data()
+        key = str(int(app_id))
+        metadata = self._data["metadata"].get(key)
+        if not isinstance(metadata, dict):
+            return None
+        clean_title = self._clean_game_title(str(title or metadata.get("title") or ""))
+        if not clean_title:
+            clean_title = self._clean_game_title(str(metadata.get("title") or ""))
+        next_metadata = dict(metadata)
+        # Force a fresh Steam title resolution instead of reusing a possibly
+        # wrong old appid association. This is important for games such as
+        # Forza Horizon 3, which do not exist on Steam and must not silently
+        # inherit Forza Horizon 6 activity.
+        next_metadata["steam_activity_disabled"] = False
+        next_metadata["steam_activity_title"] = clean_title
+        # Manual refetch is an explicit correction, so previously blocked matches
+        # must not trap the user forever if they type a better title.
+        next_metadata["steam_activity_blocked_appids"] = []
+        next_metadata["steam_activity_blocked_titles"] = []
+        next_metadata.pop("steam_appid", None)
+        next_metadata.pop("steam_store_url", None)
+        next_metadata["steam_news"] = []
+        next_metadata["steam_news_enriched_at"] = 0
+        refreshed = self._metadata_with_steam_news_sync(next_metadata, clean_title, 10)
+        saved = self._sanitize_metadata(refreshed or next_metadata)
+        self._data["metadata"][key] = saved
+        self._save_data()
+        return saved
+
     async def _refresh_steam_activities(self, games: list[dict[str, Any]]) -> None:
         self._load_data()
         targets: list[dict[str, Any]] = []
@@ -926,7 +1023,7 @@ class Plugin:
             if not isinstance(game, dict) or not str(game.get("appid", "")).strip():
                 continue
             metadata = self._data["metadata"].get(str(int(game.get("appid"))))
-            if isinstance(metadata, dict):
+            if isinstance(metadata, dict) and not bool(metadata.get("steam_activity_disabled", False)):
                 targets.append(game)
         self._activity_refresh_progress.update({"total": len(targets), "completed": 0})
         for game in targets:
@@ -1197,10 +1294,14 @@ class Plugin:
             ),
             "steam_appid": self._safe_int(metadata.get("steam_appid")),
             "steam_store_url": self._https_url(str(metadata.get("steam_store_url") or "")),
-            "steam_news": self._sanitize_steam_news(metadata.get("steam_news")),
+            "steam_news": [] if bool(metadata.get("steam_activity_disabled", False)) else self._sanitize_steam_news(metadata.get("steam_news")),
             "steam_news_enriched_at": int(
                 self._as_number(metadata.get("steam_news_enriched_at"), 0)
             ),
+            "steam_activity_disabled": bool(metadata.get("steam_activity_disabled", False)),
+            "steam_activity_title": self._clean_game_title(str(metadata.get("steam_activity_title") or "")),
+            "steam_activity_blocked_appids": sorted(self._steam_activity_blocked_appids(metadata))[-12:],
+            "steam_activity_blocked_titles": sorted(self._steam_activity_blocked_titles(metadata))[-12:],
             "community_enriched_at": int(
                 self._as_number(metadata.get("community_enriched_at"), 0)
             ),
@@ -1214,6 +1315,11 @@ class Plugin:
         clean_title = self._clean_game_title(title or str(metadata.get("title") or ""))
         if not clean_title:
             return self._sanitize_metadata(metadata)
+        if bool(metadata.get("steam_activity_disabled", False)):
+            next_metadata = dict(metadata)
+            next_metadata["steam_news"] = []
+            next_metadata["steam_news_enriched_at"] = 0
+            return self._sanitize_metadata(next_metadata)
         steam_appid, steam_store_url, steam_news = self._steam_news_for_metadata(
             metadata,
             clean_title,
@@ -1285,6 +1391,8 @@ class Plugin:
         if not steam_appid:
             steam_appid, steam_store_url = self._resolve_steam_appid_for_title(title, metadata)
         if not steam_appid:
+            return None, "", []
+        if steam_appid in self._steam_activity_blocked_appids(metadata):
             return None, "", []
         news = self._steam_news_for_appid(steam_appid, title, limit=limit)
         return steam_appid, steam_store_url or STEAM_STORE_APP_URL.format(appid=steam_appid), news
@@ -1390,7 +1498,12 @@ class Plugin:
 
         preview_youtube = re.search(r"\[previewyoutube=([A-Za-z0-9_-]{11})(?:;[^\]]*)?\]", text, re.I)
         if preview_youtube:
-            add(f"https://i.ytimg.com/vi/{preview_youtube.group(1)}/hqdefault.jpg", preview_youtube.start(), "youtube preview", 45)
+            video_id = preview_youtube.group(1)
+            # `hqdefault` is 4:3 and often includes black bars around 16:9 videos.
+            # Prefer 16:9 stills for Activity cards, then fall back to the universal thumbnail.
+            add(f"https://i.ytimg.com/vi/{video_id}/hq720.jpg", preview_youtube.start(), "youtube preview wide", 95)
+            add(f"https://i.ytimg.com/vi/{video_id}/sddefault.jpg", preview_youtube.start(), "youtube preview", 70)
+            add(f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg", preview_youtube.start(), "youtube preview fallback", 35)
 
         patterns = [
             r"\{STEAM_CLAN(?:_[A-Z]+)*_?IMAGE\}/\d+/[^\s<>\)\]\[]+\.(?:jpg|jpeg|png|webp|gif|avif)(?:[?#][^\s<>\)\]\[]*)?",
@@ -1417,6 +1530,38 @@ class Plugin:
         images = self._steam_news_image_candidates(contents, steam_appid)
         return images[0] if images else ""
 
+    def _steam_partner_event_image_assets(self, event: dict[str, Any], steam_appid: int) -> dict[str, str]:
+        jsondata = self._steam_event_json(event.get("jsondata"))
+        clan_id = self._steam_event_clan_id(event)
+
+        def expand_first(raw: Any) -> str:
+            raw_value = self._steam_localized_value(raw)
+            if not raw_value:
+                return ""
+            expanded = self._steam_news_image_candidates(str(raw_value), steam_appid)
+            if not expanded:
+                direct = self._steam_partner_asset_url(str(raw_value), clan_id) or self._https_url(str(raw_value).strip())
+                expanded = [direct] if direct else []
+            for url in expanded:
+                if url:
+                    return url
+            return ""
+
+        assets = {
+            # Steam's event docs define this as the large detail-page header. It is
+            # the same strip Andrea sees at the top of the native event viewer, so
+            # it is the safest source for Home previews too.
+            "header": expand_first(jsondata.get("localized_header_image") or event.get("header_image_url")),
+            # Steam's event cover is the list/library image. Different Steam client
+            # builds expose it through capsule/title/spotlight fields. Keep all of
+            # them available, but do not let article-body images outrank these
+            # native event assets.
+            "capsule": expand_first(jsondata.get("localized_capsule_image") or event.get("capsule_image") or event.get("capsule")),
+            "spotlight": expand_first(jsondata.get("localized_spotlight_image")),
+            "title": expand_first(jsondata.get("localized_title_image") or event.get("image") or event.get("preview_image_url")),
+        }
+        return {key: value for key, value in assets.items() if value}
+
     def _steam_partner_event_images(self, event: dict[str, Any], steam_appid: int) -> list[str]:
         jsondata = self._steam_event_json(event.get("jsondata"))
         clan_id = self._steam_event_clan_id(event)
@@ -1430,8 +1575,6 @@ class Plugin:
             raw_value = self._steam_localized_value(raw)
             if not raw_value:
                 return
-            # raw_value can be a complete body fragment, a Steam clan placeholder,
-            # or a bare asset filename from localized_*_image.
             expanded = self._steam_news_image_candidates(str(raw_value), steam_appid)
             if not expanded:
                 direct = self._steam_partner_asset_url(str(raw_value), clan_id) or self._https_url(str(raw_value).strip())
@@ -1441,19 +1584,22 @@ class Plugin:
                     seen.add(url)
                     images.append(url)
 
-        # Prefer images embedded in the actual announcement body for Activity cards:
-        # for many Steam events, localized_title/capsule assets are generic headers,
-        # while the body [img] is the article artwork shown in the full native viewer.
+        native_assets = self._steam_partner_event_image_assets(event, steam_appid)
+        # Use Steam's own event assets before body images. The top detail-view
+        # header/cover assets are already curated for Steam surfaces, while body
+        # images can be tall tables, separators, or long screenshots.
+        for key in ("header", "capsule", "spotlight", "title"):
+            add(native_assets.get(key))
         add(body)
         candidates = [
+            jsondata.get("localized_header_image"),
             jsondata.get("localized_capsule_image"),
             jsondata.get("localized_spotlight_image"),
             jsondata.get("localized_title_image"),
-            jsondata.get("localized_header_image"),
+            event.get("header_image_url"),
             event.get("image"),
             event.get("capsule"),
             event.get("capsule_image"),
-            event.get("header_image_url"),
             event.get("preview_image_url"),
         ]
         if announcement:
@@ -1509,6 +1655,7 @@ class Plugin:
                 if announcement_gid
                 else f"https://store.steampowered.com/news/app/{int(steam_appid)}/view/{event_gid}"
             )
+            image_assets = self._steam_partner_event_image_assets(event, int(steam_appid))
             image_sources = self._steam_partner_event_images(event, int(steam_appid))
             rows.append(
                 {
@@ -1526,6 +1673,10 @@ class Plugin:
                     "raw_body": body,
                     "image": image_sources[0] if image_sources else "",
                     "image_sources": image_sources,
+                    "event_header_image_url": image_assets.get("header", ""),
+                    "event_cover_image_url": image_assets.get("capsule") or image_assets.get("title") or image_assets.get("spotlight", ""),
+                    "event_spotlight_image_url": image_assets.get("spotlight", ""),
+                    "event_title_image_url": image_assets.get("title", ""),
                     "author": "Steam",
                     "feedLabel": self._clean_html_text(str(event.get("event_type_name") or "Steam")),
                     "date": date,
@@ -1535,17 +1686,28 @@ class Plugin:
                 break
         return self._sanitize_steam_news(rows)
 
+    @staticmethod
+    def _steam_activity_title_numbers_compatible(query: str, candidate: str) -> bool:
+        # Store search can rank sequels very close to each other. If both titles
+        # contain Arabic numerals and none match, treat it as a different game
+        # instead of borrowing activity from a newer sequel.
+        query_numbers = set(re.findall(r"\d+", str(query or "")))
+        candidate_numbers = set(re.findall(r"\d+", str(candidate or "")))
+        return not (query_numbers and candidate_numbers and not query_numbers.intersection(candidate_numbers))
+
     def _resolve_steam_appid_for_title(
         self,
         title: str,
         metadata: dict[str, Any] | None = None,
     ) -> tuple[int | None, str]:
         metadata = metadata or {}
+        blocked_appids = self._steam_activity_blocked_appids(metadata)
+        blocked_titles = self._steam_activity_blocked_titles(metadata)
         for value in (metadata.get("steam_store_url"), metadata.get("source_url"), metadata.get("id")):
             match = re.search(r"store\.steampowered\.com/app/(\d+)", str(value or ""), re.I)
             if match:
                 appid = self._safe_int(match.group(1))
-                if appid:
+                if appid and appid not in blocked_appids:
                     return appid, STEAM_STORE_APP_URL.format(appid=appid)
         clean_title = self._clean_game_title(title)
         if not clean_title:
@@ -1567,6 +1729,12 @@ class Plugin:
             appid = self._safe_int(item.get("id") or item.get("appid"))
             name = self._clean_game_title(str(item.get("name") or ""))
             if not appid or not name:
+                continue
+            if appid in blocked_appids:
+                continue
+            if self._normalise_match_title(name) in blocked_titles:
+                continue
+            if not self._steam_activity_title_numbers_compatible(clean_title, name):
                 continue
             score = 0
             normalised_name = self._normalise_match_title(name)
@@ -1798,7 +1966,7 @@ class Plugin:
                     "thumbnail": self._https_url(
                         str(item.get("thumbnail") or "").strip()
                     )
-                    or f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                    or f"https://i.ytimg.com/vi/{video_id}/hq720.jpg",
                     "source": str(item.get("source") or "YouTube"),
                 }
             )
@@ -1834,7 +2002,27 @@ class Plugin:
             seen.add(key)
             raw_sources = item.get("image_sources") if isinstance(item.get("image_sources"), list) else []
             image_sources: list[str] = []
-            for candidate in [*raw_sources, item.get("image"), item.get("image_url"), item.get("preview_image_url")]:
+
+            def first_clean_image(value: Any) -> str:
+                for image in self._steam_news_image_candidates(str(value or ""), 0) or [self._https_url(str(value or "").strip())]:
+                    if image:
+                        return image
+                return ""
+
+            event_header_image_url = first_clean_image(item.get("event_header_image_url"))
+            event_cover_image_url = first_clean_image(item.get("event_cover_image_url"))
+            event_spotlight_image_url = first_clean_image(item.get("event_spotlight_image_url"))
+            event_title_image_url = first_clean_image(item.get("event_title_image_url"))
+            for candidate in [
+                event_header_image_url,
+                event_cover_image_url,
+                event_spotlight_image_url,
+                event_title_image_url,
+                *raw_sources,
+                item.get("image"),
+                item.get("image_url"),
+                item.get("preview_image_url"),
+            ]:
                 for image in self._steam_news_image_candidates(str(candidate or ""), 0) or [self._https_url(str(candidate or "").strip())]:
                     if image and image not in image_sources:
                         image_sources.append(image)
@@ -1856,6 +2044,10 @@ class Plugin:
                     "raw_body": raw_body,
                     "image": image_sources[0] if image_sources else "",
                     "image_sources": image_sources,
+                    "event_header_image_url": event_header_image_url,
+                    "event_cover_image_url": event_cover_image_url,
+                    "event_spotlight_image_url": event_spotlight_image_url,
+                    "event_title_image_url": event_title_image_url,
                     "author": self._clean_html_text(str(item.get("author") or "")),
                     "feedLabel": self._clean_html_text(str(item.get("feedLabel") or item.get("feedlabel") or item.get("feedname") or "Steam News")),
                     "date": int(self._as_number(item.get("date"), 0)),
@@ -1893,7 +2085,7 @@ class Plugin:
                     "title": self._clean_html_text(video_title)
                     or f"{self._clean_game_title(title)} video",
                     "url": f"https://www.youtube.com/watch?v={video_id}",
-                    "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                    "thumbnail": f"https://i.ytimg.com/vi/{video_id}/hq720.jpg",
                     "source": "YouTube",
                 }
             )
@@ -6151,7 +6343,7 @@ try {
         if not matches:
             return None
         best = matches[0]
-        return int(best["id"]) if float(best.get("score") or 0) >= 0.82 else None
+        return int(best["id"]) if float(best.get("score") or 0) >= 0.78 else None
 
     def _search_retroachievements_games_sync(
         self,
@@ -6435,16 +6627,30 @@ try {
             (21, ["/roms/ps2/", "pcsx2", "playstation 2", " ps2 "]),
             (12, ["/roms/psx/", "/roms/ps1/", "duckstation", "swanstation", "playstation", " ps1 "]),
             (16, ["/roms/gc/", "/roms/gamecube/", "dolphin", "gamecube"]),
+            (19, ["/roms/wii/", "dolphin", "nintendo wii", " wii ", ".wbfs", ".rvz"]),
             (24, ["/roms/psp/", "ppsspp", "playstation portable"]),
             (2, ["/roms/n64/", "mupen", "parallel", "nintendo 64"]),
             (18, ["/roms/nds/", "/roms/ds/", "melonds", "desmume", "nintendo ds"]),
             (5, ["/roms/gba/", "mgba", "game boy advance"]),
             (6, ["/roms/gbc/", "game boy color"]),
             (4, ["/roms/gb/", "game boy"]),
-            (3, ["/roms/snes/", "/roms/sfc/", "super nintendo", "snes"]),
-            (7, ["/roms/nes/", "famicom", " nes "]),
+            (3, ["/roms/snes/", "/roms/sfc/", "super nintendo", "snes", "snes9x", "bsnes"]),
+            (7, ["/roms/nes/", "famicom", " nes ", "nestopia", "fceux"]),
             (40, ["/roms/dreamcast/", "/roms/dc/", "flycast", "redream", "dreamcast"]),
+            (27, ["/roms/arcade/", "/roms/mame/", "mame", "fbneo", "finalburn", "fightcade", "neo geo"]),
             (1, ["/roms/genesis/", "/roms/megadrive/", "genesis", "mega drive"]),
+            (9, ["/roms/segacd/", "/roms/sega-cd/", "/roms/mega-cd/", "sega cd", "mega cd"]),
+            (10, ["/roms/32x/", "sega 32x", " 32x "]),
+            (11, ["/roms/mastersystem/", "/roms/sms/", "master system"]),
+            (15, ["/roms/gamegear/", "/roms/gg/", "game gear"]),
+            (8, ["/roms/pcengine/", "/roms/turbografx/", "pc engine", "turbografx", "turbo grafx"]),
+            (30, ["/roms/saturn/", "sega saturn", "saturn"]),
+            (13, ["/roms/lynx/", "atari lynx"]),
+            (14, ["/roms/ngp/", "neo geo pocket"]),
+            (25, ["/roms/atari7800/", "atari 7800"]),
+            (26, ["/roms/msx/", " msx "]),
+            (28, ["/roms/virtualboy/", "virtual boy"]),
+            (29, ["/roms/sg-1000/", "/roms/sg1000/", "sg-1000", "sg1000"]),
         ]
         ids: list[int] = []
         for console_id, needles in checks:
@@ -6452,7 +6658,9 @@ try {
                 ids.append(console_id)
         suffix = (resolved.suffix.lower() if resolved else "").casefold()
         if not ids:
-            if suffix in {".cue", ".pbp"}:
+            if suffix in {".rvz", ".wbfs"}:
+                ids.extend([16, 19])
+            elif suffix in {".cue", ".pbp"}:
                 ids.append(12)
             elif suffix in {".z64", ".n64", ".v64"}:
                 ids.append(2)
@@ -6485,8 +6693,22 @@ try {
         text = html.unescape(str(title or "")).casefold()
         text = re.sub(r"[\u2122\u00ae\u00a9]", "", text)
         text = re.sub(r"\[[^\]]+\]|\([^\)]*\)", " ", text)
+        roman_map = {
+            "ii": "2", "iii": "3", "iv": "4", "v": "5", "vi": "6",
+            "vii": "7", "viii": "8", "ix": "9", "x": "10",
+        }
+
+        def roman_replace(match: re.Match[str]) -> str:
+            return f" {roman_map.get(match.group(1), match.group(1))} "
+
+        text = re.sub(r"\b(ii|iii|iv|v|vi|vii|viii|ix|x)\b", roman_replace, text)
+        text = re.sub(r"\b(disc|disk|cd|side|track)\s*\d+\b", " ", text)
         text = re.sub(r"\b(the|a|an)\b", " ", text)
-        text = re.sub(r"\b(remaster(ed)?|hd|definitive|ultimate|complete|goty|edition)\b", " ", text)
+        text = re.sub(
+            r"\b(remaster(ed)?|hd|definitive|ultimate|complete|goty|edition|collection|anthology|special|limited|digital)\b",
+            " ",
+            text,
+        )
         text = re.sub(
             r"\b(usa|europe|eur|japan|jp|world|rev|revision|beta|proto|prototype|demo|sample|en|fr|de|es|it|pt|br|v\d+(?:\.\d+)*)\b",
             " ",
@@ -6512,9 +6734,12 @@ try {
         target_numbers = set(re.findall(r"\d+", target))
         candidate_numbers = set(re.findall(r"\d+", candidate))
         if target_numbers and candidate_numbers and not target_numbers.intersection(candidate_numbers):
-            score -= 0.2
+            score -= 0.35
         elif target_numbers and not candidate_numbers:
-            score -= 0.08
+            score -= 0.12
+        # Avoid accepting loose one-word matches unless the sequence match is also strong.
+        if len(target_tokens) == 1 and len(candidate_tokens) > 1 and sequence_score < 0.72:
+            score -= 0.18
         return max(0.0, min(score, 1.0))
 
     def _retroachievements_title_candidates(
@@ -6522,19 +6747,27 @@ try {
     ) -> list[str]:
         values: list[str] = []
         metadata = self._data.get("metadata", {}).get(str(app_id)) or {}
+        shortcut = self._shortcut_for_app(app_id) if app_id else None
         values.extend(
             [
                 title,
                 str(metadata.get("title") or ""),
+                str(shortcut.get("name") or "") if shortcut else "",
                 resolved.stem if resolved else "",
             ]
         )
+        if shortcut:
+            values.extend(
+                str(shortcut.get(key) or "")
+                for key in ("exe", "launch_options", "start_dir", "shortcut_path")
+            )
         values.extend(self._rom_title_candidates_from_text(path))
         cleaned: list[str] = []
         for value in values:
-            title_value = self._clean_game_title(self._rom_display_title(value))
-            if title_value and title_value not in cleaned:
-                cleaned.append(title_value)
+            for candidate in self._retro_title_variants(value):
+                title_value = self._clean_game_title(self._rom_display_title(candidate))
+                if title_value and title_value not in cleaned:
+                    cleaned.append(title_value)
         return cleaned
 
     def _rom_title_candidates_from_text(self, text: str) -> list[str]:
@@ -6562,6 +6795,30 @@ try {
         name = re.sub(r"[_\.\-]+", " ", name)
         name = re.sub(r"\[[^\]]+\]|\([^\)]*\)", " ", name)
         return re.sub(r"\s+", " ", name).strip()
+
+    def _retro_title_variants(self, value: str) -> list[str]:
+        raw = str(value or "").strip()
+        if not raw:
+            return []
+        display = self._rom_display_title(raw)
+        variants = [display]
+        # Many ROM managers append subtitles or edition names. Keep both the full
+        # name and a conservative base-name candidate for RetroAchievements.
+        for sep in (" - ", " – ", " — ", ": "):
+            if sep in display:
+                head, tail = display.split(sep, 1)
+                head = head.strip()
+                tail = tail.strip()
+                if len(head) >= 3:
+                    variants.append(head)
+                if len(tail) >= 3:
+                    variants.append(tail)
+        compact = re.sub(r"\b(disc|disk|cd|side|track)\s*\d+\b", " ", display, flags=re.IGNORECASE)
+        compact = re.sub(r"\b(v\d+(?:\.\d+)*|rev(?:ision)?\s*[a-z0-9]*)\b", " ", compact, flags=re.IGNORECASE)
+        compact = re.sub(r"\s+", " ", compact).strip()
+        if compact and compact not in variants:
+            variants.append(compact)
+        return [item for item in dict.fromkeys(variants) if item]
 
     def _load_hash_library(self) -> None:
         try:

@@ -24,6 +24,10 @@ export type MetadataData = {
   steam_store_url?: string;
   steam_news?: MetadataNews[];
   steam_news_enriched_at?: number;
+  steam_activity_disabled?: boolean;
+  steam_activity_title?: string;
+  steam_activity_blocked_appids?: number[];
+  steam_activity_blocked_titles?: string[];
   community_enriched_at?: number;
   updated_at?: number;
 };

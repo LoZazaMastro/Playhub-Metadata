@@ -5,6 +5,7 @@ import {
   PanelSection,
   PanelSectionRow,
   ScrollPanel,
+  SliderField,
   Spinner,
   TextField,
   ToggleField,
@@ -39,6 +40,8 @@ import {
   testOpenXblCredentials,
   clearXboxAssociations,
   syncTrueAchievementsProgress,
+  refetchSteamActivityAssociation,
+  clearSteamActivityAssociation,
 } from "./backend";
 import { t } from "./i18n";
 import {
@@ -251,6 +254,91 @@ const achievementCachePolicies: AchievementCachePolicy[] = [
   "manual",
 ];
 
+const PLAYHUB_HOME_ACTIVITY_SETTING_KEY = "playhub-metadata:show-activities-in-home";
+const PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY = "playhub-metadata:home-activity-count";
+const PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY = "playhub-metadata:home-activity-shuffle";
+const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT = 3;
+const PLAYHUB_HOME_ACTIVITY_MAX_LIMIT = 6;
+
+const clampHomeActivityCount = (value: number) =>
+  Math.max(1, Math.min(PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, Math.round(Number.isFinite(value) ? value : PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT)));
+
+const readHomeActivityCount = () => {
+  try {
+    return clampHomeActivityCount(Number(window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY) || PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT));
+  } catch (_error) {
+    return PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT;
+  }
+};
+
+const readShowActivitiesInHome = () => {
+  try {
+    return window.localStorage.getItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY) === "1";
+  } catch (_error) {
+    return false;
+  }
+};
+
+const setShowActivitiesInHomeSetting = (enabled: boolean) => {
+  try {
+    window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_SETTING_KEY, enabled ? "1" : "0");
+  } catch (_error) {
+    // Steam's embedded browser may reject storage in unusual states; keep UI optimistic.
+  }
+  window.dispatchEvent(
+    new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+      detail: { enabled },
+    })
+  );
+  window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+
+
+const shuffleHomeActivitiesSetting = () => {
+  const value = `${Date.now()}:${Math.random().toString(36).slice(2)}`;
+  try {
+    window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY, value);
+  } catch (_error) {
+    // localStorage can fail in odd embedded contexts; the event still asks Steam to resync.
+  }
+  window.dispatchEvent(
+    new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+      detail: { shuffle: value },
+    })
+  );
+  window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+
+const resetHomeActivitiesToMostRecentSetting = () => {
+  try {
+    window.localStorage.removeItem(PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY);
+  } catch (_error) {
+    // localStorage can fail in odd embedded contexts; the event still asks Steam to resync.
+  }
+  window.dispatchEvent(
+    new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+      detail: { shuffle: "" },
+    })
+  );
+  window.dispatchEvent(new Event("playhub-metadata:updated"));
+};
+
+const setHomeActivityCountSetting = (count: number) => {
+  const clamped = clampHomeActivityCount(count);
+  try {
+    window.localStorage.setItem(PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY, String(clamped));
+  } catch (_error) {
+    // Steam's embedded browser may reject storage in unusual states; keep UI optimistic.
+  }
+  window.dispatchEvent(
+    new CustomEvent("playhub-metadata:home-activity-setting-changed", {
+      detail: { count: clamped },
+    })
+  );
+  window.dispatchEvent(new Event("playhub-metadata:updated"));
+  return clamped;
+};
+
 const useNonSteamGames = () => {
   const [games, setGames] = useState<GameOption[]>([]);
   const loadGames = useCallback(async () => {
@@ -269,8 +357,12 @@ export const Content = () => {
   const [scanMessage, setScanMessage] = useState("");
   const [activityBusy, setActivityBusy] = useState(false);
   const [activityMessage, setActivityMessage] = useState("");
+  const [showActivitiesInHome, setShowActivitiesInHome] = useState(readShowActivitiesInHome);
+  const [homeActivityCount, setHomeActivityCount] = useState(readHomeActivityCount);
   const [xboxBulkBusy, setXboxBulkBusy] = useState(false);
   const [xboxBulkMessage, setXboxBulkMessage] = useState("");
+  const [raBulkBusy, setRaBulkBusy] = useState(false);
+  const [raBulkMessage, setRaBulkMessage] = useState("");
   const [ra, setRa] = useState<RetroAchievementsSettings>({
     enabled: false,
     username: "",
@@ -356,6 +448,127 @@ export const Content = () => {
     } catch (error) {
       setActivityBusy(false);
       toaster.toast({ title: t("pluginName"), body: String(error) });
+    }
+  };
+
+
+  const retroAchievementLaunchText = (game: GameOption) =>
+    [game.exe, game.start_dir, game.launch_options, game.shortcut_path, game.name]
+      .map((value) => String(value || ""))
+      .filter(Boolean)
+      .join(" ");
+
+  const isLikelyRetroAchievementsTarget = (game: GameOption, source: AchievementSource = "auto") => {
+    if (isUwphookGameOption(game)) return false;
+    const text = retroAchievementLaunchText(game).toLowerCase().replace(/\\/g, "/");
+    const emulatorHints = [
+      "retroarch",
+      "emulationstation",
+      "emudeck",
+      "launchbox",
+      "pcsx2",
+      "duckstation",
+      "swanstation",
+      "dolphin",
+      "ppsspp",
+      "mame",
+      "fbneo",
+      "finalburn",
+      "fightcade",
+      "mupen",
+      "parallel",
+      "melonds",
+      "desmume",
+      "mgba",
+      "snes9x",
+      "bsnes",
+      "nestopia",
+      "flycast",
+      "redream",
+    ];
+    const romHints = [
+      ".zip", ".7z", ".iso", ".rvz", ".wbfs", ".bin", ".chd", ".cue", ".img", ".pbp",
+      ".z64", ".n64", ".v64", ".nds", ".gba", ".gbc", ".gb",
+      ".sfc", ".smc", ".nes", ".fds", ".cdi", ".gdi", ".m3u",
+      "/roms/", "\\roms\\",
+    ];
+    if (emulatorHints.some((hint) => text.includes(hint))) return true;
+    if (romHints.some((hint) => text.includes(hint.toLowerCase()))) return true;
+    return source === "retroachievements";
+  };
+
+  const scanRetroAchievements = async () => {
+    if (raBulkBusy || xboxBulkBusy || busy) return;
+    if (!ra.enabled || !ra.api_key.trim()) {
+      toaster.toast({ title: t("pluginName"), body: t("retroLoginFailed") });
+      return;
+    }
+    const settings = await getAchievementSettings();
+    const sources = settings.achievement_sources || {};
+    const existingIds = settings.retroachievements.game_ids || {};
+    const targets = games.filter((game) => {
+      const key = String(game.appid);
+      const source = sources[key] || "auto";
+      if (source === "disabled" || source === "xbox") return false;
+      if (existingIds[key]) return false;
+      return isLikelyRetroAchievementsTarget(game, source as AchievementSource);
+    });
+    if (!targets.length) {
+      toaster.toast({ title: t("pluginName"), body: t("retroBulkNothing") });
+      return;
+    }
+    setRaBulkBusy(true);
+    setRaBulkMessage(`${t("retroBulkScanning")}: 0/${targets.length}`);
+    let assigned = 0;
+    let skipped = 0;
+    try {
+      for (let index = 0; index < targets.length; index += 1) {
+        const game = targets[index];
+        const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+        setRaBulkMessage(`${prefix}: ${t("retroBulkDetecting")}`);
+        try {
+          let payload = await resolveRetroAchievementsFromPath(
+            game.appid,
+            retroAchievementLaunchText(game),
+            game.name
+          );
+          if (!payload?.steam?.nTotal) {
+            setRaBulkMessage(`${prefix}: ${t("retroBulkSearching")}`);
+            const results = await searchRetroAchievementsGames(game.name, 8, game.appid);
+            const best = results[0];
+            if (best && best.score >= 0.78) {
+              await setRetroAchievementsGameId(game.appid, best.id);
+              await setAchievementSource(game.appid, "retroachievements");
+              clearAchievementsForApp(game.appid);
+              setRaBulkMessage(`${prefix}: ${t("retroBulkApplying")}`);
+              payload = await fetchAchievements(game.appid);
+            }
+          } else {
+            await setAchievementSource(game.appid, "retroachievements");
+          }
+          if (payload?.steam?.nTotal) {
+            applyAchievementPayload(game.appid, payload);
+            assigned += 1;
+            setRaBulkMessage(`${prefix}: ${t("retroBulkAppliedOne")}`);
+          } else {
+            skipped += 1;
+            setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+          }
+        } catch (_error) {
+          skipped += 1;
+          setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+        }
+      }
+      const refreshed = await getAchievementSettings();
+      setRa(refreshed.retroachievements);
+      await refreshRaSettings();
+      setRaBulkMessage(`${t("retroBulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`);
+      toaster.toast({
+        title: t("pluginName"),
+        body: `${t("retroBulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`,
+      });
+    } finally {
+      setRaBulkBusy(false);
     }
   };
 
@@ -600,6 +813,45 @@ export const Content = () => {
         </div>
       </PanelSectionRow>
       <PanelSectionRow>
+        <div style={rowStackStyle}>
+          <ToggleField
+            label={t("showActivitiesInHome")}
+            checked={showActivitiesInHome}
+            onChange={(checked) => {
+              setShowActivitiesInHome(checked);
+              setShowActivitiesInHomeSetting(checked);
+            }}
+          />
+          <SliderField
+            label={t("homeActivityCount")}
+            value={homeActivityCount}
+            min={1}
+            max={PLAYHUB_HOME_ACTIVITY_MAX_LIMIT}
+            step={1}
+            notchCount={PLAYHUB_HOME_ACTIVITY_MAX_LIMIT}
+            notchTicksVisible={true}
+            showValue={true}
+            onChange={(value) => {
+              const clamped = setHomeActivityCountSetting(value);
+              setHomeActivityCount(clamped);
+            }}
+          />
+          <div style={compactTextStyle}>{t("homeActivityCountHint")}</div>
+          <FocusableButton
+            className="DialogButton"
+            onClick={resetHomeActivitiesToMostRecentSetting}
+          >
+            {t("homeActivityMostRecent")}
+          </FocusableButton>
+          <FocusableButton
+            className="DialogButton"
+            onClick={shuffleHomeActivitiesSetting}
+          >
+            {t("homeActivityShuffle")}
+          </FocusableButton>
+        </div>
+      </PanelSectionRow>
+      <PanelSectionRow>
         <div style={sectionHeadingStyle}>{t("retroTitle")}</div>
       </PanelSectionRow>
         <PanelSectionRow>
@@ -646,7 +898,20 @@ export const Content = () => {
             <FocusableButton className="DialogButton" onClick={openRetroAchievements}>
               {t("retroCreateAccount")}
             </FocusableButton>
+            <FocusableButton
+              className="DialogButton"
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length || !ra.enabled || !ra.api_key.trim()}
+              onClick={scanRetroAchievements}
+            >
+              {raBulkBusy ? t("retroBulkScanning") : t("retroBulkScan")}
+            </FocusableButton>
           </div>
+          {raBulkBusy || raBulkMessage ? (
+            <div style={inlineStatusStyle}>
+              {raBulkBusy ? <Spinner /> : null}
+              <span>{raBulkMessage}</span>
+            </div>
+          ) : null}
         </PanelSectionRow>
       <PanelSectionRow>
         <div style={sectionHeadingStyle}>{t("xboxTitle")}</div>
@@ -686,21 +951,21 @@ export const Content = () => {
             </FocusableButton>
             <FocusableButton
               className="DialogButton"
-              disabled={busy || xboxBulkBusy || !games.length}
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length}
               onClick={bulkApplyXboxAchievements}
             >
               {xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan")}
             </FocusableButton>
             <FocusableButton
               className="DialogButton"
-              disabled={busy || xboxBulkBusy || !games.length || !xbox.api_key.trim()}
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length || !xbox.api_key.trim()}
               onClick={syncMatchedTrueAchievementsProgress}
             >
               {t("xboxSyncAllProgress")}
             </FocusableButton>
             <FocusableButton
               className="DialogButton"
-              disabled={busy || xboxBulkBusy || !games.length}
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length}
               onClick={clearAllXboxMatches}
             >
               {t("xboxClearAll")}
@@ -768,6 +1033,8 @@ export const MetadataPage = () => {
   const [xboxQuery, setXboxQuery] = useState(appName(appId));
   const [xboxResults, setXboxResults] = useState<XboxTitleResult[]>([]);
   const [xboxSearching, setXboxSearching] = useState(false);
+  const [steamActivityQuery, setSteamActivityQuery] = useState(appName(appId));
+  const [steamActivityBusy, setSteamActivityBusy] = useState(false);
 
   const setFormMetadata = useCallback((next: MetadataData) => {
     setMetadata(next);
@@ -775,7 +1042,8 @@ export const MetadataPage = () => {
     setPublisherText(personsToText(next.publishers));
     setReleaseText(epochToDate(next.release_date));
     setRatingText(next.rating == null ? "" : String(next.rating));
-  }, []);
+    setSteamActivityQuery(next.steam_activity_title || next.title || appName(appId));
+  }, [appId]);
 
   const load = useCallback(async () => {
     const saved = await getMetadata(appId);
@@ -1051,6 +1319,52 @@ export const MetadataPage = () => {
     });
   };
 
+  const refetchSteamActivityMatch = async () => {
+    if (steamActivityBusy) return;
+    setSteamActivityBusy(true);
+    try {
+      const saved = await refetchSteamActivityAssociation(
+        appId,
+        steamActivityQuery || metadata.title || appName(appId)
+      );
+      if (saved) {
+        metadataCache[String(appId)] = saved;
+        setFormMetadata(saved);
+        window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
+        window.dispatchEvent(new Event("playhub-metadata:updated"));
+        toaster.toast({
+          title: t("pluginName"),
+          body: saved.steam_news?.length ? t("steamActivityRefetchDone") : t("steamActivityNoMatch"),
+        });
+      } else {
+        toaster.toast({ title: t("pluginName"), body: t("steamActivityNoMatch") });
+      }
+    } catch (error) {
+      toaster.toast({ title: t("pluginName"), body: String(error) });
+    } finally {
+      setSteamActivityBusy(false);
+    }
+  };
+
+  const clearSteamActivityMatch = async () => {
+    if (steamActivityBusy) return;
+    setSteamActivityBusy(true);
+    try {
+      const saved = await clearSteamActivityAssociation(appId);
+      if (saved) {
+        metadataCache[String(appId)] = saved;
+        setFormMetadata(saved);
+        window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
+        window.dispatchEvent(new Event("playhub-metadata:updated"));
+      }
+      toaster.toast({ title: t("pluginName"), body: t("steamActivityClearDone") });
+    } catch (error) {
+      toaster.toast({ title: t("pluginName"), body: String(error) });
+    } finally {
+      setSteamActivityBusy(false);
+    }
+  };
+
   const toggleCategory = (category: number, checked: boolean) => {
     setMetadata((prev) => {
       const next = new Set(prev.store_categories || []);
@@ -1222,6 +1536,47 @@ export const MetadataPage = () => {
               />
             </PanelSectionRow>
           ))}
+        </PanelSection>
+
+        <PanelSection title={t("steamActivityTitle")}>
+          <PanelSectionRow>
+            <div style={rowStackStyle}>
+              <div style={compactTextStyle}>{t("steamActivityHint")}</div>
+              <div style={compactTextStyle}>
+                {metadata.steam_activity_disabled
+                  ? t("steamActivityDisabled")
+                  : metadata.steam_appid
+                    ? `${t("steamActivityCurrentMatch")}: ${metadata.steam_appid}${metadata.steam_news?.length ? ` - ${metadata.steam_news.length} ${t("steamActivityItems")}` : ""}`
+                    : t("steamActivityNoCurrentMatch")}
+              </div>
+            </div>
+          </PanelSectionRow>
+          <PanelSectionRow>
+            <div style={rowStackStyle}>
+              <label>{t("steamActivitySearchTitle")}</label>
+              <div style={buttonRowStyle}>
+                <TextField
+                  value={steamActivityQuery}
+                  onChange={(e) => setSteamActivityQuery(e.target.value)}
+                  style={{ ...flexFieldStyle, minWidth: "12rem" }}
+                />
+                <FocusableButton
+                  className="DialogButton"
+                  disabled={steamActivityBusy}
+                  onClick={refetchSteamActivityMatch}
+                >
+                  {steamActivityBusy ? t("refreshingActivities") : t("steamActivityRefetch")}
+                </FocusableButton>
+                <FocusableButton
+                  className="DialogButton"
+                  disabled={steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled)}
+                  onClick={clearSteamActivityMatch}
+                >
+                  {t("steamActivityClear")}
+                </FocusableButton>
+              </div>
+            </div>
+          </PanelSectionRow>
         </PanelSection>
 
         <PanelSection title={t("achievementSourceTitle")}>
