@@ -603,6 +603,9 @@ class Plugin:
     async def sync_trueachievements_progress(self, app_id: int) -> dict[str, Any] | None:
         return await asyncio.to_thread(self._sync_trueachievements_progress_sync, app_id)
 
+    async def sync_retroachievements_progress(self, app_id: int) -> dict[str, Any] | None:
+        return await asyncio.to_thread(self._sync_retroachievements_progress_sync, app_id)
+
     async def resolve_retroachievements_from_path(
         self, app_id: int, path: str, title: str = ""
     ) -> dict[str, Any] | None:
@@ -640,15 +643,48 @@ class Plugin:
             "achievement_sources": self._data["achievement_sources"],
             "achievement_cache": {
                 "policy": self._normalise_achievement_cache_policy(achievement_cache.get("policy")),
+                "retroachievements_policy": self._normalise_achievement_cache_policy(
+                    achievement_cache.get("retroachievements_policy") or achievement_cache.get("policy")
+                ),
+                "xbox_policy": self._normalise_achievement_cache_policy(
+                    achievement_cache.get("xbox_policy") or achievement_cache.get("policy")
+                ),
             },
         }
 
-    async def set_achievement_cache_policy(self, policy: str = "") -> dict[str, Any]:
+    async def set_achievement_cache_policy(
+        self, provider: str = "", policy: str = ""
+    ) -> dict[str, Any]:
         self._load_data()
-        cleaned = self._normalise_achievement_cache_policy(policy)
-        self._data.setdefault("settings", {}).setdefault("achievement_cache", {})["policy"] = cleaned
+        # Backward compatibility for old frontend builds that passed only a policy.
+        clean_provider = str(provider or "").strip().casefold()
+        clean_policy = str(policy or "").strip().casefold()
+        if clean_provider in ACHIEVEMENT_CACHE_POLICIES and not clean_policy:
+            clean_policy = clean_provider
+            clean_provider = "all"
+        cleaned = self._normalise_achievement_cache_policy(clean_policy)
+        cache_settings = self._data.setdefault("settings", {}).setdefault("achievement_cache", {})
+        if clean_provider in {"retroachievements", "retro", "ra"}:
+            cache_settings["retroachievements_policy"] = cleaned
+        elif clean_provider in {"xbox", "openxbl"}:
+            cache_settings["xbox_policy"] = cleaned
+        else:
+            cache_settings["policy"] = cleaned
+            cache_settings["retroachievements_policy"] = cleaned
+            cache_settings["xbox_policy"] = cleaned
+        cache_settings["policy"] = self._normalise_achievement_cache_policy(cache_settings.get("policy"))
+        cache_settings["retroachievements_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("retroachievements_policy") or cache_settings.get("policy")
+        )
+        cache_settings["xbox_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("xbox_policy") or cache_settings.get("policy")
+        )
         self._save_data()
-        return {"policy": cleaned}
+        return {
+            "policy": cache_settings["policy"],
+            "retroachievements_policy": cache_settings["retroachievements_policy"],
+            "xbox_policy": cache_settings["xbox_policy"],
+        }
 
     async def get_xbox_settings(self) -> dict[str, Any]:
         settings = await self.get_achievement_settings()
@@ -708,6 +744,30 @@ class Plugin:
             decky.logger.error(f"Failed clearing Xbox achievement cache: {error}")
         self._save_data()
         return await self.get_xbox_settings()
+
+    async def clear_retroachievements_associations(self) -> dict[str, Any]:
+        self._load_data()
+        self._data["ra_game_ids"] = {}
+        self._data["achievement_sources"] = {
+            str(key): value
+            for key, value in (self._data.get("achievement_sources") or {}).items()
+            if value != "retroachievements"
+        }
+        try:
+            for pattern in (
+                "retroachievements_achievement_cache*.json",
+                "retroachievements_game_index*.json",
+                "retroachievements_hash_library*.json",
+            ):
+                for cache_file in self._settings_dir.glob(pattern):
+                    if cache_file.exists() and cache_file.is_file():
+                        cache_file.unlink()
+        except Exception as error:
+            decky.logger.error(f"Failed clearing RetroAchievements cache: {error}")
+        self._hash_library = {}
+        self._ra_title_index = []
+        self._save_data()
+        return await self.get_retroachievements_settings()
 
     async def test_openxbl_credentials(self, api_key: str = "") -> dict[str, Any]:
         return await asyncio.to_thread(self._test_openxbl_credentials_sync, api_key)
@@ -790,6 +850,8 @@ class Plugin:
                 },
                 "achievement_cache": {
                     "policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
+                    "retroachievements_policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
+                    "xbox_policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
                 },
             },
             "ra_game_ids": {},
@@ -837,8 +899,14 @@ class Plugin:
         xbox_settings["ta_logged_in"] = bool(xbox_settings.get("xuid") or (xbox_settings.get("api_key") and xbox_settings.get("ta_logged_in")))
         xbox_settings["ta_session_source"] = "openxbl"
         cache_settings = default["settings"].setdefault("achievement_cache", {})
-        policy = str(cache_settings.get("policy") or ACHIEVEMENT_CACHE_DEFAULT_POLICY).strip().casefold()
-        cache_settings["policy"] = policy if policy in ACHIEVEMENT_CACHE_POLICIES else ACHIEVEMENT_CACHE_DEFAULT_POLICY
+        legacy_policy = self._normalise_achievement_cache_policy(cache_settings.get("policy"))
+        cache_settings["policy"] = legacy_policy
+        cache_settings["retroachievements_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("retroachievements_policy") or legacy_policy
+        )
+        cache_settings["xbox_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("xbox_policy") or legacy_policy
+        )
         default["ra_game_ids"].update(payload.get("ra_game_ids") or {})
         # Preserve both modern OpenXBL numeric title IDs and older TA fallback
         # matches. The fetch path decides which provider to use.
@@ -2211,7 +2279,7 @@ class Plugin:
                 return payload
         return self._fetch_ra_achievements_sync(app_id)
 
-    def _fetch_ra_achievements_sync(self, app_id: int) -> dict[str, Any] | None:
+    def _fetch_ra_achievements_sync(self, app_id: int, force_refresh: bool = False) -> dict[str, Any] | None:
         self._load_data()
         ra = self._data["settings"].get("retroachievements") or {}
         if not ra.get("enabled"):
@@ -2223,11 +2291,12 @@ class Plugin:
             return None
         api_key_hash = hashlib.sha256(api_key.encode("utf-8")).hexdigest()[:16]
         cache_key = f"ra{PLAYHUB_ACHIEVEMENT_CACHE_VERSION}:{api_key_hash}:{username.casefold()}:{int(game_id)}"
-        cached = self._load_ra_achievement_cache(cache_key)
-        if isinstance(cached, dict):
-            payload = self._retro_payload_to_steam(cached, int(game_id))
-            if payload:
-                return payload
+        if not force_refresh:
+            cached = self._load_ra_achievement_cache(cache_key)
+            if isinstance(cached, dict):
+                payload = self._retro_payload_to_steam(cached, int(game_id))
+                if payload:
+                    return payload
         params = urllib.parse.urlencode(
             {"z": username, "y": api_key, "u": username, "g": int(game_id)}
         )
@@ -2241,6 +2310,12 @@ class Plugin:
         self._save_ra_achievement_cache(cache_key, payload)
         return self._retro_payload_to_steam(payload, int(game_id))
 
+    def _sync_retroachievements_progress_sync(self, app_id: int) -> dict[str, Any] | None:
+        # Explicit user action: bypass the achievement cache so newly unlocked
+        # RetroAchievements are fetched immediately instead of waiting for the
+        # selected cache policy/background sync interval.
+        return self._fetch_ra_achievements_sync(app_id, force_refresh=True)
+
     def _achievement_source_for_app(self, app_id: int) -> str:
         source = str(
             self._data.get("achievement_sources", {}).get(str(app_id)) or "auto"
@@ -2252,9 +2327,19 @@ class Plugin:
         policy = str(value or ACHIEVEMENT_CACHE_DEFAULT_POLICY).strip().casefold()
         return policy if policy in ACHIEVEMENT_CACHE_POLICIES else ACHIEVEMENT_CACHE_DEFAULT_POLICY
 
-    def _achievement_cache_policy(self) -> str:
+    def _achievement_cache_policy(self, provider: str = "") -> str:
         settings = (self._data.get("settings") or {}).get("achievement_cache") or {}
-        return self._normalise_achievement_cache_policy(settings.get("policy"))
+        clean_provider = str(provider or "").strip().casefold()
+        legacy_policy = self._normalise_achievement_cache_policy(settings.get("policy"))
+        if clean_provider in {"retroachievements", "retro", "ra"}:
+            return self._normalise_achievement_cache_policy(
+                settings.get("retroachievements_policy") or legacy_policy
+            )
+        if clean_provider in {"xbox", "openxbl"}:
+            return self._normalise_achievement_cache_policy(
+                settings.get("xbox_policy") or legacy_policy
+            )
+        return legacy_policy
 
     def _achievement_cache_entry_meta(self) -> dict[str, Any]:
         return {
@@ -2263,10 +2348,12 @@ class Plugin:
             "pc_session_id": self._pc_session_id,
         }
 
-    def _achievement_cache_entry_is_fresh(self, entry: dict[str, Any] | None) -> bool:
+    def _achievement_cache_entry_is_fresh(
+        self, entry: dict[str, Any] | None, provider: str = ""
+    ) -> bool:
         if not isinstance(entry, dict) or "payload" not in entry:
             return False
-        policy = self._achievement_cache_policy()
+        policy = self._achievement_cache_policy(provider)
         updated_at = int(entry.get("updated_at") or 0)
         if updated_at <= 0:
             return False
@@ -2499,7 +2586,7 @@ class Plugin:
             return None
         if str(entry.get("title_id") or "") != str(title_id or ""):
             return None
-        if not self._achievement_cache_entry_is_fresh(entry):
+        if not self._achievement_cache_entry_is_fresh(entry, "xbox"):
             return None
         payload = entry.get("payload")
         if isinstance(payload, dict) and payload.get("steam", {}).get("nTotal"):
@@ -2810,7 +2897,7 @@ class Plugin:
                 return None
             cached = json.loads(self._xbox_achievement_cache_file.read_text(encoding="utf-8"))
             entry = (cached.get("entries") or {}).get(cache_key)
-            if self._achievement_cache_entry_is_fresh(entry):
+            if self._achievement_cache_entry_is_fresh(entry, "xbox"):
                 return entry.get("payload")
         except Exception as error:
             decky.logger.error(f"Failed loading OpenXBL achievement cache: {error}")
@@ -2826,7 +2913,7 @@ class Plugin:
                     cached = raw
             entries = cached.setdefault("entries", {})
             if isinstance(entries, dict):
-                if self._achievement_cache_policy() != "manual":
+                if self._achievement_cache_policy("xbox") != "manual":
                     cutoff = now() - 30 * 24 * 60 * 60
                     for key in list(entries.keys()):
                         entry = entries.get(key) or {}
@@ -2845,7 +2932,7 @@ class Plugin:
                 return None
             cached = json.loads(self._ra_achievement_cache_file.read_text(encoding="utf-8"))
             entry = (cached.get("entries") or {}).get(cache_key)
-            if self._achievement_cache_entry_is_fresh(entry):
+            if self._achievement_cache_entry_is_fresh(entry, "retroachievements"):
                 return entry.get("payload")
         except Exception as error:
             decky.logger.error(f"Failed loading RetroAchievements achievement cache: {error}")
@@ -2861,7 +2948,7 @@ class Plugin:
                     cached = raw
             entries = cached.setdefault("entries", {})
             if isinstance(entries, dict):
-                if self._achievement_cache_policy() != "manual":
+                if self._achievement_cache_policy("retroachievements") != "manual":
                     cutoff = now() - 30 * 24 * 60 * 60
                     for key in list(entries.keys()):
                         entry = entries.get(key) or {}

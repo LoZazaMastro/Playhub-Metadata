@@ -10,6 +10,7 @@ import {
   getAllMetadata,
   resolveRetroAchievementsFromPath,
   saveMetadata,
+  syncRetroAchievementsProgress,
   syncTrueAchievementsProgress,
 } from "./backend";
 import {
@@ -75,11 +76,32 @@ let selectedDetailsTabIndexHintAt = 0;
 
 let backgroundAchievementSyncTimer: number | undefined;
 let backgroundAchievementSyncRunning = false;
+let postPlayAchievementSyncTimer: number | undefined;
+let postPlayAchievementSyncGamesCacheAt = 0;
+let postPlayAchievementSyncGamesCache: { appid: number; name: string; exe?: string; start_dir?: string; launch_options?: string; shortcut_path?: string }[] = [];
+const postPlayRunningState = new Map<number, { running: boolean; startedAt: number; name: string }>();
+const postPlaySyncPending = new Set<string>();
 
 const BACKGROUND_SYNC_CHECK_MS = 60 * 1000;
 const BACKGROUND_SYNC_INITIAL_DELAY_MS = 20 * 1000;
 const BACKGROUND_SYNC_LOCAL_PREFIX = "playhub-metadata:bg-achievement-sync:last";
 const BACKGROUND_SYNC_SESSION_KEY = "playhub-metadata:bg-achievement-sync:pc-session";
+const POST_PLAY_SYNC_POLL_MS = 10 * 1000;
+const POST_PLAY_SYNC_INITIAL_DELAY_MS = 30 * 1000;
+const POST_PLAY_SYNC_GAME_CACHE_MS = 60 * 1000;
+const POST_PLAY_SYNC_MIN_PLAY_MS = 45 * 1000;
+const POST_PLAY_SYNC_DELAY_MS = 8 * 1000;
+const POST_PLAY_SYNC_THROTTLE_MS = 10 * 60 * 1000;
+const POST_PLAY_SYNC_LOCAL_PREFIX = "playhub-metadata:post-play-achievement-sync:last";
+const POST_PLAY_SYNC_SETTING_KEY = "playhub-metadata:post-play-achievement-sync-enabled";
+
+const readPostPlayAchievementSyncEnabled = () => {
+  try {
+    return window.localStorage.getItem(POST_PLAY_SYNC_SETTING_KEY) !== "0";
+  } catch (_error) {
+    return true;
+  }
+};
 
 const PLAYHUB_HOME_ACTIVITY_SETTING_KEY = "playhub-metadata:show-activities-in-home";
 const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT = 3;
@@ -283,9 +305,11 @@ export const startMetadataBootstrap = (): Unpatch => {
   };
   void tick();
   const stopAchievementSync = startBackgroundAchievementSync();
+  const stopPostPlayAchievementSync = startPostPlayAchievementSync();
   return () => {
     cancelled = true;
     stopAchievementSync?.();
+    stopPostPlayAchievementSync?.();
   };
 };
 
@@ -4092,13 +4116,20 @@ const backgroundPolicyIntervalMs = (policy?: string) => {
   }
 };
 
-const backgroundSyncLastKey = (policy: string) => `${BACKGROUND_SYNC_LOCAL_PREFIX}:${policy}`;
+const backgroundSyncLastKey = (provider: "xbox" | "retroachievements", policy: string) =>
+  `${BACKGROUND_SYNC_LOCAL_PREFIX}:${provider}:${policy}`;
 
-const backgroundAchievementSyncIsDue = (policy: string) => {
+const backgroundSyncSessionKey = (provider: "xbox" | "retroachievements") =>
+  `${BACKGROUND_SYNC_SESSION_KEY}:${provider}`;
+
+const backgroundAchievementSyncIsDue = (
+  provider: "xbox" | "retroachievements",
+  policy: string
+) => {
   if (policy === "manual") return false;
   if (policy === "pc_session") {
     try {
-      return sessionStorage.getItem(BACKGROUND_SYNC_SESSION_KEY) !== "done";
+      return sessionStorage.getItem(backgroundSyncSessionKey(provider)) !== "done";
     } catch (_error) {
       return true;
     }
@@ -4106,41 +4137,77 @@ const backgroundAchievementSyncIsDue = (policy: string) => {
   const interval = backgroundPolicyIntervalMs(policy);
   if (!interval) return false;
   try {
-    const last = Number(localStorage.getItem(backgroundSyncLastKey(policy)) || 0);
+    const last = Number(localStorage.getItem(backgroundSyncLastKey(provider, policy)) || 0);
     return !last || Date.now() - last >= interval;
   } catch (_error) {
     return true;
   }
 };
 
-const markBackgroundAchievementSyncDone = (policy: string) => {
+const markBackgroundAchievementSyncDone = (
+  provider: "xbox" | "retroachievements",
+  policy: string
+) => {
   try {
-    if (policy === "pc_session") sessionStorage.setItem(BACKGROUND_SYNC_SESSION_KEY, "done");
-    else localStorage.setItem(backgroundSyncLastKey(policy), String(Date.now()));
+    if (policy === "pc_session") sessionStorage.setItem(backgroundSyncSessionKey(provider), "done");
+    else localStorage.setItem(backgroundSyncLastKey(provider, policy), String(Date.now()));
   } catch (_error) {
     // Storage can be unavailable in some embedded Steam contexts.
   }
 };
 
-const scheduledAchievementTargets = async (settings: AchievementSettings) => {
-  const games = await allNonSteamGames();
-  const targets: { appid: number; name: string; provider: "xbox" | "retroachievements" }[] = [];
+
+type AchievementProvider = "xbox" | "retroachievements";
+
+type AchievementSyncGame = {
+  appid: number;
+  name: string;
+  exe?: string;
+  start_dir?: string;
+  launch_options?: string;
+  shortcut_path?: string;
+};
+
+const achievementSyncProviderForGame = (
+  game: AchievementSyncGame,
+  settings: AchievementSettings,
+  allowedProviders?: Set<AchievementProvider>
+): AchievementProvider | null => {
+  const key = String(game.appid);
   const sources = settings.achievement_sources || {};
   const raIds = settings.retroachievements?.game_ids || {};
   const xboxIds = settings.xbox?.title_ids || {};
+  const source = sources[key] || "auto";
+  if (source === "disabled") return null;
+  const hasXbox = Boolean(xboxIds[key]);
+  const hasRa = Boolean(raIds[key]);
+  if (
+    (!allowedProviders || allowedProviders.has("xbox")) &&
+    (source === "xbox" || (source === "auto" && hasXbox)) &&
+    hasXbox &&
+    isUwphookGameOption(game)
+  ) {
+    return "xbox";
+  }
+  if (
+    (!allowedProviders || allowedProviders.has("retroachievements")) &&
+    (source === "retroachievements" || (source === "auto" && !hasXbox && hasRa)) &&
+    hasRa
+  ) {
+    return "retroachievements";
+  }
+  return null;
+};
+
+const scheduledAchievementTargets = async (
+  settings: AchievementSettings,
+  dueProviders: Set<"xbox" | "retroachievements">
+) => {
+  const games = await allNonSteamGames();
+  const targets: { appid: number; name: string; provider: "xbox" | "retroachievements" }[] = [];
   for (const game of games) {
-    const key = String(game.appid);
-    const source = sources[key] || "auto";
-    if (source === "disabled") continue;
-    const hasXbox = Boolean(xboxIds[key]);
-    const hasRa = Boolean(raIds[key]);
-    if ((source === "xbox" || (source === "auto" && hasXbox)) && hasXbox && isUwphookGameOption(game)) {
-      targets.push({ appid: game.appid, name: game.name, provider: "xbox" });
-      continue;
-    }
-    if ((source === "retroachievements" || (source === "auto" && !hasXbox && hasRa)) && hasRa) {
-      targets.push({ appid: game.appid, name: game.name, provider: "retroachievements" });
-    }
+    const provider = achievementSyncProviderForGame(game, settings, dueProviders);
+    if (provider) targets.push({ appid: game.appid, name: game.name, provider });
   }
   return targets;
 };
@@ -4148,23 +4215,45 @@ const scheduledAchievementTargets = async (settings: AchievementSettings) => {
 const runBackgroundAchievementSync = async (reason = "scheduled") => {
   if (backgroundAchievementSyncRunning) return;
   backgroundAchievementSyncRunning = true;
-  let policy = "daily";
   let updated = 0;
   let skipped = 0;
+  const policies: Record<"xbox" | "retroachievements", string> = {
+    xbox: "daily",
+    retroachievements: "daily",
+  };
+  const dueProviders = new Set<"xbox" | "retroachievements">();
   try {
     const settings = await refreshRaSettings();
-    policy = settings?.achievement_cache?.policy || "daily";
-    if (!backgroundAchievementSyncIsDue(policy)) return;
-    const targets = await scheduledAchievementTargets(settings);
+    const legacyPolicy = settings?.achievement_cache?.policy || "daily";
+    policies.retroachievements =
+      settings?.achievement_cache?.retroachievements_policy || legacyPolicy;
+    policies.xbox = settings?.achievement_cache?.xbox_policy || legacyPolicy;
+    if (backgroundAchievementSyncIsDue("retroachievements", policies.retroachievements)) {
+      dueProviders.add("retroachievements");
+    }
+    if (backgroundAchievementSyncIsDue("xbox", policies.xbox)) {
+      dueProviders.add("xbox");
+    }
+    if (!dueProviders.size) return;
+
+    const targets = await scheduledAchievementTargets(settings, dueProviders);
+    for (const provider of dueProviders) {
+      const count = targets.filter((target) => target.provider === provider).length;
+      if (!count) markBackgroundAchievementSyncDone(provider, policies[provider]);
+    }
+    if (!targets.length) return;
+
+    const raCount = targets.filter((target) => target.provider === "retroachievements").length;
+    const xboxCount = targets.filter((target) => target.provider === "xbox").length;
     toaster.toast({
       title: t("pluginName"),
-      body: `${t("backgroundSyncStarted")}: ${targets.length}`,
+      body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}`,
     });
     for (const target of targets) {
       try {
         const payload = target.provider === "xbox"
           ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
-          : await fetchAchievements(target.appid);
+          : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
         if (payload?.steam?.nTotal) {
           applyAchievementPayload(target.appid, payload);
           updated += 1;
@@ -4177,7 +4266,9 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
       }
       await new Promise((resolve) => window.setTimeout(resolve, 350));
     }
-    markBackgroundAchievementSyncDone(policy);
+    for (const provider of dueProviders) {
+      markBackgroundAchievementSyncDone(provider, policies[provider]);
+    }
     toaster.toast({
       title: t("pluginName"),
       body: `${t("backgroundSyncFinished")}: ${updated} ${t("backgroundSyncUpdated")}, ${skipped} ${t("backgroundSyncSkipped")}`,
@@ -4189,14 +4280,308 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
   }
 };
 
+
+const postPlaySyncLastKey = (provider: AchievementProvider, appId: number) =>
+  `${POST_PLAY_SYNC_LOCAL_PREFIX}:${provider}:${appId}`;
+
+const wasPostPlaySyncedRecently = (provider: AchievementProvider, appId: number) => {
+  try {
+    const last = Number(localStorage.getItem(postPlaySyncLastKey(provider, appId)) || 0);
+    return Boolean(last && Date.now() - last < POST_PLAY_SYNC_THROTTLE_MS);
+  } catch (_error) {
+    return false;
+  }
+};
+
+const markPostPlaySynced = (provider: AchievementProvider, appId: number) => {
+  try {
+    localStorage.setItem(postPlaySyncLastKey(provider, appId), String(Date.now()));
+  } catch (_error) {
+    // Storage can be unavailable in some embedded Steam contexts.
+  }
+};
+
+const boolLike = (value: any): boolean | undefined => {
+  if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value > 0;
+  if (typeof value === "string") {
+    const lower = value.toLowerCase();
+    if (["true", "running", "1", "yes"].includes(lower)) return true;
+    if (["false", "stopped", "0", "no", "none"].includes(lower)) return false;
+  }
+  if (value && typeof value === "object") {
+    for (const key of ["running", "bRunning", "is_running", "isRunning", "bIsRunning", "result"]) {
+      if (key in value) {
+        const nested = boolLike(value[key]);
+        if (typeof nested === "boolean") return nested;
+      }
+    }
+  }
+  return undefined;
+};
+
+const safeCallRunning = async (owner: any, methodName: string, appId: number): Promise<boolean | undefined> => {
+  try {
+    const fn = owner?.[methodName];
+    if (typeof fn !== "function") return undefined;
+    const value = fn.call(owner, appId);
+    const resolved = value && typeof value.then === "function" ? await value : value;
+    return boolLike(resolved);
+  } catch (_error) {
+    return undefined;
+  }
+};
+
+const runningFromList = (value: any, appId: number): boolean | undefined => {
+  try {
+    const list = value && typeof value.then === "function" ? undefined : value;
+    if (!list) return undefined;
+    const values = Array.isArray(list)
+      ? list
+      : Array.from(list?.values?.() || []);
+    if (!values.length) return undefined;
+    return values.some((item: any) => Number(item?.appid ?? item?.app_id ?? item?.unAppID ?? item?.nAppID ?? item) === appId);
+  } catch (_error) {
+    return undefined;
+  }
+};
+
+const safeRunningList = async (owner: any, methodName: string, appId: number): Promise<boolean | undefined> => {
+  try {
+    const fn = owner?.[methodName];
+    if (typeof fn !== "function") return undefined;
+    const value = fn.call(owner);
+    const resolved = value && typeof value.then === "function" ? await value : value;
+    return runningFromList(resolved, appId);
+  } catch (_error) {
+    return undefined;
+  }
+};
+
+const runningFromObject = (value: any): boolean | undefined => {
+  if (!value) return undefined;
+  for (const methodName of ["BIsRunning", "BIsAppRunning", "BIsPlaying", "IsRunning", "IsAppRunning", "GetIsRunning"]) {
+    try {
+      const fn = value?.[methodName];
+      if (typeof fn === "function") {
+        const result = boolLike(fn.call(value));
+        if (typeof result === "boolean") return result;
+      }
+    } catch (_error) {
+      // Try the next method/field.
+    }
+  }
+  for (const fieldName of [
+    "bRunning",
+    "m_bRunning",
+    "is_running",
+    "isRunning",
+    "running",
+    "bIsRunning",
+    "m_bIsRunning",
+    "bPlaying",
+    "m_bPlaying",
+    "nRunning",
+  ]) {
+    if (fieldName in value) {
+      const result = boolLike(value[fieldName]);
+      if (typeof result === "boolean") return result;
+    }
+  }
+  return undefined;
+};
+
+const readAppRunningState = async (appId: number): Promise<boolean | undefined> => {
+  for (const methodName of ["BIsAppRunning", "IsAppRunning", "GetAppRunning", "GetAppRunState"]) {
+    const fromAppStore = await safeCallRunning(appStore, methodName, appId);
+    if (typeof fromAppStore === "boolean") return fromAppStore;
+    const fromSteamClient = await safeCallRunning(SteamClient?.Apps, methodName, appId);
+    if (typeof fromSteamClient === "boolean") return fromSteamClient;
+  }
+  for (const methodName of ["GetRunningAppIDs", "GetRunningApps", "GetRunningAppIds", "GetRunningAppIDList"]) {
+    const fromAppStore = await safeRunningList(appStore, methodName, appId);
+    if (typeof fromAppStore === "boolean") return fromAppStore;
+    const fromSteamClient = await safeRunningList(SteamClient?.Apps, methodName, appId);
+    if (typeof fromSteamClient === "boolean") return fromSteamClient;
+  }
+  const overview = getOverview(appId);
+  const appData = (() => {
+    try {
+      return appDetailsStore?.GetAppData?.(appId);
+    } catch (_error) {
+      return null;
+    }
+  })();
+  for (const value of [overview, appData, appData?.details, appData?.overview, appData?.appinfo, appData?.appInfo]) {
+    const result = runningFromObject(value);
+    if (typeof result === "boolean") return result;
+  }
+  return undefined;
+};
+
+const postPlaySyncGames = async () => {
+  if (Date.now() - postPlayAchievementSyncGamesCacheAt < POST_PLAY_SYNC_GAME_CACHE_MS && postPlayAchievementSyncGamesCache.length) {
+    return postPlayAchievementSyncGamesCache;
+  }
+  const games = await allNonSteamGames();
+  postPlayAchievementSyncGamesCache = games;
+  postPlayAchievementSyncGamesCacheAt = Date.now();
+  return games;
+};
+
+const syncRecentlyClosedGame = async (target: { appid: number; name: string; provider: AchievementProvider }) => {
+  const pendingKey = `${target.provider}:${target.appid}`;
+  if (backgroundAchievementSyncRunning) {
+    window.setTimeout(() => void syncRecentlyClosedGame(target), 30 * 1000);
+    return;
+  }
+  try {
+    const settings = await refreshRaSettings();
+    const policy =
+      target.provider === "xbox"
+        ? (settings?.achievement_cache?.xbox_policy || settings?.achievement_cache?.policy || "daily")
+        : (settings?.achievement_cache?.retroachievements_policy || settings?.achievement_cache?.policy || "daily");
+    if (policy === "manual") return;
+    const game = (await postPlaySyncGames()).find((candidate) => candidate.appid === target.appid) || target;
+    const provider = achievementSyncProviderForGame(game as AchievementSyncGame, settings, new Set([target.provider]));
+    if (provider !== target.provider) return;
+    if (wasPostPlaySyncedRecently(target.provider, target.appid)) return;
+
+    backgroundAchievementSyncRunning = true;
+    toaster.toast({
+      title: t("pluginName"),
+      body: `${t("postPlaySyncStarted")}: ${target.name}`,
+    });
+    const payload = target.provider === "xbox"
+      ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
+      : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
+    if (payload?.steam?.nTotal) {
+      applyAchievementPayload(target.appid, payload);
+      toaster.toast({
+        title: t("pluginName"),
+        body: `${t("postPlaySyncFinished")}: ${target.name}`,
+      });
+    } else {
+      toaster.toast({
+        title: t("pluginName"),
+        body: `${t("postPlaySyncSkipped")}: ${target.name}`,
+      });
+    }
+    markPostPlaySynced(target.provider, target.appid);
+  } catch (error) {
+    toaster.toast({
+      title: t("pluginName"),
+      body: `${t("postPlaySyncFailed")}: ${target.name}`,
+    });
+    console.warn(`[Playhub Metadata] post-play achievement sync failed for ${target.name}`, error);
+  } finally {
+    backgroundAchievementSyncRunning = false;
+    postPlaySyncPending.delete(pendingKey);
+  }
+};
+
+const queuePostPlaySync = (target: { appid: number; name: string; provider: AchievementProvider }) => {
+  const pendingKey = `${target.provider}:${target.appid}`;
+  if (postPlaySyncPending.has(pendingKey)) return;
+  if (wasPostPlaySyncedRecently(target.provider, target.appid)) return;
+  postPlaySyncPending.add(pendingKey);
+  window.setTimeout(() => void syncRecentlyClosedGame(target), POST_PLAY_SYNC_DELAY_MS);
+};
+
+const pollPostPlayAchievementSync = async () => {
+  try {
+    if (!readPostPlayAchievementSyncEnabled()) {
+      postPlayRunningState.clear();
+      return;
+    }
+    const settings = await refreshRaSettings();
+    const legacyPolicy = settings?.achievement_cache?.policy || "daily";
+    const allowedProviders = new Set<AchievementProvider>();
+    if ((settings?.achievement_cache?.retroachievements_policy || legacyPolicy) !== "manual") {
+      allowedProviders.add("retroachievements");
+    }
+    if ((settings?.achievement_cache?.xbox_policy || legacyPolicy) !== "manual") {
+      allowedProviders.add("xbox");
+    }
+    if (!allowedProviders.size) return;
+    const games = await postPlaySyncGames();
+    const now = Date.now();
+    const observedIds = new Set<number>();
+    for (const game of games) {
+      const provider = achievementSyncProviderForGame(game, settings, allowedProviders);
+      if (!provider) continue;
+      const running = await readAppRunningState(game.appid);
+      if (typeof running !== "boolean") continue;
+      observedIds.add(game.appid);
+      const previous = postPlayRunningState.get(game.appid);
+      if (!previous) {
+        postPlayRunningState.set(game.appid, {
+          running,
+          startedAt: running ? now : 0,
+          name: game.name,
+        });
+        continue;
+      }
+      if (running) {
+        postPlayRunningState.set(game.appid, {
+          running: true,
+          startedAt: previous.running ? previous.startedAt || now : now,
+          name: game.name,
+        });
+        continue;
+      }
+      if (previous.running) {
+        const playedMs = previous.startedAt ? now - previous.startedAt : 0;
+        postPlayRunningState.set(game.appid, { running: false, startedAt: 0, name: game.name });
+        if (playedMs >= POST_PLAY_SYNC_MIN_PLAY_MS) {
+          queuePostPlaySync({ appid: game.appid, name: game.name, provider });
+        }
+      } else {
+        postPlayRunningState.set(game.appid, { running: false, startedAt: 0, name: game.name });
+      }
+    }
+    for (const appId of Array.from(postPlayRunningState.keys())) {
+      if (!observedIds.has(appId)) postPlayRunningState.delete(appId);
+    }
+  } catch (error) {
+    console.warn("[Playhub Metadata] post-play achievement sync poll failed", error);
+  }
+};
+
+export const startPostPlayAchievementSync = (): Unpatch => {
+  if (postPlayAchievementSyncTimer) window.clearInterval(postPlayAchievementSyncTimer);
+  const run = () => void pollPostPlayAchievementSync();
+  postPlayAchievementSyncTimer = window.setInterval(run, POST_PLAY_SYNC_POLL_MS);
+  const initial = window.setTimeout(run, POST_PLAY_SYNC_INITIAL_DELAY_MS);
+  const onPolicyChanged = () => {
+    postPlayRunningState.clear();
+    postPlayAchievementSyncGamesCacheAt = 0;
+    void pollPostPlayAchievementSync();
+  };
+  window.addEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
+  window.addEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
+  return () => {
+    window.clearTimeout(initial);
+    if (postPlayAchievementSyncTimer) window.clearInterval(postPlayAchievementSyncTimer);
+    window.removeEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
+    window.removeEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
+    postPlayAchievementSyncTimer = undefined;
+    postPlayRunningState.clear();
+    postPlaySyncPending.clear();
+  };
+};
+
 export const startBackgroundAchievementSync = (): Unpatch => {
   if (backgroundAchievementSyncTimer) window.clearInterval(backgroundAchievementSyncTimer);
   const run = () => void runBackgroundAchievementSync("timer");
+  const onPolicyChanged = () => void runBackgroundAchievementSync("settings");
   const initial = window.setTimeout(run, BACKGROUND_SYNC_INITIAL_DELAY_MS);
   backgroundAchievementSyncTimer = window.setInterval(run, BACKGROUND_SYNC_CHECK_MS);
+  window.addEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
   return () => {
     window.clearTimeout(initial);
     if (backgroundAchievementSyncTimer) window.clearInterval(backgroundAchievementSyncTimer);
+    window.removeEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
     backgroundAchievementSyncTimer = undefined;
   };
 };

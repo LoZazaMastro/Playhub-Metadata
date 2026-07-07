@@ -39,7 +39,9 @@ import {
   getScanProgress,
   testOpenXblCredentials,
   clearXboxAssociations,
+  clearRetroAchievementsAssociations,
   syncTrueAchievementsProgress,
+  syncRetroAchievementsProgress,
   refetchSteamActivityAssociation,
   clearSteamActivityAssociation,
 } from "./backend";
@@ -51,6 +53,7 @@ import {
   applyMetadata,
   clearAchievementsForApp,
   clearAchievementsForApps,
+  achievementsCache,
   cleanTitle,
   getAppDetails,
   getOverview,
@@ -259,6 +262,28 @@ const PLAYHUB_HOME_ACTIVITY_COUNT_SETTING_KEY = "playhub-metadata:home-activity-
 const PLAYHUB_HOME_ACTIVITY_SHUFFLE_SETTING_KEY = "playhub-metadata:home-activity-shuffle";
 const PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT = 3;
 const PLAYHUB_HOME_ACTIVITY_MAX_LIMIT = 6;
+const POST_PLAY_ACHIEVEMENT_SYNC_SETTING_KEY = "playhub-metadata:post-play-achievement-sync-enabled";
+
+const readPostPlayAchievementSyncEnabled = () => {
+  try {
+    return window.localStorage.getItem(POST_PLAY_ACHIEVEMENT_SYNC_SETTING_KEY) !== "0";
+  } catch (_error) {
+    return true;
+  }
+};
+
+const setPostPlayAchievementSyncEnabledSetting = (enabled: boolean) => {
+  try {
+    window.localStorage.setItem(POST_PLAY_ACHIEVEMENT_SYNC_SETTING_KEY, enabled ? "1" : "0");
+  } catch (_error) {
+    // Steam's embedded browser may reject storage in unusual states; keep UI optimistic.
+  }
+  window.dispatchEvent(
+    new CustomEvent("playhub-metadata:post-play-sync-setting-changed", {
+      detail: { enabled },
+    })
+  );
+};
 
 const clampHomeActivityCount = (value: number) =>
   Math.max(1, Math.min(PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, Math.round(Number.isFinite(value) ? value : PLAYHUB_HOME_ACTIVITY_DEFAULT_LIMIT)));
@@ -359,6 +384,7 @@ export const Content = () => {
   const [activityMessage, setActivityMessage] = useState("");
   const [showActivitiesInHome, setShowActivitiesInHome] = useState(readShowActivitiesInHome);
   const [homeActivityCount, setHomeActivityCount] = useState(readHomeActivityCount);
+  const [postPlayAchievementSyncEnabled, setPostPlayAchievementSyncEnabled] = useState(readPostPlayAchievementSyncEnabled);
   const [xboxBulkBusy, setXboxBulkBusy] = useState(false);
   const [xboxBulkMessage, setXboxBulkMessage] = useState("");
   const [raBulkBusy, setRaBulkBusy] = useState(false);
@@ -377,7 +403,9 @@ export const Content = () => {
     ta_logged_in: false,
     title_ids: {},
   });
-  const [achievementCachePolicy, setAchievementCachePolicyState] =
+  const [retroAchievementCachePolicy, setRetroAchievementCachePolicyState] =
+    useState<AchievementCachePolicy>("daily");
+  const [xboxAchievementCachePolicy, setXboxAchievementCachePolicyState] =
     useState<AchievementCachePolicy>("daily");
 
   const missing = Math.max(games.length - metadataCount, 0);
@@ -389,7 +417,8 @@ export const Content = () => {
     const achievementSettings = await getAchievementSettings();
     setRa(achievementSettings.retroachievements);
     setXbox(achievementSettings.xbox);
-    setAchievementCachePolicyState(achievementSettings.achievement_cache?.policy || "daily");
+    setRetroAchievementCachePolicyState(achievementSettings.achievement_cache?.retroachievements_policy || achievementSettings.achievement_cache?.policy || "daily");
+    setXboxAchievementCachePolicyState(achievementSettings.achievement_cache?.xbox_policy || achievementSettings.achievement_cache?.policy || "daily");
   }, [loadGames]);
 
   useEffect(() => {
@@ -511,6 +540,7 @@ export const Content = () => {
       const source = sources[key] || "auto";
       if (source === "disabled" || source === "xbox") return false;
       if (existingIds[key]) return false;
+      if (achievementsCache[key]?.steam?.nTotal) return false;
       return isLikelyRetroAchievementsTarget(game, source as AchievementSource);
     });
     if (!targets.length) {
@@ -572,6 +602,61 @@ export const Content = () => {
     }
   };
 
+  const syncMatchedRetroAchievementsProgress = async () => {
+    if (raBulkBusy || xboxBulkBusy || busy) return;
+    if (!ra.enabled || !ra.api_key.trim()) {
+      toaster.toast({ title: t("pluginName"), body: t("retroLoginFailed") });
+      return;
+    }
+    const settings = await getAchievementSettings();
+    const sources = settings.achievement_sources || {};
+    const existingIds = settings.retroachievements.game_ids || {};
+    const targets = games.filter((game) => {
+      const key = String(game.appid);
+      const source = sources[key] || "auto";
+      if (source === "disabled" || source === "xbox") return false;
+      return Boolean(existingIds[key]);
+    });
+    if (!targets.length) {
+      toaster.toast({ title: t("pluginName"), body: t("retroSyncNothing") });
+      return;
+    }
+    setRaBulkBusy(true);
+    setRaBulkMessage(`${t("retroSyncProgress")}: 0/${targets.length}`);
+    let synced = 0;
+    let skipped = 0;
+    try {
+      for (let index = 0; index < targets.length; index += 1) {
+        const game = targets[index];
+        const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+        setRaBulkMessage(`${prefix}: ${t("retroSyncingProgress")}`);
+        try {
+          const payload = await syncRetroAchievementsProgress(game.appid);
+          if (payload?.steam?.nTotal) {
+            applyAchievementPayload(game.appid, payload);
+            synced += 1;
+            setRaBulkMessage(`${prefix}: ${t("retroBulkAppliedOne")}`);
+          } else {
+            skipped += 1;
+            setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+          }
+        } catch (_error) {
+          skipped += 1;
+          setRaBulkMessage(`${prefix}: ${t("retroBulkSkippedOne")}`);
+        }
+      }
+      await refreshRaSettings();
+      setRaBulkMessage(`${t("retroSyncDone")}: ${synced} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`);
+      toaster.toast({
+        title: t("pluginName"),
+        body: `${t("retroSyncDone")}: ${synced} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`,
+      });
+    } finally {
+      setRaBulkBusy(false);
+    }
+  };
+
+
   const saveRaSettings = async (next: Partial<RetroAchievementsSettings>) => {
     const merged = { ...ra, ...next };
     setRa(merged);
@@ -610,12 +695,37 @@ export const Content = () => {
     await refreshRaSettings();
   };
 
-  const saveAchievementCachePolicy = async (policy: AchievementCachePolicy) => {
-    setAchievementCachePolicyState(policy);
-    const saved = await setAchievementCachePolicy(policy);
-    setAchievementCachePolicyState((saved.policy as AchievementCachePolicy) || policy);
-    clearAchievementsForApps(games.map((game) => game.appid));
+  const saveAchievementCachePolicy = async (
+    provider: "retroachievements" | "xbox",
+    policy: AchievementCachePolicy
+  ) => {
+    if (provider === "retroachievements") setRetroAchievementCachePolicyState(policy);
+    else setXboxAchievementCachePolicyState(policy);
+    const saved = await setAchievementCachePolicy(provider, policy);
+    setRetroAchievementCachePolicyState(
+      (saved.retroachievements_policy as AchievementCachePolicy) || policy
+    );
+    setXboxAchievementCachePolicyState(
+      (saved.xbox_policy as AchievementCachePolicy) || policy
+    );
+    const settings = await getAchievementSettings();
+    const sources = settings.achievement_sources || {};
+    const raIds = settings.retroachievements.game_ids || {};
+    const xboxIds = settings.xbox.title_ids || {};
+    clearAchievementsForApps(
+      games
+        .filter((game) => {
+          const key = String(game.appid);
+          const source = sources[key] || "auto";
+          if (provider === "retroachievements") {
+            return Boolean(raIds[key]) && source !== "xbox" && source !== "disabled";
+          }
+          return Boolean(xboxIds[key]) && source !== "retroachievements" && source !== "disabled";
+        })
+        .map((game) => game.appid)
+    );
     await refreshRaSettings();
+    window.dispatchEvent(new Event("playhub-metadata:achievement-cache-policy-changed"));
   };
 
   const testXboxLogin = async () => {
@@ -665,6 +775,21 @@ export const Content = () => {
       toaster.toast({ title: t("pluginName"), body: t("xboxClearAllDone") });
     } finally {
       setXboxBulkBusy(false);
+    }
+  };
+
+  const clearAllRetroAchievementsMatches = async () => {
+    if (raBulkBusy || busy) return;
+    setRaBulkBusy(true);
+    try {
+      const saved = await clearRetroAchievementsAssociations();
+      setRa(saved);
+      clearAchievementsForApps(games.map((game) => game.appid));
+      await refreshRaSettings();
+      setRaBulkMessage(t("retroClearAllDone"));
+      toaster.toast({ title: t("pluginName"), body: t("retroClearAllDone") });
+    } finally {
+      setRaBulkBusy(false);
     }
   };
 
@@ -862,6 +987,16 @@ export const Content = () => {
           />
         </PanelSectionRow>
         <PanelSectionRow>
+          <ToggleField
+            label={t("postPlayAchievementSyncEnabled")}
+            checked={postPlayAchievementSyncEnabled}
+            onChange={(checked) => {
+              setPostPlayAchievementSyncEnabled(checked);
+              setPostPlayAchievementSyncEnabledSetting(checked);
+            }}
+          />
+        </PanelSectionRow>
+        <PanelSectionRow>
           <div style={compactTextStyle}>{t("retroLoginHint")}</div>
         </PanelSectionRow>
         <PanelSectionRow>
@@ -905,6 +1040,20 @@ export const Content = () => {
             >
               {raBulkBusy ? t("retroBulkScanning") : t("retroBulkScan")}
             </FocusableButton>
+            <FocusableButton
+              className="DialogButton"
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length || !ra.enabled || !ra.api_key.trim()}
+              onClick={syncMatchedRetroAchievementsProgress}
+            >
+              {t("retroSyncProgress")}
+            </FocusableButton>
+            <FocusableButton
+              className="DialogButton"
+              disabled={busy || xboxBulkBusy || raBulkBusy || !games.length}
+              onClick={clearAllRetroAchievementsMatches}
+            >
+              {t("retroClearAll")}
+            </FocusableButton>
           </div>
           {raBulkBusy || raBulkMessage ? (
             <div style={inlineStatusStyle}>
@@ -912,6 +1061,26 @@ export const Content = () => {
               <span>{raBulkMessage}</span>
             </div>
           ) : null}
+          <div style={rowStackStyle}>
+            <div style={compactTextStyle}>
+              <b>{t("achievementCacheRetroTitle")}</b>
+            </div>
+            <div style={buttonRowStyle}>
+              {achievementCachePolicies.map((policy) => (
+                <FocusableButton
+                  key={`ra-${policy}`}
+                  className="DialogButton"
+                  onClick={() => void saveAchievementCachePolicy("retroachievements", policy)}
+                  style={{
+                    opacity: retroAchievementCachePolicy === policy ? 1 : 0.72,
+                    fontWeight: retroAchievementCachePolicy === policy ? 700 : 400,
+                  }}
+                >
+                  {t(`achievementCache_${policy}` as any)}
+                </FocusableButton>
+              ))}
+            </div>
+          </div>
         </PanelSectionRow>
       <PanelSectionRow>
         <div style={sectionHeadingStyle}>{t("xboxTitle")}</div>
@@ -976,31 +1145,28 @@ export const Content = () => {
                 <span>{xboxBulkMessage}</span>
               </div>
             ) : null}
+            <div style={rowStackStyle}>
+              <div style={compactTextStyle}>
+                <b>{t("achievementCacheXboxTitle")}</b>
+              </div>
+              <div style={buttonRowStyle}>
+                {achievementCachePolicies.map((policy) => (
+                  <FocusableButton
+                    key={`xbox-${policy}`}
+                    className="DialogButton"
+                    onClick={() => void saveAchievementCachePolicy("xbox", policy)}
+                    style={{
+                      opacity: xboxAchievementCachePolicy === policy ? 1 : 0.72,
+                      fontWeight: xboxAchievementCachePolicy === policy ? 700 : 400,
+                    }}
+                  >
+                    {t(`achievementCache_${policy}` as any)}
+                  </FocusableButton>
+                ))}
+              </div>
+            </div>
           </div>
         </PanelSectionRow>
-      <PanelSectionRow>
-        <div style={sectionHeadingStyle}>{t("achievementCacheTitle")}</div>
-      </PanelSectionRow>
-      <PanelSectionRow>
-        <div style={rowStackStyle}>
-          <div style={compactTextStyle}>{t("achievementCacheHint")}</div>
-          <div style={buttonRowStyle}>
-            {achievementCachePolicies.map((policy) => (
-              <FocusableButton
-                key={policy}
-                className="DialogButton"
-                onClick={() => void saveAchievementCachePolicy(policy)}
-                style={{
-                  opacity: achievementCachePolicy === policy ? 1 : 0.72,
-                  fontWeight: achievementCachePolicy === policy ? 700 : 400,
-                }}
-              >
-                {t(`achievementCache_${policy}` as any)}
-              </FocusableButton>
-            ))}
-          </div>
-        </div>
-      </PanelSectionRow>
     </PanelSection>
   );
 };

@@ -123,7 +123,9 @@ export type AchievementSettings = {
   xbox: XboxSettings;
   achievement_sources: Record<string, AchievementSource>;
   achievement_cache: {
-    policy: AchievementCachePolicy;
+    policy?: AchievementCachePolicy;
+    retroachievements_policy: AchievementCachePolicy;
+    xbox_policy: AchievementCachePolicy;
   };
 };
 

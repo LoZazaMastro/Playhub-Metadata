@@ -87,6 +87,9 @@ export const testOpenXblCredentials = callable<
 export const clearXboxAssociations = callable<[], XboxSettings>(
   "clear_xbox_associations"
 );
+export const clearRetroAchievementsAssociations = callable<[], RetroAchievementsSettings>(
+  "clear_retroachievements_associations"
+);
 export const setXboxTitleId = callable<
   [appId: number, titleId: string | number | null],
   Record<string, string>
@@ -96,8 +99,8 @@ export const setAchievementSource = callable<
   Record<string, AchievementSource>
 >("set_achievement_source");
 export const setAchievementCachePolicy = callable<
-  [policy: string],
-  { policy: string }
+  [provider: "retroachievements" | "xbox", policy: string],
+  { policy?: string; retroachievements_policy: string; xbox_policy: string }
 >("set_achievement_cache_policy");
 export const resolveXboxFromShortcut = callable<
   [appId: number, title?: string, path?: string],
@@ -131,6 +134,10 @@ export const syncTrueAchievementsProgress = callable<
   [appId: number],
   AchievementsResponse | null
 >("sync_trueachievements_progress");
+export const syncRetroAchievementsProgress = callable<
+  [appId: number],
+  AchievementsResponse | null
+>("sync_retroachievements_progress");
 export const resolveRetroAchievementsFromPath = callable<
   [appId: number, path: string, title?: string],
   AchievementsResponse | null
