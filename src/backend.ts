@@ -9,7 +9,10 @@ import {
   RetroAchievementsLoginResult,
   RetroAchievementsGameResult,
   RetroAchievementsSettings,
+  Rpcs3Settings,
+  Rpcs3TrophySetResult,
   ScanProgress,
+  ScraperSettings,
   XboxSettings,
   XboxTitleResult,
 } from "./types";
@@ -28,13 +31,17 @@ export const removeMetadata = callable<
   [appId: number],
   Record<string, MetadataData>
 >("remove_metadata");
+export const clearAllMetadata = callable<[], Record<string, MetadataData>>(
+  "clear_all_metadata"
+);
 export const searchMetadata = callable<
-  [query: string, limit?: number],
+  [query: string, limit?: number, appId?: number],
   MetadataSearchResult[]
 >("search_metadata");
-export const fetchMetadata = callable<[slugOrUrl: string], MetadataData | null>(
-  "fetch_metadata"
-);
+export const fetchMetadata = callable<
+  [slugOrUrl: string, appId?: number],
+  MetadataData | null
+>("fetch_metadata");
 export const autoFetchMetadata = callable<
   [appId: number, title: string],
   MetadataData | null
@@ -65,6 +72,10 @@ export const clearSteamActivityAssociation = callable<
   [appId: number],
   MetadataData | null
 >("clear_steam_activity_association");
+export const setSteamActivityEnabled = callable<
+  [appId: number, enabled: boolean, title?: string],
+  MetadataData | null
+>("set_steam_activity_enabled");
 export const getLocalShortcuts = callable<[], GameOption[]>(
   "get_local_shortcuts"
 );
@@ -99,8 +110,13 @@ export const setAchievementSource = callable<
   Record<string, AchievementSource>
 >("set_achievement_source");
 export const setAchievementCachePolicy = callable<
-  [provider: "retroachievements" | "xbox", policy: string],
-  { policy?: string; retroachievements_policy: string; xbox_policy: string }
+  [provider: "retroachievements" | "xbox" | "rpcs3", policy: string],
+  {
+    policy?: string;
+    retroachievements_policy: string;
+    xbox_policy: string;
+    rpcs3_policy?: string;
+  }
 >("set_achievement_cache_policy");
 export const resolveXboxFromShortcut = callable<
   [appId: number, title?: string, path?: string],
@@ -146,3 +162,36 @@ export const searchRetroAchievementsGames = callable<
   [query: string, limit?: number, appId?: number],
   RetroAchievementsGameResult[]
 >("search_retroachievements_games");
+export const getScraperSettings = callable<[], ScraperSettings>(
+  "get_scraper_settings"
+);
+export const setScraperLanguageOverride = callable<
+  [appId: number, language?: string],
+  Record<string, string>
+>("set_scraper_language_override");
+export const setScraperSettings = callable<
+  [language?: string, translateIgn?: boolean | null],
+  ScraperSettings
+>("set_scraper_settings");
+export const getRpcs3Settings = callable<[], Rpcs3Settings>(
+  "get_rpcs3_settings"
+);
+export const setRpcs3TrophyId = callable<
+  [appId: number, npcommid: string, trophyDir?: string],
+  Record<string, string>
+>("set_rpcs3_trophy_id");
+export const resolveRpcs3FromShortcut = callable<
+  [appId: number, title?: string, path?: string],
+  AchievementsResponse | null
+>("resolve_rpcs3_from_shortcut");
+export const searchRpcs3TrophySets = callable<
+  [query: string, limit?: number, appId?: number],
+  Rpcs3TrophySetResult[]
+>("search_rpcs3_trophy_sets");
+export const syncRpcs3Progress = callable<
+  [appId: number],
+  AchievementsResponse | null
+>("sync_rpcs3_progress");
+export const clearRpcs3Associations = callable<[], Rpcs3Settings>(
+  "clear_rpcs3_associations"
+);

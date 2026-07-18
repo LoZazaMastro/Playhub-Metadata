@@ -11,6 +11,7 @@ import {
   startMetadataBootstrap,
   PLAYHUB_ACHIEVEMENTS_ROUTE,
   PlayhubAchievementsRoute,
+  cleanupRetiredRpcs3ControllerOverrides,
 } from "./steam";
 
 const METADATA_ROUTE = "/playhub-metadata/:appid";
@@ -18,6 +19,7 @@ const METADATA_ROUTE = "/playhub-metadata/:appid";
 export default definePlugin(() => {
   void refreshMetadataCache();
   void refreshRaSettings();
+  void cleanupRetiredRpcs3ControllerOverrides();
 
   const unpatchSteam = installSteamPatches();
   const stopMetadataBootstrap = startMetadataBootstrap();

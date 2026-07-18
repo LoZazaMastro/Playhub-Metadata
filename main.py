@@ -51,7 +51,208 @@ RETROACHIEVEMENTS_GAME_LIST_URL = (
     "https://retroachievements.org/API/API_GetGameList.php"
 )
 OPENXBL_API_BASE_URL = "https://xbl.io/api/v2"
-MICROSOFT_STORE_SEARCH_URL = "https://storeedgefd.dsx.mp.microsoft.com/v9.0/pages/searchResults"
+GOOGLE_TRANSLATE_URL = "https://translate.googleapis.com/translate_a/single"
+MYMEMORY_TRANSLATE_URL = "https://api.mymemory.translated.net/get"
+GOOGLE_TRANSLATE_LANGUAGES = {
+    'ab': 'Abkhaz',
+    'ace': 'Acehnese',
+    'ach': 'Acholi',
+    'af': 'Afrikaans',
+    'sq': 'Albanian',
+    'alz': 'Alur',
+    'am': 'Amharic',
+    'ar': 'Arabic',
+    'hy': 'Armenian',
+    'as': 'Assamese',
+    'awa': 'Awadhi',
+    'ay': 'Aymara',
+    'az': 'Azerbaijani',
+    'ban': 'Balinese',
+    'bm': 'Bambara',
+    'ba': 'Bashkir',
+    'eu': 'Basque',
+    'btx': 'Batak Karo',
+    'bts': 'Batak Simalungun',
+    'bbc': 'Batak Toba',
+    'be': 'Belarusian',
+    'bem': 'Bemba',
+    'bn': 'Bengali',
+    'bew': 'Betawi',
+    'bho': 'Bhojpuri',
+    'bik': 'Bikol',
+    'bs': 'Bosnian',
+    'br': 'Breton',
+    'bg': 'Bulgarian',
+    'bua': 'Buryat',
+    'yue': 'Cantonese',
+    'ca': 'Catalan',
+    'ceb': 'Cebuano',
+    'ny': 'Chichewa (Nyanja)',
+    'zh-CN': 'Chinese (Simplified)',
+    'zh-TW': 'Chinese (Traditional)',
+    'cv': 'Chuvash',
+    'co': 'Corsican',
+    'crh': 'Crimean Tatar',
+    'hr': 'Croatian',
+    'cs': 'Czech',
+    'da': 'Danish',
+    'din': 'Dinka',
+    'dv': 'Divehi',
+    'doi': 'Dogri',
+    'dov': 'Dombe',
+    'nl': 'Dutch',
+    'dz': 'Dzongkha',
+    'en': 'English',
+    'eo': 'Esperanto',
+    'et': 'Estonian',
+    'ee': 'Ewe',
+    'fj': 'Fijian',
+    'fil': 'Filipino (Tagalog)',
+    'fi': 'Finnish',
+    'fr': 'French',
+    'fr-FR': 'French (France)',
+    'fr-CA': 'French (Canada)',
+    'fy': 'Frisian',
+    'ff': 'Fulfulde',
+    'gaa': 'Ga',
+    'gl': 'Galician',
+    'lg': 'Ganda (Luganda)',
+    'ka': 'Georgian',
+    'de': 'German',
+    'el': 'Greek',
+    'gn': 'Guarani',
+    'gu': 'Gujarati',
+    'ht': 'Haitian Creole',
+    'cnh': 'Hakha Chin',
+    'ha': 'Hausa',
+    'haw': 'Hawaiian',
+    'he': 'Hebrew',
+    'hil': 'Hiligaynon',
+    'hi': 'Hindi',
+    'hmn': 'Hmong',
+    'hu': 'Hungarian',
+    'hrx': 'Hunsrik',
+    'is': 'Icelandic',
+    'ig': 'Igbo',
+    'ilo': 'Iloko',
+    'id': 'Indonesian',
+    'ga': 'Irish',
+    'it': 'Italian',
+    'ja': 'Japanese',
+    'jv': 'Javanese',
+    'kn': 'Kannada',
+    'pam': 'Kapampangan',
+    'kk': 'Kazakh',
+    'km': 'Khmer',
+    'cgg': 'Kiga',
+    'rw': 'Kinyarwanda',
+    'ktu': 'Kituba',
+    'gom': 'Konkani',
+    'ko': 'Korean',
+    'kri': 'Krio',
+    'ku': 'Kurdish (Kurmanji)',
+    'ckb': 'Kurdish (Sorani)',
+    'ky': 'Kyrgyz',
+    'lo': 'Lao',
+    'ltg': 'Latgalian',
+    'la': 'Latin',
+    'lv': 'Latvian',
+    'lij': 'Ligurian',
+    'li': 'Limburgan',
+    'ln': 'Lingala',
+    'lt': 'Lithuanian',
+    'lmo': 'Lombard',
+    'luo': 'Luo',
+    'lb': 'Luxembourgish',
+    'mk': 'Macedonian',
+    'mai': 'Maithili',
+    'mak': 'Makassar',
+    'mg': 'Malagasy',
+    'ms': 'Malay',
+    'ms-Arab': 'Malay (Jawi)',
+    'ml': 'Malayalam',
+    'mt': 'Maltese',
+    'mi': 'Maori',
+    'mr': 'Marathi',
+    'chm': 'Meadow Mari',
+    'mni-Mtei': 'Meiteilon (Manipuri)',
+    'min': 'Minang',
+    'lus': 'Mizo',
+    'mn': 'Mongolian',
+    'my': 'Myanmar (Burmese)',
+    'nr': 'Ndebele (South)',
+    'new': 'Nepalbhasa (Newari)',
+    'ne': 'Nepali',
+    'nso': 'Northern Sotho (Sepedi)',
+    'no': 'Norwegian',
+    'nus': 'Nuer',
+    'oc': 'Occitan',
+    'or': 'Odia (Oriya)',
+    'om': 'Oromo',
+    'pag': 'Pangasinan',
+    'pap': 'Papiamento',
+    'ps': 'Pashto',
+    'fa': 'Persian',
+    'pl': 'Polish',
+    'pt': 'Portuguese',
+    'pt-PT': 'Portuguese (Portugal)',
+    'pt-BR': 'Portuguese (Brazil)',
+    'pa': 'Punjabi',
+    'pa-Arab': 'Punjabi (Shahmukhi)',
+    'qu': 'Quechua',
+    'rom': 'Romani',
+    'ro': 'Romanian',
+    'rn': 'Rundi',
+    'ru': 'Russian',
+    'sm': 'Samoan',
+    'sg': 'Sango',
+    'sa': 'Sanskrit',
+    'gd': 'Scots Gaelic',
+    'sr': 'Serbian',
+    'st': 'Sesotho',
+    'crs': 'Seychellois Creole',
+    'shn': 'Shan',
+    'sn': 'Shona',
+    'scn': 'Sicilian',
+    'szl': 'Silesian',
+    'sd': 'Sindhi',
+    'si': 'Sinhala (Sinhalese)',
+    'sk': 'Slovak',
+    'sl': 'Slovenian',
+    'so': 'Somali',
+    'es': 'Spanish',
+    'su': 'Sundanese',
+    'sw': 'Swahili',
+    'ss': 'Swati',
+    'sv': 'Swedish',
+    'tg': 'Tajik',
+    'ta': 'Tamil',
+    'tt': 'Tatar',
+    'te': 'Telugu',
+    'tet': 'Tetum',
+    'th': 'Thai',
+    'ti': 'Tigrinya',
+    'ts': 'Tsonga',
+    'tn': 'Tswana',
+    'tr': 'Turkish',
+    'tk': 'Turkmen',
+    'ak': 'Twi (Akan)',
+    'uk': 'Ukrainian',
+    'ur': 'Urdu',
+    'ug': 'Uyghur',
+    'uz': 'Uzbek',
+    'vi': 'Vietnamese',
+    'cy': 'Welsh',
+    'xh': 'Xhosa',
+    'yi': 'Yiddish',
+    'yo': 'Yoruba',
+    'yua': 'Yucatec Maya',
+    'zu': 'Zulu',
+}
+GOOGLE_TRANSLATE_LANGUAGE_CODES = set(GOOGLE_TRANSLATE_LANGUAGES)
+GOOGLE_TRANSLATE_LANGUAGE_ALIASES = {code.casefold(): code for code in GOOGLE_TRANSLATE_LANGUAGES}
+
+MICROSOFT_STORE_SEARCH_URL =MICROSOFT_STORE_SEARCH_URL = "https://storeedgefd.dsx.mp.microsoft.com/v9.0/pages/searchResults"
 MICROSOFT_STORE_PRODUCTS_URL = "https://storeedgefd.dsx.mp.microsoft.com/v8.0/sdk/products"
 MICROSOFT_DISPLAY_CATALOG_PRODUCTS_URL = "https://displaycatalog.mp.microsoft.com/v7.0/products"
 TRUEACHIEVEMENTS_BASE_URL = "https://www.trueachievements.com"
@@ -60,7 +261,12 @@ STEAM_NEWS_URL = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
 STEAM_EVENTS_URL = "https://store.steampowered.com/events/ajaxgetpartnereventspageable/"
 STEAM_STORE_APP_URL = "https://store.steampowered.com/app/{appid}/"
 STEAM_ACTIVITY_EVENT_TYPES = {12, 13, 14, 15, 23, 24, 25, 28, 35}
-ACHIEVEMENT_SOURCES = {"auto", "retroachievements", "xbox", "disabled"}
+ACHIEVEMENT_SOURCES = {"auto", "retroachievements", "xbox", "rpcs3", "disabled"}
+# RPCS3 stores trophy timestamps as CellRtc ticks: microseconds elapsed since
+# 0001-01-01 00:00:00 UTC. This constant is the offset (in seconds) between
+# that epoch and the Unix epoch.
+RPCS3_RTC_EPOCH_OFFSET_SECONDS = 62135596800
+RPCS3_TROPUSR_MAGIC = 0x818F54AD
 ACHIEVEMENT_CACHE_POLICIES = {"hourly", "daily", "weekly", "pc_session", "manual"}
 ACHIEVEMENT_CACHE_DEFAULT_POLICY = "daily"
 PLAYHUB_ACHIEVEMENT_CACHE_VERSION = 29
@@ -193,6 +399,8 @@ class Plugin:
         self._steamui_icon_dir: Path | None = None
         self._steamui_icon_dir_checked = False
         self._openxbl_memory_cache: dict[str, tuple[int, Any]] = {}
+        self._translation_memory_cache: dict[str, str] = {}
+        self._rpcs3_icon_proxy_paths: dict[str, str] = {}
         self._openxbl_rate_limited_until = 0.0
         self._last_trueachievements_image_map_diagnostics: dict[str, Any] = {}
         self._image_proxy_server: http.server.ThreadingHTTPServer | None = None
@@ -206,6 +414,13 @@ class Plugin:
         self._start_image_proxy_server()
         self._cleanup_loopback_icons()
         self._load_data()
+        cleaned_controller_artifacts = await asyncio.to_thread(
+            self._cleanup_removed_rpcs3_controller_feature_sync
+        )
+        if cleaned_controller_artifacts:
+            decky.logger.info(
+                f"Removed {cleaned_controller_artifacts} retired RPCS3 controller artifact(s)"
+            )
         decky.logger.info(
             "Playhub image pipeline status: "
             f"pillow={'yes' if Image is not None else 'NO'} "
@@ -236,6 +451,26 @@ class Plugin:
             def do_GET(self) -> None:
                 try:
                     parsed = urllib.parse.urlparse(self.path)
+                    if parsed.path == "/rpcs3-icon":
+                        query = urllib.parse.parse_qs(parsed.query)
+                        key = query.get("key", [""])[0]
+                        icon_path = plugin._rpcs3_icon_proxy_paths.get(key, "")
+                        data = b""
+                        if icon_path:
+                            try:
+                                data = Path(icon_path).read_bytes()
+                            except Exception:
+                                data = b""
+                        if not data:
+                            self.send_error(404)
+                            return
+                        self.send_response(200)
+                        self.send_header("Content-Type", "image/png")
+                        self.send_header("Cache-Control", "public, max-age=604800")
+                        self.send_header("Content-Length", str(len(data)))
+                        self.end_headers()
+                        self.wfile.write(data)
+                        return
                     if parsed.path != "/xbox-icon":
                         self.send_error(404)
                         return
@@ -498,16 +733,26 @@ class Plugin:
         self._save_data()
         return self._data["metadata"]
 
-    async def search_metadata(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
-        return await asyncio.to_thread(self._search_metadata_sync, query, limit)
+    async def clear_all_metadata(self) -> dict[str, Any]:
+        self._load_data()
+        self._data["metadata"] = {}
+        self._save_data()
+        return self._data["metadata"]
 
-    async def fetch_metadata(self, slug_or_url: str) -> dict[str, Any] | None:
-        return await asyncio.to_thread(self._fetch_metadata_sync, slug_or_url)
+    async def search_metadata(
+        self, query: str, limit: int = 8, app_id: int = 0
+    ) -> list[dict[str, Any]]:
+        return await asyncio.to_thread(self._search_metadata_sync, query, limit, app_id)
+
+    async def fetch_metadata(
+        self, slug_or_url: str, app_id: int = 0
+    ) -> dict[str, Any] | None:
+        return await asyncio.to_thread(self._fetch_metadata_sync, slug_or_url, app_id)
 
     async def auto_fetch_metadata(
         self, app_id: int, title: str
     ) -> dict[str, Any] | None:
-        metadata = await asyncio.to_thread(self._auto_fetch_metadata_sync, title)
+        metadata = await asyncio.to_thread(self._auto_fetch_metadata_sync, title, app_id)
         if metadata:
             await self.save_metadata(app_id, metadata)
         return metadata
@@ -551,6 +796,13 @@ class Plugin:
     ) -> dict[str, Any] | None:
         return await asyncio.to_thread(
             self._clear_steam_activity_association_sync, app_id
+        )
+
+    async def set_steam_activity_enabled(
+        self, app_id: int, enabled: bool, title: str = ""
+    ) -> dict[str, Any] | None:
+        return await asyncio.to_thread(
+            self._set_steam_activity_enabled_sync, app_id, enabled, title
         )
 
     async def get_local_shortcuts(self) -> list[dict[str, Any]]:
@@ -606,6 +858,13 @@ class Plugin:
     async def sync_retroachievements_progress(self, app_id: int) -> dict[str, Any] | None:
         return await asyncio.to_thread(self._sync_retroachievements_progress_sync, app_id)
 
+    async def sync_rpcs3_progress(self, app_id: int) -> dict[str, Any] | None:
+        # Post-session RPCS3 sync must also auto-resolve a trophy set that did
+        # not exist before the game was launched (common with PS3 ISO files).
+        return await asyncio.to_thread(
+            self._fetch_rpcs3_achievements_sync, app_id, True
+        )
+
     async def resolve_retroachievements_from_path(
         self, app_id: int, path: str, title: str = ""
     ) -> dict[str, Any] | None:
@@ -640,6 +899,10 @@ class Plugin:
                     "ta_logged_in": bool(xbox.get("xuid") or xbox.get("ta_logged_in")),
                     "title_ids": self._data["xbox_title_ids"],
                 },
+            "rpcs3": {
+                "enabled": True,
+                "trophy_ids": self._data["rpcs3_trophy_ids"],
+            },
             "achievement_sources": self._data["achievement_sources"],
             "achievement_cache": {
                 "policy": self._normalise_achievement_cache_policy(achievement_cache.get("policy")),
@@ -648,6 +911,9 @@ class Plugin:
                 ),
                 "xbox_policy": self._normalise_achievement_cache_policy(
                     achievement_cache.get("xbox_policy") or achievement_cache.get("policy")
+                ),
+                "rpcs3_policy": self._normalise_achievement_cache_policy(
+                    achievement_cache.get("rpcs3_policy") or "pc_session"
                 ),
             },
         }
@@ -668,10 +934,13 @@ class Plugin:
             cache_settings["retroachievements_policy"] = cleaned
         elif clean_provider in {"xbox", "openxbl"}:
             cache_settings["xbox_policy"] = cleaned
+        elif clean_provider in {"rpcs3", "ps3"}:
+            cache_settings["rpcs3_policy"] = cleaned
         else:
             cache_settings["policy"] = cleaned
             cache_settings["retroachievements_policy"] = cleaned
             cache_settings["xbox_policy"] = cleaned
+            cache_settings["rpcs3_policy"] = cleaned
         cache_settings["policy"] = self._normalise_achievement_cache_policy(cache_settings.get("policy"))
         cache_settings["retroachievements_policy"] = self._normalise_achievement_cache_policy(
             cache_settings.get("retroachievements_policy") or cache_settings.get("policy")
@@ -679,11 +948,15 @@ class Plugin:
         cache_settings["xbox_policy"] = self._normalise_achievement_cache_policy(
             cache_settings.get("xbox_policy") or cache_settings.get("policy")
         )
+        cache_settings["rpcs3_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("rpcs3_policy") or "pc_session"
+        )
         self._save_data()
         return {
             "policy": cache_settings["policy"],
             "retroachievements_policy": cache_settings["retroachievements_policy"],
             "xbox_policy": cache_settings["xbox_policy"],
+            "rpcs3_policy": cache_settings["rpcs3_policy"],
         }
 
     async def get_xbox_settings(self) -> dict[str, Any]:
@@ -831,6 +1104,55 @@ class Plugin:
             self._search_xbox_titles_sync, query, limit, app_id, include_catalog
         )
 
+    async def get_scraper_settings(self) -> dict[str, Any]:
+        self._load_data()
+        settings = self._scraper_settings()
+        settings["languages"] = list(GOOGLE_TRANSLATE_LANGUAGES)
+        settings["language_labels"] = dict(GOOGLE_TRANSLATE_LANGUAGES)
+        settings["language_overrides"] = dict(
+            self._data.get("scraper_language_overrides") or {}
+        )
+        return settings
+
+    async def set_scraper_settings(
+        self,
+        language: str = "",
+        translate_ign: bool | None = None,
+    ) -> dict[str, Any]:
+        self._load_data()
+        current = self._scraper_settings()
+        clean_language = self._normalise_translate_language(language) if language else current["language"]
+        next_settings = {
+            "language": clean_language,
+            "translate_ign": current["translate_ign"]
+            if translate_ign is None
+            else bool(translate_ign),
+        }
+        self._data.setdefault("settings", {})["scraper"] = next_settings
+        self._save_data()
+        return await self.get_scraper_settings()
+
+    async def set_scraper_language_override(
+        self, app_id: int, language: str = ""
+    ) -> dict[str, str]:
+        # Empty/"auto" makes the game follow the global description language.
+        self._load_data()
+        key = str(app_id)
+        cleaned = self._normalise_translate_language(language, allow_empty=True)
+        if cleaned:
+            self._data.setdefault("scraper_language_overrides", {})[key] = cleaned
+        else:
+            self._data.setdefault("scraper_language_overrides", {}).pop(key, None)
+        self._save_data()
+        return self._data["scraper_language_overrides"]
+
+    async def get_rpcs3_settings(self) -> dict[str, Any]:
+        self._load_data()
+        return {
+            "enabled": True,
+            "trophy_ids": self._data["rpcs3_trophy_ids"],
+        }
+
     def _default_data(self) -> dict[str, Any]:
         return {
             "metadata": {},
@@ -852,11 +1174,20 @@ class Plugin:
                     "policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
                     "retroachievements_policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
                     "xbox_policy": ACHIEVEMENT_CACHE_DEFAULT_POLICY,
+                    "rpcs3_policy": "pc_session",
+                },
+                "scraper": {
+                    "language": "en",
+                    "translate_ign": True,
                 },
             },
             "ra_game_ids": {},
             "xbox_title_ids": {},
             "xbox_achievement_payloads": {},
+            "scraper_language_overrides": {},
+            "rpcs3_trophy_ids": {},
+            "rpcs3_trophy_dirs": {},
+            "rpcs3_roots": [],
             "achievement_sources": {},
         }
 
@@ -907,7 +1238,43 @@ class Plugin:
         cache_settings["xbox_policy"] = self._normalise_achievement_cache_policy(
             cache_settings.get("xbox_policy") or legacy_policy
         )
-        default["ra_game_ids"].update(payload.get("ra_game_ids") or {})
+        cache_settings["rpcs3_policy"] = self._normalise_achievement_cache_policy(
+            cache_settings.get("rpcs3_policy") or "pc_session"
+        )
+        scraper_settings = default["settings"].setdefault("scraper", {})
+        if not isinstance(scraper_settings, dict):
+            scraper_settings = {}
+            default["settings"]["scraper"] = scraper_settings
+        scraper_settings["language"] = self._normalise_translate_language(
+            scraper_settings.get("language") or "en"
+        )
+        scraper_settings["translate_ign"] = bool(scraper_settings.get("translate_ign", True))
+        # Discard settings from pre-1.6.0 experimental scraper/config builds.
+        for obsolete_key in ("source", "fallback_ign", "ss_user", "ss_password"):
+            scraper_settings.pop(obsolete_key, None)
+        default["settings"].pop("rpcs3_" + "config", None)
+        # Remove settings left by the retired Steam Controller experiment.
+        default["settings"].pop("rpcs3_steam_controller", None)
+        raw_language_overrides = payload.get("scraper_language_overrides") or {}
+        if isinstance(raw_language_overrides, dict):
+            for key, value in raw_language_overrides.items():
+                cleaned_value = self._normalise_translate_language(value, allow_empty=True)
+                if cleaned_value:
+                    default["scraper_language_overrides"][str(key)] = cleaned_value
+        raw_rpcs3_ids = payload.get("rpcs3_trophy_ids") or {}
+        if isinstance(raw_rpcs3_ids, dict):
+            for key, value in raw_rpcs3_ids.items():
+                cleaned = re.sub(r"[^A-Za-z0-9_\-]", "", str(value or ""))
+                if cleaned:
+                    default["rpcs3_trophy_ids"][str(key)] = cleaned
+        raw_rpcs3_dirs = payload.get("rpcs3_trophy_dirs") or {}
+        if isinstance(raw_rpcs3_dirs, dict):
+            default["rpcs3_trophy_dirs"].update(
+                {str(key): str(value) for key, value in raw_rpcs3_dirs.items() if value}
+            )
+        raw_rpcs3_roots = payload.get("rpcs3_roots") or []
+        if isinstance(raw_rpcs3_roots, list):
+            default["rpcs3_roots"] = [str(value) for value in raw_rpcs3_roots if value]
         # Preserve both modern OpenXBL numeric title IDs and older TA fallback
         # matches. The fetch path decides which provider to use.
         raw_xbox_ids = payload.get("xbox_title_ids") or {}
@@ -953,6 +1320,8 @@ class Plugin:
             "assigned": 0,
             "failed": 0,
             "current": "",
+            "current_title": "",
+            "phase": "idle",
             "message": "",
             "error": "",
         }
@@ -961,47 +1330,94 @@ class Plugin:
         metadata = self._data["metadata"].get(str(app_id))
         if not isinstance(metadata, dict):
             return True
-        # Treat empty/manual shells as missing so the metadata scan can repair them,
-        # but do not use missing Steam Activity/news as a reason to scan metadata.
         title = self._clean_game_title(str(metadata.get("title") or ""))
         source = str(metadata.get("source") or "").strip().casefold()
-        has_description = bool(self._clean_html_text(str(metadata.get("description") or metadata.get("short_description") or "")))
-        return not title or (source in {"", "manual"} and not has_description)
+        has_description = bool(
+            self._clean_html_text(
+                str(metadata.get("description") or metadata.get("short_description") or "")
+            )
+        )
+        if not title or (source in {"", "manual"} and not has_description):
+            return True
+        effective_language = self._scraper_language_for_app(app_id)
+        if str(metadata.get("language") or "").strip().casefold() != effective_language.casefold():
+            return True
+        if str(metadata.get("scraper_source") or source or "").strip().casefold() != "ign":
+            return True
+        if effective_language.casefold() != "en":
+            if bool(metadata.get("translated", False)) != bool(
+                self._scraper_settings().get("translate_ign", True)
+            ):
+                return True
+        return False
+
+    def _set_scan_phase(self, phase: str, title: str = "", message: str = "") -> None:
+        if not self._scan_progress.get("running"):
+            return
+        self._scan_progress["phase"] = str(phase or "")
+        if title:
+            self._scan_progress["current_title"] = title
+            self._scan_progress["current"] = title
+        if message:
+            self._scan_progress["message"] = message
 
     async def _scan_missing(self, games: list[dict[str, Any]]) -> None:
-        self._load_data()
-        missing = [
-            game
-            for game in games
-            if isinstance(game, dict)
-            and str(game.get("appid", "")).strip()
-            and self._metadata_needs_scan(int(game.get("appid")))
-        ]
-        self._scan_progress.update({"total": len(missing), "completed": 0})
-        for game in missing:
-            app_id = int(game.get("appid"))
-            title = self._clean_game_title(str(game.get("name") or ""))
-            self._scan_progress["current"] = f"{self._scan_progress['completed'] + 1}/{len(missing)} - {title}" if title else f"{self._scan_progress['completed'] + 1}/{len(missing)}"
-            try:
-                self._scan_progress["message"] = f"Fetching metadata for {title}"
-                metadata = await asyncio.to_thread(self._auto_fetch_metadata_sync, title)
-                if metadata:
-                    await self.save_metadata(app_id, metadata)
-                    self._scan_progress["assigned"] += 1
-                    self._scan_progress["message"] = f"Saved metadata for {title}"
-                else:
+        try:
+            self._load_data()
+            missing = [
+                game
+                for game in games
+                if isinstance(game, dict)
+                and str(game.get("appid", "")).strip()
+                and self._metadata_needs_scan(int(game.get("appid")))
+            ]
+            self._scan_progress.update(
+                {
+                    "total": len(missing),
+                    "completed": 0,
+                    "assigned": 0,
+                    "failed": 0,
+                    "phase": "starting",
+                    "current": "",
+                    "current_title": "",
+                    "message": "",
+                    "error": "",
+                }
+            )
+            for game in missing:
+                app_id = int(game.get("appid"))
+                title = self._clean_game_title(str(game.get("name") or ""))
+                try:
+                    self._set_scan_phase("ign", title, f"Downloading from IGN for {title}")
+                    metadata = await asyncio.to_thread(
+                        self._auto_fetch_metadata_sync, title, app_id
+                    )
+                    if metadata:
+                        await self.save_metadata(app_id, metadata)
+                        self._scan_progress["assigned"] += 1
+                        self._set_scan_phase("saved", title, f"Saved metadata for {title}")
+                    else:
+                        self._scan_progress["failed"] += 1
+                        self._set_scan_phase("no_match", title, f"No metadata match for {title}")
+                except Exception as error:
                     self._scan_progress["failed"] += 1
-                    self._scan_progress["message"] = f"No metadata match for {title}"
-            except Exception as error:
-                self._scan_progress["failed"] += 1
-                self._scan_progress["message"] = f"Failed: {title}"
-                self._scan_progress["error"] = str(error)
-                decky.logger.error(f"Metadata scan failed for {title}: {error}")
-            finally:
-                self._scan_progress["completed"] += 1
-        self._scan_progress["running"] = False
-        self._scan_progress["status"] = "completed"
-        self._scan_progress["current"] = ""
+                    self._scan_progress["error"] = str(error)
+                    self._set_scan_phase("failed", title, f"Failed: {title}")
+                    decky.logger.error(f"Metadata scan failed for {title}: {error}")
+                finally:
+                    self._scan_progress["completed"] += 1
+        except Exception as error:
+            self._scan_progress["status"] = "failed"
+            self._scan_progress["error"] = str(error)
+            self._scan_progress["message"] = str(error)
+            decky.logger.error(f"Metadata scan setup failed: {error}")
+        finally:
+            self._scan_progress["running"] = False
+            if self._scan_progress.get("status") != "failed":
+                self._scan_progress["status"] = "completed"
+            self._scan_progress["phase"] = "completed"
+            self._scan_progress["current"] = ""
+            self._scan_progress["current_title"] = ""
 
 
     def _steam_activity_blocked_appids(self, metadata: dict[str, Any]) -> set[int]:
@@ -1084,6 +1500,30 @@ class Plugin:
         self._save_data()
         return saved
 
+    def _set_steam_activity_enabled_sync(
+        self, app_id: int, enabled: bool, title: str = ""
+    ) -> dict[str, Any] | None:
+        # This setting is deliberately scoped to one non-Steam appid. Disabling
+        # a title never changes Activity for any other game.
+        self._load_data()
+        key = str(int(app_id))
+        if not isinstance(self._data["metadata"].get(key), dict):
+            clean_title = self._clean_game_title(str(title or f"Game {app_id}"))
+            self._data["metadata"][key] = self._sanitize_metadata(
+                {
+                    "title": clean_title,
+                    "id": clean_title or str(app_id),
+                    "source": "Manual",
+                    "description": "",
+                    "short_description": "",
+                    "store_categories": [],
+                }
+            )
+            self._save_data()
+        if bool(enabled):
+            return self._refetch_steam_activity_association_sync(app_id, title)
+        return self._clear_steam_activity_association_sync(app_id)
+
     async def _refresh_steam_activities(self, games: list[dict[str, Any]]) -> None:
         self._load_data()
         targets: list[dict[str, Any]] = []
@@ -1130,10 +1570,15 @@ class Plugin:
         self._activity_refresh_progress["status"] = "completed"
         self._activity_refresh_progress["current"] = ""
 
-    def _search_metadata_sync(self, query: str, limit: int = 8) -> list[dict[str, Any]]:
+    def _search_metadata_sync(
+        self, query: str, limit: int = 8, app_id: int = 0
+    ) -> list[dict[str, Any]]:
         cleaned = self._clean_game_title(query)
         if not cleaned:
             return []
+        return self._search_ign_metadata_sync(cleaned, limit)
+
+    def _search_ign_metadata_sync(self, cleaned: str, limit: int = 8) -> list[dict[str, Any]]:
         variables = {"name": cleaned, "count": max(1, min(int(limit or 8), 12)), "type": "Game"}
         gql = """
         query SearchObjectsByName($name: String!, $count: Int!, $type: ObjectType!) {
@@ -1183,28 +1628,44 @@ class Plugin:
             )
         return results
 
-    def _auto_fetch_metadata_sync(self, title: str) -> dict[str, Any] | None:
+    def _auto_fetch_metadata_sync(
+        self, title: str, app_id: int = 0
+    ) -> dict[str, Any] | None:
         cleaned = self._clean_game_title(title)
         if not cleaned:
             return None
+        self._set_scan_phase("ign", cleaned, f"Downloading from IGN for {cleaned}")
+        return self._auto_fetch_ign_metadata_sync(cleaned, app_id)
 
+    def _auto_fetch_ign_metadata_sync(
+        self, cleaned: str, app_id: int = 0
+    ) -> dict[str, Any] | None:
         for slug in self._slug_candidates(cleaned):
             try:
-                metadata = self._fetch_metadata_sync(slug)
+                metadata = self._fetch_metadata_sync(slug, app_id)
                 if metadata and self._reasonable_match(cleaned, metadata.get("title", "")):
                     return metadata
             except Exception:
                 continue
 
-        results = self._search_metadata_sync(cleaned, 5)
+        results = self._search_ign_metadata_sync(cleaned, 5)
         if not results:
             return None
-        best = results[0]
+        best = max(
+            results,
+            key=lambda item: self._title_match_score(
+                self._normalise_match_title(cleaned),
+                self._normalise_match_title(str(item.get("title") or "")),
+            ),
+        )
         if not self._reasonable_match(cleaned, best.get("title", "")):
             return None
-        return self._fetch_metadata_sync(best["slug"] or best["url"])
+        return self._fetch_metadata_sync(best["slug"] or best["url"], app_id)
 
-    def _fetch_metadata_sync(self, slug_or_url: str) -> dict[str, Any] | None:
+    def _fetch_metadata_sync(
+        self, slug_or_url: str, app_id: int = 0
+    ) -> dict[str, Any] | None:
+        raw = str(slug_or_url or "").strip()
         slug = self._slug_from_ign_value(slug_or_url)
         if not slug:
             return None
@@ -1245,7 +1706,7 @@ class Plugin:
         game = payload.get("data", {}).get("objectSelectByTypeAndSlug")
         if not isinstance(game, dict):
             return None
-        return self._game_to_metadata(game)
+        return self._prepare_ign_metadata_for_app(self._game_to_metadata(game), app_id)
 
     def _game_to_metadata(self, game: dict[str, Any]) -> dict[str, Any]:
         metadata = game.get("metadata") or {}
@@ -1335,6 +1796,10 @@ class Plugin:
             "title": title,
             "id": metadata.get("id") or title,
             "source": metadata.get("source") or "Manual",
+            "scraper_source": str(metadata.get("scraper_source") or "").strip().casefold(),
+            "language": str(metadata.get("language") or "").strip().casefold(),
+            "content_language": str(metadata.get("content_language") or "").strip().casefold(),
+            "translated": bool(metadata.get("translated", False)),
             "source_url": str(metadata.get("source_url") or ""),
             "description": description,
             "short_description": short_description or description,
@@ -2270,11 +2735,18 @@ class Plugin:
             return self._fetch_xbox_achievements_sync(app_id, auto_resolve=True)
         if source == "retroachievements":
             return self._fetch_ra_achievements_sync(app_id)
+        if source == "rpcs3":
+            return self._fetch_rpcs3_achievements_sync(app_id, auto_resolve=True)
 
-        # Auto mode: UWPHook/Xbox shortcuts prefer Xbox/OpenXBL, otherwise keep
-        # the existing RetroAchievements flow untouched.
+        # Auto mode: UWPHook/Xbox shortcuts prefer Xbox/OpenXBL, RPCS3
+        # shortcuts read local PS3 trophies, otherwise keep the existing
+        # RetroAchievements flow untouched.
         if self._is_uwphook_shortcut(app_id):
             payload = self._fetch_xbox_achievements_sync(app_id, auto_resolve=True)
+            if payload:
+                return payload
+        if str(app_id) in (self._data.get("rpcs3_trophy_ids") or {}) or self._is_rpcs3_shortcut(app_id):
+            payload = self._fetch_rpcs3_achievements_sync(app_id, auto_resolve=True)
             if payload:
                 return payload
         return self._fetch_ra_achievements_sync(app_id)
@@ -7042,6 +7514,921 @@ try {
             "strImage": f"https://media.retroachievements.org/Badge/{badge}{'' if achieved else '_lock'}.png",
             "strName": title,
         }
+
+    # ------------------------------------------------------------------
+    # IGN metadata + optional automatic translation
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _normalise_translate_language(value: Any, allow_empty: bool = False) -> str:
+        raw = str(value or "").strip()
+        if not raw:
+            return "" if allow_empty else "en"
+        return GOOGLE_TRANSLATE_LANGUAGE_ALIASES.get(
+            raw.casefold(), "" if allow_empty else "en"
+        )
+
+    def _scraper_settings(self) -> dict[str, Any]:
+        scraper = (self._data.get("settings") or {}).get("scraper") or {}
+        return {
+            "language": self._normalise_translate_language(
+                scraper.get("language") or "en"
+            ),
+            "translate_ign": bool(scraper.get("translate_ign", True)),
+        }
+
+    def _scraper_language_for_app(self, app_id: int = 0) -> str:
+        self._load_data()
+        if app_id:
+            override = self._normalise_translate_language(
+                (self._data.get("scraper_language_overrides") or {}).get(str(app_id)),
+                allow_empty=True,
+            )
+            if override:
+                return override
+        return self._scraper_settings()["language"]
+
+    @staticmethod
+    def _translation_chunks(text: str, max_chars: int = 3500) -> list[str]:
+        clean = str(text or "").strip()
+        if not clean:
+            return []
+        chunks: list[str] = []
+        current = ""
+        for paragraph in re.split(r"(\n+)", clean):
+            if not paragraph:
+                continue
+            if len(current) + len(paragraph) <= max_chars:
+                current += paragraph
+                continue
+            if current.strip():
+                chunks.append(current.strip())
+            current = ""
+            while len(paragraph) > max_chars:
+                cut = paragraph.rfind(" ", 0, max_chars)
+                if cut < max_chars // 2:
+                    cut = max_chars
+                chunks.append(paragraph[:cut].strip())
+                paragraph = paragraph[cut:].lstrip()
+            current = paragraph
+        if current.strip():
+            chunks.append(current.strip())
+        return chunks
+
+    def _translate_text_google(self, text: str, target_language: str) -> str:
+        data = urllib.parse.urlencode(
+            {
+                "client": "gtx",
+                "sl": "en",
+                "tl": target_language,
+                "dt": "t",
+                "q": text,
+            }
+        ).encode("utf-8")
+        request = urllib.request.Request(
+            GOOGLE_TRANSLATE_URL,
+            data=data,
+            headers={
+                "User-Agent": "Mozilla/5.0 PlayhubMetadata/1.6.0",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+        )
+        context = ssl._create_unverified_context()
+        with urllib.request.urlopen(request, timeout=20, context=context) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="ignore"))
+        segments = payload[0] if isinstance(payload, list) and payload else []
+        translated = "".join(
+            str(segment[0] or "")
+            for segment in segments
+            if isinstance(segment, list) and segment
+        ).strip()
+        if not translated:
+            raise RuntimeError("Google Translate returned an empty translation")
+        return translated
+
+    def _translate_text_mymemory(self, text: str, target_language: str) -> str:
+        url = f"{MYMEMORY_TRANSLATE_URL}?{urllib.parse.urlencode({'q': text, 'langpair': f'en|{target_language}'})}"
+        request = urllib.request.Request(
+            url, headers={"User-Agent": "PlayhubMetadata/1.6.0"}
+        )
+        context = ssl._create_unverified_context()
+        with urllib.request.urlopen(request, timeout=20, context=context) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="ignore"))
+        translated = str(
+            ((payload or {}).get("responseData") or {}).get("translatedText") or ""
+        ).strip()
+        if not translated:
+            raise RuntimeError("MyMemory returned an empty translation")
+        return html.unescape(translated)
+
+    def _translate_text(
+        self, text: str, target_language: str, progress_title: str = ""
+    ) -> str:
+        clean = str(text or "").strip()
+        target = self._normalise_translate_language(target_language)
+        if not clean or target.casefold() == "en":
+            return clean
+        cache_key = hashlib.sha1(f"en|{target}|{clean}".encode("utf-8")).hexdigest()
+        cached = self._translation_memory_cache.get(cache_key)
+        if cached:
+            return cached
+        translated_chunks: list[str] = []
+        for chunk in self._translation_chunks(clean):
+            translated = ""
+            try:
+                self._set_scan_phase(
+                    "google", progress_title, f"Translating with Google for {progress_title}"
+                )
+                translated = self._translate_text_google(chunk, target)
+            except Exception as google_error:
+                decky.logger.warning(
+                    f"Google translation failed ({target}): {google_error}"
+                )
+                try:
+                    self._set_scan_phase(
+                        "mymemory", progress_title, f"Translating with MyMemory for {progress_title}"
+                    )
+                    translated = self._translate_text_mymemory(chunk, target)
+                except Exception as fallback_error:
+                    decky.logger.warning(
+                        f"Fallback translation failed ({target}): {fallback_error}"
+                    )
+            if not translated:
+                return clean
+            translated_chunks.append(translated)
+        result = "\n\n".join(translated_chunks).strip()
+        if result:
+            if len(self._translation_memory_cache) >= 256:
+                self._translation_memory_cache.pop(next(iter(self._translation_memory_cache)))
+            self._translation_memory_cache[cache_key] = result
+        return result or clean
+
+    def _prepare_ign_metadata_for_app(
+        self, metadata: dict[str, Any], app_id: int = 0
+    ) -> dict[str, Any]:
+        if not isinstance(metadata, dict):
+            return metadata
+        settings = self._scraper_settings()
+        target_language = self._scraper_language_for_app(app_id)
+        next_metadata = dict(metadata)
+        next_metadata["scraper_source"] = "ign"
+        next_metadata["language"] = target_language
+        next_metadata["content_language"] = "en"
+        next_metadata["translated"] = False
+        if settings["translate_ign"] and target_language.casefold() != "en":
+            original = self._clean_html_text(str(next_metadata.get("description") or ""))
+            progress_title = self._clean_game_title(
+                str(next_metadata.get("title") or "")
+            )
+            translated = self._translate_text(
+                original, target_language, progress_title=progress_title
+            )
+            if translated and translated != original:
+                next_metadata["description"] = translated
+                next_metadata["short_description"] = translated.split("\n")[0][:300]
+                next_metadata["content_language"] = target_language
+                next_metadata["translated"] = True
+        return self._sanitize_metadata(next_metadata)
+
+    # ------------------------------------------------------------------
+    # RPCS3 (PS3) local trophies    # ------------------------------------------------------------------
+    # RPCS3 (PS3) local trophies
+    #
+    # RPCS3 extracts each game's TROPHY.TRP into
+    #   <rpcs3>/dev_hdd0/home/<user>/trophy/<NPCOMMID>/
+    # containing TROPCONF.SFM (XML trophy definitions), TROPUSR.DAT
+    # (binary unlock state + timestamps) and TROPxxx.PNG icons. Everything
+    # is read locally: no accounts, no API keys, no rate limits.
+    # ------------------------------------------------------------------
+
+    RPCS3_TROPHY_GRADES = {"B": "Bronze", "S": "Silver", "G": "Gold", "P": "Platinum"}
+
+    def _is_rpcs3_shortcut(self, app_id: int, extra_text: str = "") -> bool:
+        text = f"{self._shortcut_launch_text_for_app(app_id)} {extra_text}".casefold().replace("\\", "/")
+        if not text.strip():
+            return False
+        return any(
+            hint in text
+            for hint in (
+                "rpcs3",
+                "dev_hdd0",
+                "eboot.bin",
+                "/ps3_game/",
+                "/ps3iso/",
+                "/roms/ps3/",
+                "/playstation 3/",
+            )
+        )
+
+    @staticmethod
+    def _rpcs3_looks_like_root(path: Path) -> bool:
+        # A usable RPCS3 root either ships a local dev_hdd0 or has a config
+        # folder whose vfs.yml can point dev_hdd0 anywhere (EmuDeck does this).
+        try:
+            return (
+                (path / "dev_hdd0").is_dir()
+                or (path / "config" / "vfs.yml").is_file()
+                or (path / "rpcs3.exe").is_file()
+                or (path / "rpcs3").is_file()
+            )
+        except Exception:
+            return False
+
+    @staticmethod
+    def _rpcs3_default_root_candidates() -> list[Path]:
+        # Common Windows install locations that ship a dev_hdd0 next to
+        # rpcs3.exe: EmuDeck installs and the standard portable setup.
+        candidates: list[Path] = []
+        appdata = os.environ.get("APPDATA")
+        if appdata:
+            candidates.append(Path(appdata) / "EmuDeck" / "Emulators" / "RPCS3")
+            candidates.append(Path(appdata) / "rpcs3")
+        home = Path.home()
+        candidates.append(home / "EmuDeck" / "Emulators" / "RPCS3")
+        candidates.append(home / "Emulation" / "emulators" / "RPCS3")
+        return candidates
+
+    def _rpcs3_known_roots(self) -> list[Path]:
+        roots: list[Path] = []
+
+        def add(path: Path) -> None:
+            try:
+                if path.is_dir() and all(str(path) != str(existing) for existing in roots):
+                    roots.append(path)
+            except Exception:
+                pass
+
+        for value in self._data.get("rpcs3_roots") or []:
+            try:
+                add(Path(str(value)))
+            except Exception:
+                continue
+        for candidate in self._rpcs3_default_root_candidates():
+            try:
+                if self._rpcs3_looks_like_root(candidate):
+                    add(candidate)
+            except Exception:
+                continue
+        return roots
+
+    def _rpcs3_register_root(self, root: Path) -> None:
+        try:
+            if not root.is_dir() or not self._rpcs3_looks_like_root(root):
+                return
+            resolved = str(root)
+            existing = [str(value) for value in (self._data.get("rpcs3_roots") or [])]
+            if resolved in existing:
+                return
+            existing.append(resolved)
+            self._data["rpcs3_roots"] = existing
+            self._save_data()
+            decky.logger.info(f"Playhub RPCS3 root registered: {resolved}")
+        except Exception:
+            pass
+
+    def _rpcs3_register_root_from_trophy_dir(self, trophy_dir: Path) -> None:
+        # <root>/dev_hdd0/home/<user>/trophy/<npcommid>
+        try:
+            for parent in trophy_dir.parents:
+                if parent.name.casefold() == "dev_hdd0":
+                    self._rpcs3_register_root(parent.parent)
+                    return
+        except Exception:
+            pass
+
+    def _rpcs3_roots_from_text(self, text: str) -> list[Path]:
+        roots: list[Path] = []
+
+        def add(path: Path) -> None:
+            try:
+                if path.is_dir() and all(str(path) != str(existing) for existing in roots):
+                    roots.append(path)
+            except Exception:
+                pass
+
+        for candidate in self._path_candidates_from_text(text):
+            try:
+                path = Path(candidate.strip().strip('"'))
+            except Exception:
+                continue
+            try:
+                name = path.name.casefold()
+                if "rpcs3" in name:
+                    add(path if path.is_dir() else path.parent)
+                parts = [part.casefold().strip("/\\") for part in path.parts]
+                if "dev_hdd0" in parts:
+                    index = parts.index("dev_hdd0")
+                    if index >= 1:
+                        add(Path(*path.parts[:index]))
+                # Walk a few levels up: EmuDeck shortcuts often launch through
+                # tools/launchers/rpcs3.ps1, with the real emulator sitting in
+                # <EmuDeck>/Emulators/RPCS3 (possibly without a local dev_hdd0
+                # because vfs.yml redirects it).
+                for ancestor in [path, *list(path.parents)[:6]]:
+                    if self._rpcs3_looks_like_root(ancestor):
+                        add(ancestor)
+                    emudeck_root = ancestor / "Emulators" / "RPCS3"
+                    if self._rpcs3_looks_like_root(emudeck_root):
+                        add(emudeck_root)
+            except Exception:
+                continue
+        return roots
+
+    def _rpcs3_hdd0_dirs(self, root: Path) -> list[Path]:
+        dirs: list[Path] = []
+        try:
+            default = root / "dev_hdd0"
+            if default.is_dir():
+                dirs.append(default)
+        except Exception:
+            pass
+        # RPCS3 lets the virtual /dev_hdd0/ live anywhere via config/vfs.yml.
+        try:
+            vfs_config = root / "config" / "vfs.yml"
+            if vfs_config.exists():
+                text = vfs_config.read_text(encoding="utf-8", errors="ignore")
+                match = re.search(
+                    r"^\s*/dev_hdd0/:\s*[\"']?([^\"'\r\n]+?)[\"']?\s*$", text, re.M
+                )
+                if match:
+                    raw = match.group(1).strip().replace(
+                        "$(EmulatorDir)", f"{root}{os.sep}"
+                    )
+                    custom = Path(raw)
+                    if custom.is_dir() and all(
+                        str(custom) != str(existing) for existing in dirs
+                    ):
+                        dirs.append(custom)
+        except Exception:
+            pass
+        return dirs
+
+    def _rpcs3_trophy_user_dirs(self, root: Path) -> list[Path]:
+        result: list[Path] = []
+        for hdd0 in self._rpcs3_hdd0_dirs(root):
+            home = hdd0 / "home"
+            try:
+                if not home.is_dir():
+                    continue
+                for user_dir in sorted(home.iterdir()):
+                    trophy_dir = user_dir / "trophy"
+                    if trophy_dir.is_dir():
+                        result.append(trophy_dir)
+            except Exception:
+                continue
+        return result
+
+    def _rpcs3_find_user_trophy_dir(self, npcommid: str) -> Path | None:
+        cleaned = str(npcommid or "").strip()
+        if not cleaned:
+            return None
+        for root in self._rpcs3_known_roots():
+            for base in self._rpcs3_trophy_user_dirs(root):
+                candidate = base / cleaned
+                try:
+                    if (candidate / "TROPCONF.SFM").exists() or (
+                        candidate / "TROPUSR.DAT"
+                    ).exists():
+                        return candidate
+                except Exception:
+                    continue
+        return None
+
+    def _rpcs3_discover_roots_from_shortcuts(self) -> None:
+        try:
+            for shortcut in self._read_steam_shortcuts():
+                text = " ".join(
+                    str(shortcut.get(key) or "")
+                    for key in ("exe", "launch_options", "start_dir", "shortcut_path")
+                )
+                if "rpcs3" not in text.casefold():
+                    continue
+                for root in self._rpcs3_roots_from_text(text):
+                    self._rpcs3_register_root(root)
+        except Exception:
+            pass
+
+    def _rpcs3_all_trophy_sets(self) -> list[dict[str, Any]]:
+        sets: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for root in self._rpcs3_known_roots():
+            for base in self._rpcs3_trophy_user_dirs(root):
+                try:
+                    children = sorted(base.iterdir())
+                except Exception:
+                    continue
+                for child in children:
+                    try:
+                        if not child.is_dir() or str(child) in seen:
+                            continue
+                    except Exception:
+                        continue
+                    seen.add(str(child))
+                    conf = self._rpcs3_read_trophy_conf(child)
+                    if not conf:
+                        continue
+                    usr = self._rpcs3_read_tropusr(child)
+                    unlocked = sum(1 for state in usr.values() if state.get("state"))
+                    sets.append(
+                        {
+                            "npcommid": child.name,
+                            "path": str(child),
+                            "title": conf.get("title") or child.name,
+                            "total": len(conf.get("trophies") or []),
+                            "unlocked": unlocked,
+                        }
+                    )
+        return sets
+
+    def _rpcs3_read_trophy_conf(self, trophy_dir: Path) -> dict[str, Any] | None:
+        path: Path | None = None
+        for name in ("TROPCONF.SFM", "TROP.SFM", "tropconf.sfm"):
+            candidate = trophy_dir / name
+            try:
+                if candidate.exists():
+                    path = candidate
+                    break
+            except Exception:
+                continue
+        if path is None:
+            return None
+        try:
+            text = path.read_bytes().decode("utf-8", errors="ignore")
+        except Exception:
+            return None
+        start = text.find("<")
+        if start > 0:
+            text = text[start:]
+        title_match = re.search(r"<title-name>\s*(.*?)\s*</title-name>", text, re.S)
+        title = html.unescape(title_match.group(1)).strip() if title_match else ""
+        trophies: list[dict[str, Any]] = []
+        for match in re.finditer(r"<trophy\b([^>]*)>(.*?)</trophy>", text, re.S):
+            attrs, body = match.group(1), match.group(2)
+
+            def read_attr(name: str) -> str:
+                found = re.search(rf'{name}\s*=\s*"([^"]*)"', attrs)
+                return found.group(1) if found else ""
+
+            raw_id = read_attr("id").strip()
+            if not raw_id.isdigit():
+                continue
+            name_match = re.search(r"<name>\s*(.*?)\s*</name>", body, re.S)
+            detail_match = re.search(r"<detail>\s*(.*?)\s*</detail>", body, re.S)
+            trophies.append(
+                {
+                    "id": int(raw_id),
+                    "hidden": read_attr("hidden").strip().casefold() in {"yes", "true", "1"},
+                    "grade": (read_attr("ttype").strip().upper() or "B")[:1],
+                    "name": html.unescape(name_match.group(1)).strip() if name_match else "",
+                    "detail": html.unescape(detail_match.group(1)).strip() if detail_match else "",
+                }
+            )
+        if not trophies:
+            return None
+        return {"title": title, "trophies": trophies}
+
+    @staticmethod
+    def _rpcs3_read_tropusr(trophy_dir: Path) -> dict[int, dict[str, int]]:
+        # Binary layout mirrors RPCS3's Loader/TROPUSR.h:
+        #   header (0x30) -> table headers (0x20 each, from 0x30)
+        #   table type 4: trophy grade entries, type 6: unlock state + timestamps.
+        # Every entry starts with a 0x10 header; the table header's
+        # entries_size excludes that header, so the stride is size + 0x10.
+        result: dict[int, dict[str, int]] = {}
+        path = trophy_dir / "TROPUSR.DAT"
+        try:
+            data = path.read_bytes()
+        except Exception:
+            return result
+        if len(data) < 0x50 or int.from_bytes(data[0:4], "big") != RPCS3_TROPUSR_MAGIC:
+            return result
+
+        def read_u32(offset: int) -> int:
+            return int.from_bytes(data[offset:offset + 4], "big")
+
+        def read_u64(offset: int) -> int:
+            return int.from_bytes(data[offset:offset + 8], "big")
+
+        tables_count = read_u32(0x08)
+        headers: list[tuple[int, int, int, int]] = []
+        cursor = 0x30
+        for _ in range(max(0, min(tables_count, 32))):
+            if cursor + 0x20 > len(data):
+                break
+            headers.append(
+                (
+                    read_u32(cursor),
+                    read_u32(cursor + 4),
+                    read_u32(cursor + 12),
+                    read_u64(cursor + 16),
+                )
+            )
+            cursor += 0x20
+        for table_type, entry_size, entries_count, table_offset in headers:
+            if table_type not in (4, 6):
+                continue
+            stride = entry_size + 0x10
+            if stride <= 0x10 or stride > 0x1000:
+                continue
+            position = table_offset
+            for _ in range(max(0, min(entries_count, 4096))):
+                if position + stride > len(data):
+                    break
+                trophy_id = read_u32(position + 0x10)
+                entry = result.setdefault(
+                    trophy_id, {"state": 0, "timestamp": 0, "grade": 0}
+                )
+                if table_type == 4:
+                    entry["grade"] = read_u32(position + 0x14)
+                else:
+                    entry["state"] = read_u32(position + 0x14)
+                    timestamp = read_u64(position + 0x28)
+                    if not timestamp:
+                        timestamp = read_u64(position + 0x20)
+                    entry["timestamp"] = timestamp
+                position += stride
+        return result
+
+    @staticmethod
+    def _rpcs3_tick_to_epoch(tick: Any) -> int:
+        # Current RPCS3 builds store CellRtc ticks (microseconds since year 1);
+        # older builds and imported saves may hold ms/s/us Unix timestamps.
+        # Try each interpretation and keep the first plausible one.
+        try:
+            value = int(tick or 0)
+        except Exception:
+            return 0
+        if value <= 0:
+            return 0
+        now_ts = now()
+        candidates = (
+            value // 1_000_000 - RPCS3_RTC_EPOCH_OFFSET_SECONDS,
+            value // 1000,
+            value,
+            value // 1_000_000,
+        )
+        for candidate in candidates:
+            if 1_000_000_000 < candidate <= now_ts + 366 * 86400:
+                return int(candidate)
+        return 0
+
+    def _rpcs3_trophy_icon_url(
+        self, npcommid: str, trophy_dir: Path, trophy_id: int
+    ) -> str:
+        source: Path | None = None
+        for candidate in (
+            trophy_dir / f"TROP{trophy_id:03d}.PNG",
+            trophy_dir / f"TROP{trophy_id:03d}.png",
+        ):
+            try:
+                if candidate.is_file() and candidate.stat().st_size > 0:
+                    source = candidate
+                    break
+            except Exception:
+                continue
+        if source is None:
+            return ""
+        try:
+            stamp = int(source.stat().st_mtime)
+        except Exception:
+            stamp = 0
+        cache_key = hashlib.sha1(
+            f"rpcs3:{npcommid}:{source.name}:{stamp}".encode("utf-8")
+        ).hexdigest()
+        icon_dir = self._steamui_loopback_icon_dir()
+        if icon_dir is not None:
+            name = f"rpcs3_{cache_key}.png"
+            output_path = icon_dir / name
+            try:
+                if not output_path.exists() or output_path.stat().st_size <= 0:
+                    shutil.copyfile(source, output_path)
+                if output_path.exists() and output_path.stat().st_size > 0:
+                    return f"{PLAYHUB_LOOPBACK_BASE_URL}/{PLAYHUB_LOOPBACK_ICON_SUBDIR}/{name}"
+            except Exception as error:
+                decky.logger.error(f"Playhub RPCS3 loopback icon failed: {error}")
+        if self._image_proxy_port:
+            self._rpcs3_icon_proxy_paths[cache_key] = str(source)
+            return f"http://127.0.0.1:{self._image_proxy_port}/rpcs3-icon?key={cache_key}"
+        return ""
+
+
+    # --- Cleanup for the removed RPCS3 controller experiment -------------
+
+    def _cleanup_removed_rpcs3_controller_feature_sync(self) -> int:
+        """Remove only artifacts previously created by Playhub Metadata.
+
+        The controller feature has been retired. This migration restores any
+        per-title RPCS3 profiles touched by older experimental builds and
+        removes the generated global Playhub profile. Normal user profiles are
+        never edited.
+        """
+        cleaned = 0
+        if not self._rpcs3_known_roots():
+            self._rpcs3_discover_roots_from_shortcuts()
+        for root in self._rpcs3_known_roots():
+            input_root = root / "config" / "input_configs"
+            if input_root.is_dir():
+                try:
+                    title_dirs = [
+                        path
+                        for path in input_root.iterdir()
+                        if path.is_dir() and path.name != "global"
+                    ]
+                except Exception:
+                    title_dirs = []
+                for title_dir in title_dirs:
+                    target = title_dir / "Default.yml"
+                    backup = title_dir / "Default.yml.playhub-backup"
+                    marker = title_dir / ".playhub-sdl-created"
+                    try:
+                        if backup.is_file():
+                            shutil.copy2(backup, target)
+                            backup.unlink(missing_ok=True)
+                            marker.unlink(missing_ok=True)
+                            cleaned += 1
+                        elif marker.exists():
+                            target.unlink(missing_ok=True)
+                            marker.unlink(missing_ok=True)
+                            cleaned += 1
+                    except Exception as error:
+                        decky.logger.error(
+                            f"Failed restoring legacy RPCS3 profile {title_dir}: {error}"
+                        )
+            generated = (
+                root
+                / "config"
+                / "input_configs"
+                / "global"
+                / "Playhub Steam Controller.yml"
+            )
+            try:
+                if generated.is_file():
+                    content = generated.read_text(encoding="utf-8", errors="ignore")
+                    if "Generated by Playhub Metadata" in content:
+                        generated.unlink(missing_ok=True)
+                        cleaned += 1
+            except Exception as error:
+                decky.logger.error(
+                    f"Failed removing retired RPCS3 Playhub profile {generated}: {error}"
+                )
+        settings = self._data.setdefault("settings", {})
+        if settings.pop("rpcs3_steam_controller", None) is not None:
+            cleaned += 1
+        if self._data.pop("rpcs3_serial_ids", None) is not None:
+            cleaned += 1
+        if cleaned:
+            self._save_data()
+        return cleaned
+
+    def _rpcs3_save_association(
+        self, app_id: int, npcommid: str, trophy_dir: Path
+    ) -> None:
+        key = str(app_id)
+        self._data["rpcs3_trophy_ids"][key] = npcommid
+        self._data["rpcs3_trophy_dirs"][key] = str(trophy_dir)
+        self._rpcs3_register_root_from_trophy_dir(trophy_dir)
+        self._save_data()
+
+    def _rpcs3_payload_to_steam(
+        self, app_id: int, npcommid: str, trophy_dir: Path
+    ) -> dict[str, Any] | None:
+        conf = self._rpcs3_read_trophy_conf(trophy_dir)
+        if not conf:
+            return None
+        usr = self._rpcs3_read_tropusr(trophy_dir)
+        items: list[dict[str, Any]] = []
+        for trophy in conf["trophies"]:
+            state = usr.get(trophy["id"]) or {}
+            unlocked = bool(state.get("state"))
+            unlock_time = (
+                self._rpcs3_tick_to_epoch(state.get("timestamp")) if unlocked else 0
+            )
+            grade_word = self.RPCS3_TROPHY_GRADES.get(trophy["grade"], "Bronze")
+            hidden_locked = bool(trophy["hidden"]) and not unlocked
+            name = trophy["name"] or f"Trophy {trophy['id']}"
+            detail = trophy["detail"]
+            if hidden_locked:
+                name = "Hidden trophy"
+                detail = ""
+            description = (
+                f"{detail} ({grade_word})".strip() if detail else f"({grade_word})"
+            )
+            items.append(
+                {
+                    "bAchieved": unlocked,
+                    "bHidden": hidden_locked,
+                    "flAchieved": 100.0 if unlocked else 0.0,
+                    "flCurrentProgress": 1 if unlocked else 0,
+                    "flMaxProgress": 1,
+                    "flMinProgress": 0,
+                    "rtUnlocked": unlock_time,
+                    "strDescription": description,
+                    "strID": f"RPCS3_{npcommid}_{trophy['id']:03d}",
+                    "strImage": self._rpcs3_trophy_icon_url(
+                        npcommid, trophy_dir, trophy["id"]
+                    ),
+                    "strName": name,
+                }
+            )
+        if not items:
+            return None
+        # Unlocked trophies first, most recent unlock first: this is the order
+        # Steam's achievement pages end up showing.
+        achieved_items = sorted(
+            (item for item in items if item["bAchieved"]),
+            key=lambda item: (item["rtUnlocked"], item["strID"]),
+            reverse=True,
+        )
+        unachieved_items = [item for item in items if not item["bAchieved"]]
+        achieved = {item["strID"]: item for item in achieved_items}
+        unachieved = {item["strID"]: item for item in unachieved_items}
+        total = len(items)
+        return {
+            "game_id": npcommid,
+            "provider": "rpcs3",
+            "title": conf.get("title") or "",
+            "steam": {
+                "nAchieved": len(achieved),
+                "nTotal": total,
+                "vecAchievedHidden": [],
+                "vecHighlight": achieved_items[:3],
+                "vecUnachieved": unachieved_items[:12],
+            },
+            "user": {
+                "loading": False,
+                "data": {
+                    "achieved": achieved,
+                    "hidden": {},
+                    "unachieved": unachieved,
+                },
+            },
+            "global": {
+                "loading": False,
+                "data": {item["strID"]: item["flAchieved"] for item in items},
+            },
+            "progress": {
+                "achieved": len(achieved),
+                "total": total,
+                "percentage": (len(achieved) / total) * 100 if total else 0,
+            },
+        }
+
+    def _fetch_rpcs3_achievements_sync(
+        self, app_id: int, auto_resolve: bool = False
+    ) -> dict[str, Any] | None:
+        self._load_data()
+        key = str(app_id)
+        npcommid = str(self._data.get("rpcs3_trophy_ids", {}).get(key) or "")
+        if npcommid:
+            trophy_dir: Path | None = None
+            stored = str(self._data.get("rpcs3_trophy_dirs", {}).get(key) or "")
+            if stored:
+                candidate = Path(stored)
+                try:
+                    if candidate.is_dir():
+                        trophy_dir = candidate
+                except Exception:
+                    trophy_dir = None
+            if trophy_dir is None:
+                trophy_dir = self._rpcs3_find_user_trophy_dir(npcommid)
+            if trophy_dir is not None:
+                payload = self._rpcs3_payload_to_steam(app_id, npcommid, trophy_dir)
+                if payload:
+                    return payload
+        if auto_resolve:
+            return self._resolve_rpcs3_from_shortcut_sync(app_id)
+        return None
+
+    def _resolve_rpcs3_from_shortcut_sync(
+        self, app_id: int, title: str = "", path: str = ""
+    ) -> dict[str, Any] | None:
+        self._load_data()
+        launch_text = self._shortcut_launch_text_for_app(app_id)
+        text = " ".join(value for value in (path, launch_text) if value)
+        if not self._is_rpcs3_shortcut(app_id, f"{path} {title}"):
+            return None
+        for root in self._rpcs3_roots_from_text(text):
+            self._rpcs3_register_root(root)
+        if not self._rpcs3_known_roots():
+            self._rpcs3_discover_roots_from_shortcuts()
+
+        npcommids: list[str] = []
+
+        def add_npcommid(value: str) -> None:
+            cleaned = str(value or "").strip()
+            if cleaned and cleaned not in npcommids:
+                npcommids.append(cleaned)
+
+        def add_tropdir(game_dir: Path) -> None:
+            for tropdir in (game_dir / "TROPDIR", game_dir / "PS3_GAME" / "TROPDIR"):
+                try:
+                    if not tropdir.is_dir():
+                        continue
+                    for child in sorted(tropdir.iterdir()):
+                        if child.is_dir():
+                            add_npcommid(child.name)
+                except Exception:
+                    continue
+
+        # 1) The game folder itself names the trophy set:
+        #    .../<game>/USRDIR/EBOOT.BIN -> .../<game>/TROPDIR/<NPCOMMID>/
+        for candidate in self._path_candidates_from_text(text):
+            try:
+                candidate_path = Path(candidate.strip().strip('"'))
+                if candidate_path.is_file():
+                    add_tropdir(candidate_path.parent.parent)
+                elif candidate_path.is_dir():
+                    add_tropdir(candidate_path)
+            except Exception:
+                continue
+
+        # 2) Serial tokens (e.g. NPUB30024, BLES01807) map through
+        #    dev_hdd0/game/<serial>/TROPDIR.
+        serials = re.findall(r"\b([A-Z]{4}\d{5})\b", text.upper())
+        for root in self._rpcs3_known_roots():
+            for hdd0 in self._rpcs3_hdd0_dirs(root):
+                for serial in dict.fromkeys(serials):
+                    add_tropdir(hdd0 / "game" / serial)
+
+        for npcommid in npcommids:
+            trophy_dir = self._rpcs3_find_user_trophy_dir(npcommid)
+            if not trophy_dir:
+                continue
+            payload = self._rpcs3_payload_to_steam(app_id, npcommid, trophy_dir)
+            if payload:
+                self._rpcs3_save_association(app_id, npcommid, trophy_dir)
+                return payload
+
+        # 3) Fallback: fuzzy title match against every installed trophy set.
+        #    Needed for ISO/PKG games, where TROPDIR lives inside the disc
+        #    image and only the installed trophy set is visible on disk.
+        queries: list[str] = []
+
+        def add_query(value: str) -> None:
+            wanted = self._normalise_match_title(value)
+            if wanted and wanted not in queries:
+                queries.append(wanted)
+
+        add_query(title)
+        shortcut = self._shortcut_for_app(app_id) or {}
+        add_query(str(shortcut.get("name") or ""))
+        for rom_title in self._rom_title_candidates_from_text(text):
+            add_query(rom_title)
+        if queries:
+            trophy_sets = self._rpcs3_all_trophy_sets()
+            best: tuple[float, dict[str, Any]] | None = None
+            for entry in trophy_sets:
+                candidate = self._normalise_match_title(entry["title"])
+                score = max(
+                    (self._title_match_score(wanted, candidate) for wanted in queries),
+                    default=0.0,
+                )
+                if best is None or score > best[0]:
+                    best = (score, entry)
+            if best and best[0] >= 0.72:
+                entry = best[1]
+                trophy_dir = Path(entry["path"])
+                payload = self._rpcs3_payload_to_steam(
+                    app_id, entry["npcommid"], trophy_dir
+                )
+                if payload:
+                    self._rpcs3_save_association(app_id, entry["npcommid"], trophy_dir)
+                    return payload
+        return None
+
+    def _search_rpcs3_trophy_sets_sync(
+        self, query: str, limit: int = 10, app_id: int = 0
+    ) -> list[dict[str, Any]]:
+        self._load_data()
+        if app_id:
+            text = self._shortcut_launch_text_for_app(app_id)
+            for root in self._rpcs3_roots_from_text(text):
+                self._rpcs3_register_root(root)
+        if not self._rpcs3_known_roots():
+            self._rpcs3_discover_roots_from_shortcuts()
+        wanted = self._normalise_match_title(query)
+        results: list[dict[str, Any]] = []
+        for entry in self._rpcs3_all_trophy_sets():
+            score = (
+                self._title_match_score(
+                    wanted, self._normalise_match_title(entry["title"])
+                )
+                if wanted
+                else 0.0
+            )
+            results.append(
+                {
+                    "id": entry["npcommid"],
+                    "title": entry["title"],
+                    "path": entry["path"],
+                    "unlocked": entry["unlocked"],
+                    "total": entry["total"],
+                    "score": round(score, 4),
+                }
+            )
+        results.sort(key=lambda item: (item["score"], item["title"]), reverse=True)
+        max_results = max(1, min(int(limit or 10), 25))
+        return results[:max_results]
 
     def _read_steam_shortcuts(self) -> list[dict[str, Any]]:
         shortcuts: dict[int, dict[str, Any]] = {}

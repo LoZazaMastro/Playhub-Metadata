@@ -11,6 +11,7 @@ import {
   resolveRetroAchievementsFromPath,
   saveMetadata,
   syncRetroAchievementsProgress,
+  syncRpcs3Progress,
   syncTrueAchievementsProgress,
 } from "./backend";
 import {
@@ -144,11 +145,13 @@ const shouldShowAchievements = (appId: number) => {
   if (achievementsCache[key]?.steam?.nTotal) return true;
   if (achievementSettingsCache?.retroachievements?.game_ids?.[key]) return true;
   if (achievementSettingsCache?.xbox?.title_ids?.[key]) return true;
+  if (achievementSettingsCache?.rpcs3?.trophy_ids?.[key]) return true;
 
   const source = achievementSettingsCache?.achievement_sources?.[key] ?? "auto";
   if (source === "disabled") return false;
   if (source === "xbox") return !!achievementSettingsCache?.xbox?.enabled;
   if (source === "retroachievements") return !!achievementSettingsCache?.retroachievements?.enabled;
+  if (source === "rpcs3") return true;
 
   // Auto mode must be allowed to show the section before a title id exists,
   // otherwise Xbox/UWPHook auto-detection never gets a chance to run. The backend
@@ -398,6 +401,80 @@ export const applyMetadata = (appId: number) => {
     }
   } catch (_error) {
     // Cache writes can fail if the page has not finished creating app data.
+  }
+};
+
+export const clearAppliedMetadata = (
+  appId: number,
+  previousMetadata?: MetadataData | null
+) => {
+  const overview = getOverview(appId);
+  const metadata = previousMetadata || metadataCache[String(appId)] || null;
+
+  try {
+    if (overview && isNonSteamApp(overview)) {
+      if (typeof overview.metacritic_score === "number") {
+        overview.metacritic_score = 0;
+      }
+      if (overview.m_setStoreCategories?.delete && metadata?.store_categories) {
+        metadata.store_categories.forEach((category) => {
+          overview.m_setStoreCategories.delete(Number(category));
+        });
+      }
+    }
+  } catch (_error) {
+    // Steam overview objects may temporarily be read-only.
+  }
+
+  const appData = appDetailsStore?.GetAppData?.(appId);
+  if (!appData) return;
+
+  const emptyDescriptions = {
+    strFullDescription: "",
+    strSnippet: "",
+  };
+  const emptyAssociations = {
+    rgDevelopers: [],
+    rgPublishers: [],
+    rgFranchises: [],
+  };
+  const emptyScreenshots = {
+    rgScreenshots: [],
+    screenshots: [],
+    vecScreenshots: [],
+    vecScreenShots: [],
+  };
+
+  appData.descriptionsData = emptyDescriptions;
+  appData.associationData = emptyAssociations;
+  appData.screenshots = emptyScreenshots;
+
+  if (appData.details) {
+    appData.details.nScreenshots = 0;
+    appData.details.vecScreenShots = [];
+  }
+
+  try {
+    appDetailsCache?.SetCachedDataForApp?.(
+      appId,
+      "descriptions",
+      1,
+      emptyDescriptions
+    );
+    appDetailsCache?.SetCachedDataForApp?.(
+      appId,
+      "associations",
+      1,
+      emptyAssociations
+    );
+    appDetailsCache?.SetCachedDataForApp?.(
+      appId,
+      "screenshots",
+      1,
+      emptyScreenshots
+    );
+  } catch (_error) {
+    // Best-effort cache reset; the UI event below triggers a fresh render.
   }
 };
 
@@ -4116,14 +4193,14 @@ const backgroundPolicyIntervalMs = (policy?: string) => {
   }
 };
 
-const backgroundSyncLastKey = (provider: "xbox" | "retroachievements", policy: string) =>
+const backgroundSyncLastKey = (provider: AchievementProvider, policy: string) =>
   `${BACKGROUND_SYNC_LOCAL_PREFIX}:${provider}:${policy}`;
 
-const backgroundSyncSessionKey = (provider: "xbox" | "retroachievements") =>
+const backgroundSyncSessionKey = (provider: AchievementProvider) =>
   `${BACKGROUND_SYNC_SESSION_KEY}:${provider}`;
 
 const backgroundAchievementSyncIsDue = (
-  provider: "xbox" | "retroachievements",
+  provider: AchievementProvider,
   policy: string
 ) => {
   if (policy === "manual") return false;
@@ -4145,7 +4222,7 @@ const backgroundAchievementSyncIsDue = (
 };
 
 const markBackgroundAchievementSyncDone = (
-  provider: "xbox" | "retroachievements",
+  provider: AchievementProvider,
   policy: string
 ) => {
   try {
@@ -4157,7 +4234,40 @@ const markBackgroundAchievementSyncDone = (
 };
 
 
-type AchievementProvider = "xbox" | "retroachievements";
+type AchievementProvider = "xbox" | "retroachievements" | "rpcs3";
+
+const syncPayloadForProvider = async (
+  provider: AchievementProvider,
+  appId: number
+): Promise<AchievementsResponse | null> => {
+  if (provider === "xbox") {
+    return (
+      (await syncTrueAchievementsProgress(appId)) || (await fetchAchievements(appId))
+    );
+  }
+  if (provider === "rpcs3") {
+    return (await syncRpcs3Progress(appId)) || (await fetchAchievements(appId));
+  }
+  return (
+    (await syncRetroAchievementsProgress(appId)) || (await fetchAchievements(appId))
+  );
+};
+
+const providerPolicyFromSettings = (
+  provider: AchievementProvider,
+  settings: AchievementSettings | null
+): string => {
+  const legacyPolicy = settings?.achievement_cache?.policy || "daily";
+  if (provider === "xbox") {
+    return settings?.achievement_cache?.xbox_policy || legacyPolicy;
+  }
+  if (provider === "retroachievements") {
+    return settings?.achievement_cache?.retroachievements_policy || legacyPolicy;
+  }
+  // RPCS3 trophies are read from the local disk, so the default refreshes
+  // once per PC session; the user can pick any policy from the QAM.
+  return settings?.achievement_cache?.rpcs3_policy || "pc_session";
+};
 
 type AchievementSyncGame = {
   appid: number;
@@ -4168,19 +4278,52 @@ type AchievementSyncGame = {
   shortcut_path?: string;
 };
 
+const isRpcs3GameOption = (game: AchievementSyncGame): boolean => {
+  const text = `${game.exe || ""} ${game.start_dir || ""} ${game.launch_options || ""} ${game.shortcut_path || ""} ${game.name || ""}`
+    .toLowerCase()
+    .replace(/\\/g, "/");
+  return (
+    /(?:^|[\s/"'])rpcs3(?:\.exe)?(?:[\s/"']|$)/i.test(text) ||
+    text.includes("/dev_hdd0/") ||
+    text.includes("/ps3_game/") ||
+    text.includes("/ps3iso/") ||
+    text.includes("/roms/ps3/") ||
+    text.includes("/playstation 3/") ||
+    text.includes("eboot.bin")
+  );
+};
+
+type ProviderDetectionOptions = {
+  allowUnmatchedRpcs3?: boolean;
+};
+
 const achievementSyncProviderForGame = (
   game: AchievementSyncGame,
   settings: AchievementSettings,
-  allowedProviders?: Set<AchievementProvider>
+  allowedProviders?: Set<AchievementProvider>,
+  options: ProviderDetectionOptions = {}
 ): AchievementProvider | null => {
   const key = String(game.appid);
   const sources = settings.achievement_sources || {};
   const raIds = settings.retroachievements?.game_ids || {};
   const xboxIds = settings.xbox?.title_ids || {};
+  const rpcs3Ids = settings.rpcs3?.trophy_ids || {};
   const source = sources[key] || "auto";
   if (source === "disabled") return null;
+  // Only the post-session path enables this option. A clearly identified
+  // RPCS3 shortcut must be checked even when it had no trophy association
+  // before launch: ISO games often create their local trophy data only after
+  // the first play session. Other platforms keep the existing provider rules.
+  if (
+    options.allowUnmatchedRpcs3 &&
+    (!allowedProviders || allowedProviders.has("rpcs3")) &&
+    isRpcs3GameOption(game)
+  ) {
+    return "rpcs3";
+  }
   const hasXbox = Boolean(xboxIds[key]);
   const hasRa = Boolean(raIds[key]);
+  const hasRpcs3 = Boolean(rpcs3Ids[key]);
   if (
     (!allowedProviders || allowedProviders.has("xbox")) &&
     (source === "xbox" || (source === "auto" && hasXbox)) &&
@@ -4190,8 +4333,16 @@ const achievementSyncProviderForGame = (
     return "xbox";
   }
   if (
+    (!allowedProviders || allowedProviders.has("rpcs3")) &&
+    (source === "rpcs3" || (source === "auto" && !hasXbox && hasRpcs3)) &&
+    hasRpcs3
+  ) {
+    return "rpcs3";
+  }
+  if (
     (!allowedProviders || allowedProviders.has("retroachievements")) &&
-    (source === "retroachievements" || (source === "auto" && !hasXbox && hasRa)) &&
+    (source === "retroachievements" ||
+      (source === "auto" && !hasXbox && !hasRpcs3 && hasRa)) &&
     hasRa
   ) {
     return "retroachievements";
@@ -4201,10 +4352,10 @@ const achievementSyncProviderForGame = (
 
 const scheduledAchievementTargets = async (
   settings: AchievementSettings,
-  dueProviders: Set<"xbox" | "retroachievements">
+  dueProviders: Set<AchievementProvider>
 ) => {
   const games = await allNonSteamGames();
-  const targets: { appid: number; name: string; provider: "xbox" | "retroachievements" }[] = [];
+  const targets: { appid: number; name: string; provider: AchievementProvider }[] = [];
   for (const game of games) {
     const provider = achievementSyncProviderForGame(game, settings, dueProviders);
     if (provider) targets.push({ appid: game.appid, name: game.name, provider });
@@ -4217,22 +4368,27 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
   backgroundAchievementSyncRunning = true;
   let updated = 0;
   let skipped = 0;
-  const policies: Record<"xbox" | "retroachievements", string> = {
+  const policies: Record<AchievementProvider, string> = {
     xbox: "daily",
     retroachievements: "daily",
+    rpcs3: "pc_session",
   };
-  const dueProviders = new Set<"xbox" | "retroachievements">();
+  const dueProviders = new Set<AchievementProvider>();
   try {
     const settings = await refreshRaSettings();
     const legacyPolicy = settings?.achievement_cache?.policy || "daily";
     policies.retroachievements =
       settings?.achievement_cache?.retroachievements_policy || legacyPolicy;
     policies.xbox = settings?.achievement_cache?.xbox_policy || legacyPolicy;
+    policies.rpcs3 = settings?.achievement_cache?.rpcs3_policy || "pc_session";
     if (backgroundAchievementSyncIsDue("retroachievements", policies.retroachievements)) {
       dueProviders.add("retroachievements");
     }
     if (backgroundAchievementSyncIsDue("xbox", policies.xbox)) {
       dueProviders.add("xbox");
+    }
+    if (backgroundAchievementSyncIsDue("rpcs3", policies.rpcs3)) {
+      dueProviders.add("rpcs3");
     }
     if (!dueProviders.size) return;
 
@@ -4245,15 +4401,14 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
 
     const raCount = targets.filter((target) => target.provider === "retroachievements").length;
     const xboxCount = targets.filter((target) => target.provider === "xbox").length;
+    const rpcs3Count = targets.filter((target) => target.provider === "rpcs3").length;
     toaster.toast({
       title: t("pluginName"),
-      body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}`,
+      body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}, PS3 ${rpcs3Count}`,
     });
     for (const target of targets) {
       try {
-        const payload = target.provider === "xbox"
-          ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
-          : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
+        const payload = await syncPayloadForProvider(target.provider, target.appid);
         if (payload?.steam?.nTotal) {
           applyAchievementPayload(target.appid, payload);
           updated += 1;
@@ -4437,13 +4592,15 @@ const syncRecentlyClosedGame = async (target: { appid: number; name: string; pro
   }
   try {
     const settings = await refreshRaSettings();
-    const policy =
-      target.provider === "xbox"
-        ? (settings?.achievement_cache?.xbox_policy || settings?.achievement_cache?.policy || "daily")
-        : (settings?.achievement_cache?.retroachievements_policy || settings?.achievement_cache?.policy || "daily");
+    const policy = providerPolicyFromSettings(target.provider, settings);
     if (policy === "manual") return;
     const game = (await postPlaySyncGames()).find((candidate) => candidate.appid === target.appid) || target;
-    const provider = achievementSyncProviderForGame(game as AchievementSyncGame, settings, new Set([target.provider]));
+    const provider = achievementSyncProviderForGame(
+      game as AchievementSyncGame,
+      settings,
+      new Set([target.provider]),
+      { allowUnmatchedRpcs3: true }
+    );
     if (provider !== target.provider) return;
     if (wasPostPlaySyncedRecently(target.provider, target.appid)) return;
 
@@ -4452,9 +4609,9 @@ const syncRecentlyClosedGame = async (target: { appid: number; name: string; pro
       title: t("pluginName"),
       body: `${t("postPlaySyncStarted")}: ${target.name}`,
     });
-    const payload = target.provider === "xbox"
-      ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
-      : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
+    // Only this game's achievements are synced here: the payload call below is
+    // scoped to target.appid, never to the whole library.
+    const payload = await syncPayloadForProvider(target.provider, target.appid);
     if (payload?.steam?.nTotal) {
       applyAchievementPayload(target.appid, payload);
       toaster.toast({
@@ -4488,6 +4645,68 @@ const queuePostPlaySync = (target: { appid: number; name: string; provider: Achi
   window.setTimeout(() => void syncRecentlyClosedGame(target), POST_PLAY_SYNC_DELAY_MS);
 };
 
+const postPlayAllowedProviders = (settings: AchievementSettings | null) => {
+  const allowed = new Set<AchievementProvider>();
+  for (const provider of ["xbox", "retroachievements", "rpcs3"] as AchievementProvider[]) {
+    if (providerPolicyFromSettings(provider, settings) !== "manual") {
+      allowed.add(provider);
+    }
+  }
+  return allowed;
+};
+
+// Precise per-game session tracking: Steam tells us exactly which app started
+// or stopped, so ONLY that game is queued for an achievement sync when its
+// session ends. Nothing else in the library is touched.
+const handleAppLifetimeNotification = async (notification: any) => {
+  try {
+    if (!readPostPlayAchievementSyncEnabled()) return;
+    const appId = Number(
+      notification?.unAppID ??
+        notification?.unAppId ??
+        notification?.appid ??
+        notification?.nAppID ??
+        0
+    );
+    if (!Number.isFinite(appId) || appId <= 0) return;
+    const running = boolLike(notification?.bRunning);
+    const now = Date.now();
+    if (running === true) {
+      const previous = postPlayRunningState.get(appId);
+      postPlayRunningState.set(appId, {
+        running: true,
+        startedAt: previous?.running ? previous.startedAt || now : now,
+        name: previous?.name || "",
+      });
+      return;
+    }
+    if (running !== false) return;
+    const previous = postPlayRunningState.get(appId);
+    postPlayRunningState.delete(appId);
+    // If Steam's UI reloaded while the game was running we have no start time;
+    // still sync the closed game rather than losing its progress.
+    const playedMs = previous?.startedAt
+      ? now - previous.startedAt
+      : Number.POSITIVE_INFINITY;
+    if (playedMs < POST_PLAY_SYNC_MIN_PLAY_MS) return;
+    const game = (await postPlaySyncGames()).find(
+      (candidate) => candidate.appid === appId
+    );
+    if (!game) return;
+    const settings = await refreshRaSettings();
+    const provider = achievementSyncProviderForGame(
+      game,
+      settings,
+      postPlayAllowedProviders(settings),
+      { allowUnmatchedRpcs3: true }
+    );
+    if (!provider) return;
+    queuePostPlaySync({ appid: game.appid, name: game.name, provider });
+  } catch (error) {
+    console.warn("[Playhub Metadata] app lifetime notification handling failed", error);
+  }
+};
+
 const pollPostPlayAchievementSync = async () => {
   try {
     if (!readPostPlayAchievementSyncEnabled()) {
@@ -4495,20 +4714,18 @@ const pollPostPlayAchievementSync = async () => {
       return;
     }
     const settings = await refreshRaSettings();
-    const legacyPolicy = settings?.achievement_cache?.policy || "daily";
-    const allowedProviders = new Set<AchievementProvider>();
-    if ((settings?.achievement_cache?.retroachievements_policy || legacyPolicy) !== "manual") {
-      allowedProviders.add("retroachievements");
-    }
-    if ((settings?.achievement_cache?.xbox_policy || legacyPolicy) !== "manual") {
-      allowedProviders.add("xbox");
-    }
+    const allowedProviders = postPlayAllowedProviders(settings);
     if (!allowedProviders.size) return;
     const games = await postPlaySyncGames();
     const now = Date.now();
     const observedIds = new Set<number>();
     for (const game of games) {
-      const provider = achievementSyncProviderForGame(game, settings, allowedProviders);
+      const provider = achievementSyncProviderForGame(
+        game,
+        settings,
+        allowedProviders,
+        { allowUnmatchedRpcs3: true }
+      );
       if (!provider) continue;
       const running = await readAppRunningState(game.appid);
       if (typeof running !== "boolean") continue;
@@ -4550,19 +4767,44 @@ const pollPostPlayAchievementSync = async () => {
 
 export const startPostPlayAchievementSync = (): Unpatch => {
   if (postPlayAchievementSyncTimer) window.clearInterval(postPlayAchievementSyncTimer);
-  const run = () => void pollPostPlayAchievementSync();
-  postPlayAchievementSyncTimer = window.setInterval(run, POST_PLAY_SYNC_POLL_MS);
-  const initial = window.setTimeout(run, POST_PLAY_SYNC_INITIAL_DELAY_MS);
+  // Preferred path: Steam's own per-app lifetime notifications. They identify
+  // exactly which game started/stopped, so only the closed game gets synced.
+  let unregisterLifetime: (() => void) | undefined;
+  try {
+    const registration = SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(
+      (notification: any) => void handleAppLifetimeNotification(notification)
+    );
+    if (typeof registration?.unregister === "function") {
+      unregisterLifetime = () => {
+        try {
+          registration.unregister();
+        } catch (_error) {
+          // Already gone.
+        }
+      };
+    }
+  } catch (_error) {
+    unregisterLifetime = undefined;
+  }
+  let initial: number | undefined;
+  if (!unregisterLifetime) {
+    // Fallback for Steam clients without lifetime notifications: keep the old
+    // poller, which also queues only the specific game whose state flipped.
+    const run = () => void pollPostPlayAchievementSync();
+    postPlayAchievementSyncTimer = window.setInterval(run, POST_PLAY_SYNC_POLL_MS);
+    initial = window.setTimeout(run, POST_PLAY_SYNC_INITIAL_DELAY_MS);
+  }
   const onPolicyChanged = () => {
     postPlayRunningState.clear();
     postPlayAchievementSyncGamesCacheAt = 0;
-    void pollPostPlayAchievementSync();
+    if (!unregisterLifetime) void pollPostPlayAchievementSync();
   };
   window.addEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
   window.addEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
   return () => {
-    window.clearTimeout(initial);
+    if (initial) window.clearTimeout(initial);
     if (postPlayAchievementSyncTimer) window.clearInterval(postPlayAchievementSyncTimer);
+    unregisterLifetime?.();
     window.removeEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
     window.removeEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
     postPlayAchievementSyncTimer = undefined;
@@ -4863,8 +5105,12 @@ const loadAchievementsForApp = async (appId: number) => {
   const overview = getOverview(appId);
   if (!isNonSteamApp(overview)) return null;
   const settings = achievementSettingsCache ?? (await refreshRaSettings());
+  const appSource = settings?.achievement_sources?.[String(appId)] ?? "auto";
   const hasAnyProvider =
-    !!settings?.retroachievements?.enabled || !!settings?.xbox?.enabled;
+    !!settings?.retroachievements?.enabled ||
+    !!settings?.xbox?.enabled ||
+    !!settings?.rpcs3?.trophy_ids?.[String(appId)] ||
+    appSource === "rpcs3";
   if (!hasAnyProvider) return null;
 
   const appKey = String(appId);
@@ -6015,4 +6261,63 @@ export const allNonSteamGames = async (): Promise<{ appid: number; name: string;
   }
 
   return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
+};
+
+
+const RETIRED_RPCS3_INPUT_PROFILE = "Playhub Steam Controller";
+
+const stripRetiredRpcs3LaunchOptions = (launchOptions: string): string => {
+  const escaped = RETIRED_RPCS3_INPUT_PROFILE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const profilePattern = new RegExp(
+    `(?:^|\\s)--input-config(?:=|\\s+)(?:"${escaped}"|'${escaped}')(?=\\s|$)`,
+    "gi"
+  );
+  let seenNoGui = false;
+  return String(launchOptions || "")
+    .replace(profilePattern, " ")
+    .replace(/(?:^|\s)--no-gui(?=\s|$)/gi, () => {
+      if (seenNoGui) return " ";
+      seenNoGui = true;
+      return " --no-gui";
+    })
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
+/**
+ * Remove launch/config overrides left by the retired RPCS3 controller
+ * experiment. This does not change RPCS3's normal SDL configuration.
+ */
+export const cleanupRetiredRpcs3ControllerOverrides = async (): Promise<void> => {
+  try {
+    const games = await allNonSteamGames();
+    const apps = (window as any)?.SteamClient?.Apps;
+    if (!apps) return;
+    let cleaned = 0;
+    for (const game of games) {
+      if (!isRpcs3GameOption(game)) continue;
+      const current = String(game.launch_options || "");
+      const next = stripRetiredRpcs3LaunchOptions(current);
+      try {
+        // Return third-party shortcuts to Steam's default controller policy.
+        apps.SetThirdPartyControllerConfiguration?.(game.appid, 1);
+        if (next !== current.trim() && apps.SetShortcutLaunchOptions) {
+          apps.SetShortcutLaunchOptions(game.appid, next);
+          cleaned += 1;
+        }
+      } catch (error) {
+        console.warn(
+          `[Playhub Metadata] retired RPCS3 controller cleanup failed for ${game.name}`,
+          error
+        );
+      }
+    }
+    if (cleaned) {
+      console.log(
+        `[Playhub Metadata] removed retired RPCS3 controller options from ${cleaned} shortcut(s)`
+      );
+    }
+  } catch (error) {
+    console.warn("[Playhub Metadata] retired RPCS3 controller cleanup failed", error);
+  }
 };

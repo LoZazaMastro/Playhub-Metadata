@@ -7,6 +7,10 @@ export type MetadataData = {
   title: string;
   id: string | number;
   source?: string;
+  scraper_source?: "ign" | string;
+  language?: string;
+  content_language?: string;
+  translated?: boolean;
   source_url?: string;
   description: string;
   short_description?: string;
@@ -95,6 +99,8 @@ export type ScanProgress = {
   assigned: number;
   failed: number;
   current: string;
+  current_title?: string;
+  phase?: string;
   message: string;
   error?: string;
 };
@@ -115,17 +121,33 @@ export type XboxSettings = {
   title_ids: Record<string, string>;
 };
 
-export type AchievementSource = "auto" | "retroachievements" | "xbox" | "disabled";
+export type AchievementSource = "auto" | "retroachievements" | "xbox" | "rpcs3" | "disabled";
 export type AchievementCachePolicy = "hourly" | "daily" | "weekly" | "pc_session" | "manual";
+
+export type ScraperSettings = {
+  language: string;
+  translate_ign: boolean;
+  languages: string[];
+  language_labels?: Record<string, string>;
+  language_overrides?: Record<string, string>;
+};
+
+
+export type Rpcs3Settings = {
+  enabled: boolean;
+  trophy_ids: Record<string, string>;
+};
 
 export type AchievementSettings = {
   retroachievements: RetroAchievementsSettings;
   xbox: XboxSettings;
+  rpcs3?: Rpcs3Settings;
   achievement_sources: Record<string, AchievementSource>;
   achievement_cache: {
     policy?: AchievementCachePolicy;
     retroachievements_policy: AchievementCachePolicy;
     xbox_policy: AchievementCachePolicy;
+    rpcs3_policy?: AchievementCachePolicy;
   };
 };
 
@@ -149,6 +171,15 @@ export type XboxTitleResult = {
   unlocked?: number | null;
   total?: number | null;
   gamerscore?: number | null;
+};
+
+export type Rpcs3TrophySetResult = {
+  id: string;
+  title: string;
+  path: string;
+  unlocked: number;
+  total: number;
+  score: number;
 };
 
 export type SteamAchievement = {
@@ -181,8 +212,8 @@ export type SteamAchievementsPayload = {
 };
 
 export type AchievementsResponse = {
-  game_id: number;
-  provider?: "retroachievements" | "xbox";
+  game_id: number | string;
+  provider?: "retroachievements" | "xbox" | "rpcs3";
   title: string;
   steam: SteamAchievementsPayload;
   user?: {

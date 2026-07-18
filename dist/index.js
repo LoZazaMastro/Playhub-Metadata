@@ -77,14 +77,33 @@ function IconBase(props) {
 }
 
 // THIS FILE IS AUTO GENERATED
-function FaDatabase (props) {
+function FaXbox (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M369.9 318.2c44.3 54.3 64.7 98.8 54.4 118.7-7.9 15.1-56.7 44.6-92.6 55.9-29.6 9.3-68.4 13.3-100.4 10.2-38.2-3.7-76.9-17.4-110.1-39C93.3 445.8 87 438.3 87 423.4c0-29.9 32.9-82.3 89.2-142.1 32-33.9 76.5-73.7 81.4-72.6 9.4 2.1 84.3 75.1 112.3 109.5zM188.6 143.8c-29.7-26.9-58.1-53.9-86.4-63.4-15.2-5.1-16.3-4.8-28.7 8.1-29.2 30.4-53.5 79.7-60.3 122.4-5.4 34.2-6.1 43.8-4.2 60.5 5.6 50.5 17.3 85.4 40.5 120.9 9.5 14.6 12.1 17.3 9.3 9.9-4.2-11-.3-37.5 9.5-64 14.3-39 53.9-112.9 120.3-194.4zm311.6 63.5C483.3 127.3 432.7 77 425.6 77c-7.3 0-24.2 6.5-36 13.9-23.3 14.5-41 31.4-64.3 52.8C367.7 197 427.5 283.1 448.2 346c6.8 20.7 9.7 41.1 7.4 52.3-1.7 8.5-1.7 8.5 1.4 4.6 6.1-7.7 19.9-31.3 25.4-43.5 7.4-16.2 15-40.2 18.6-58.7 4.3-22.5 3.9-70.8-.8-93.4zM141.3 43C189 40.5 251 77.5 255.6 78.4c.7.1 10.4-4.2 21.6-9.7 63.9-31.1 94-25.8 107.4-25.2-63.9-39.3-152.7-50-233.9-11.7-23.4 11.1-24 11.9-9.4 11.2z"},"child":[]}]})(props);
+}function FaPlaystation (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M570.9 372.3c-11.3 14.2-38.8 24.3-38.8 24.3L327 470.2v-54.3l150.9-53.8c17.1-6.1 19.8-14.8 5.8-19.4-13.9-4.6-39.1-3.3-56.2 2.9L327 381.1v-56.4c23.2-7.8 47.1-13.6 75.7-16.8 40.9-4.5 90.9.6 130.2 15.5 44.2 14 49.2 34.7 38 48.9zm-224.4-92.5v-139c0-16.3-3-31.3-18.3-35.6-11.7-3.8-19 7.1-19 23.4v347.9l-93.8-29.8V32c39.9 7.4 98 24.9 129.2 35.4C424.1 94.7 451 128.7 451 205.2c0 74.5-46 102.8-104.5 74.6zM43.2 410.2c-45.4-12.8-53-39.5-32.3-54.8 19.1-14.2 51.7-24.9 51.7-24.9l134.5-47.8v54.5l-96.8 34.6c-17.1 6.1-19.7 14.8-5.8 19.4 13.9 4.6 39.1 3.3 56.2-2.9l46.4-16.9v48.8c-51.6 9.3-101.4 7.3-153.9-10z"},"child":[]}]})(props);
+}function FaTrophy (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M552 64H448V24c0-13.3-10.7-24-24-24H152c-13.3 0-24 10.7-24 24v40H24C10.7 64 0 74.7 0 88v56c0 35.7 22.5 72.4 61.9 100.7 31.5 22.7 69.8 37.1 110 41.7C203.3 338.5 240 360 240 360v72h-48c-35.3 0-64 20.7-64 56v12c0 6.6 5.4 12 12 12h296c6.6 0 12-5.4 12-12v-12c0-35.3-28.7-56-64-56h-48v-72s36.7-21.5 68.1-73.6c40.3-4.6 78.6-19 110-41.7 39.3-28.3 61.9-65 61.9-100.7V88c0-13.3-10.7-24-24-24zM99.3 192.8C74.9 175.2 64 155.6 64 144v-16h64.2c1 32.6 5.8 61.2 12.8 86.2-15.1-5.2-29.2-12.4-41.7-21.4zM512 144c0 16.1-17.7 36.1-35.3 48.8-12.5 9-26.7 16.2-41.8 21.4 7-25 11.8-53.6 12.8-86.2H512v16z"},"child":[]}]})(props);
+}function FaTags (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 640 512"},"child":[{"tag":"path","attr":{"d":"M497.941 225.941L286.059 14.059A48 48 0 0 0 252.118 0H48C21.49 0 0 21.49 0 48v204.118a48 48 0 0 0 14.059 33.941l211.882 211.882c18.744 18.745 49.136 18.746 67.882 0l204.118-204.118c18.745-18.745 18.745-49.137 0-67.882zM112 160c-26.51 0-48-21.49-48-48s21.49-48 48-48 48 21.49 48 48-21.49 48-48 48zm513.941 133.823L421.823 497.941c-18.745 18.745-49.137 18.745-67.882 0l-.36-.36L527.64 323.522c16.999-16.999 26.36-39.6 26.36-63.64s-9.362-46.641-26.36-63.64L331.397 0h48.721a48 48 0 0 1 33.941 14.059l211.882 211.882c18.745 18.745 18.745 49.137 0 67.882z"},"child":[]}]})(props);
+}function FaSearch (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M505 442.7L405.3 343c-4.5-4.5-10.6-7-17-7H372c27.6-35.3 44-79.7 44-128C416 93.1 322.9 0 208 0S0 93.1 0 208s93.1 208 208 208c48.3 0 92.7-16.4 128-44v16.3c0 6.4 2.5 12.5 7 17l99.7 99.7c9.4 9.4 24.6 9.4 33.9 0l28.3-28.3c9.4-9.4 9.4-24.6.1-34zM208 336c-70.7 0-128-57.2-128-128 0-70.7 57.2-128 128-128 70.7 0 128 57.2 128 128 0 70.7-57.2 128-128 128z"},"child":[]}]})(props);
+}function FaNewspaper (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M552 64H88c-13.255 0-24 10.745-24 24v8H24c-13.255 0-24 10.745-24 24v272c0 30.928 25.072 56 56 56h472c26.51 0 48-21.49 48-48V88c0-13.255-10.745-24-24-24zM56 400a8 8 0 0 1-8-8V144h16v248a8 8 0 0 1-8 8zm236-16H140c-6.627 0-12-5.373-12-12v-8c0-6.627 5.373-12 12-12h152c6.627 0 12 5.373 12 12v8c0 6.627-5.373 12-12 12zm208 0H348c-6.627 0-12-5.373-12-12v-8c0-6.627 5.373-12 12-12h152c6.627 0 12 5.373 12 12v8c0 6.627-5.373 12-12 12zm-208-96H140c-6.627 0-12-5.373-12-12v-8c0-6.627 5.373-12 12-12h152c6.627 0 12 5.373 12 12v8c0 6.627-5.373 12-12 12zm208 0H348c-6.627 0-12-5.373-12-12v-8c0-6.627 5.373-12 12-12h152c6.627 0 12 5.373 12 12v8c0 6.627-5.373 12-12 12zm0-96H140c-6.627 0-12-5.373-12-12v-40c0-6.627 5.373-12 12-12h360c6.627 0 12 5.373 12 12v40c0 6.627-5.373 12-12 12z"},"child":[]}]})(props);
+}function FaIdCard (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 576 512"},"child":[{"tag":"path","attr":{"d":"M528 32H48C21.5 32 0 53.5 0 80v16h576V80c0-26.5-21.5-48-48-48zM0 432c0 26.5 21.5 48 48 48h480c26.5 0 48-21.5 48-48V128H0v304zm352-232c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16c0 4.4-3.6 8-8 8H360c-4.4 0-8-3.6-8-8v-16zm0 64c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16c0 4.4-3.6 8-8 8H360c-4.4 0-8-3.6-8-8v-16zm0 64c0-4.4 3.6-8 8-8h144c4.4 0 8 3.6 8 8v16c0 4.4-3.6 8-8 8H360c-4.4 0-8-3.6-8-8v-16zM176 192c35.3 0 64 28.7 64 64s-28.7 64-64 64-64-28.7-64-64 28.7-64 64-64zM67.1 396.2C75.5 370.5 99.6 352 128 352h8.2c12.3 5.1 25.7 8 39.8 8s27.6-2.9 39.8-8h8.2c28.4 0 52.5 18.5 60.9 44.2 3.2 9.9-5.2 19.8-15.6 19.8H82.7c-10.4 0-18.8-10-15.6-19.8z"},"child":[]}]})(props);
+}function FaDatabase (props) {
   return GenIcon({"attr":{"viewBox":"0 0 448 512"},"child":[{"tag":"path","attr":{"d":"M448 73.143v45.714C448 159.143 347.667 192 224 192S0 159.143 0 118.857V73.143C0 32.857 100.333 0 224 0s224 32.857 224 73.143zM448 176v102.857C448 319.143 347.667 352 224 352S0 319.143 0 278.857V176c48.125 33.143 136.208 48.572 224 48.572S399.874 209.143 448 176zm0 160v102.857C448 479.143 347.667 512 224 512S0 479.143 0 438.857V336c48.125 33.143 136.208 48.572 224 48.572S399.874 369.143 448 336z"},"child":[]}]})(props);
+}function FaCheck (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 512 512"},"child":[{"tag":"path","attr":{"d":"M173.898 439.404l-166.4-166.4c-9.997-9.997-9.997-26.206 0-36.204l36.203-36.204c9.997-9.998 26.207-9.998 36.204 0L192 312.69 432.095 72.596c9.997-9.997 26.207-9.997 36.204 0l36.203 36.204c9.997 9.997 9.997 26.206 0 36.204l-294.4 294.401c-9.998 9.997-26.207 9.997-36.204-.001z"},"child":[]}]})(props);
+}function FaBolt (props) {
+  return GenIcon({"attr":{"viewBox":"0 0 320 512"},"child":[{"tag":"path","attr":{"d":"M296 160H180.6l42.6-129.8C227.2 15 215.7 0 200 0H56C44 0 33.8 8.9 32.2 20.8l-32 240C-1.7 275.2 9.5 288 24 288h118.7L96.6 482.5c-3.6 15.2 8 29.5 23.3 29.5 8.4 0 16.4-4.4 20.8-12l176-304c9.3-15.9-2.2-36-20.7-36z"},"child":[]}]})(props);
 }
 
 const getAllMetadata = callable("get_all_metadata");
 const getMetadata = callable("get_metadata");
 const saveMetadata = callable("save_metadata");
 const removeMetadata = callable("remove_metadata");
+const clearAllMetadata = callable("clear_all_metadata");
 const searchMetadata = callable("search_metadata");
 const fetchMetadata = callable("fetch_metadata");
 const autoFetchMetadata = callable("auto_fetch_metadata");
@@ -95,6 +114,7 @@ const startRefreshSteamActivities = callable("start_refresh_steam_activities");
 const getActivityRefreshProgress = callable("get_activity_refresh_progress");
 const refetchSteamActivityAssociation = callable("refetch_steam_activity_association");
 const clearSteamActivityAssociation = callable("clear_steam_activity_association");
+const setSteamActivityEnabled = callable("set_steam_activity_enabled");
 const getLocalShortcuts = callable("get_local_shortcuts");
 const getAchievementSettings = callable("get_achievement_settings");
 const getXboxSettings = callable("get_xbox_settings");
@@ -117,11 +137,22 @@ const syncTrueAchievementsProgress = callable("sync_trueachievements_progress");
 const syncRetroAchievementsProgress = callable("sync_retroachievements_progress");
 const resolveRetroAchievementsFromPath = callable("resolve_retroachievements_from_path");
 const searchRetroAchievementsGames = callable("search_retroachievements_games");
+const getScraperSettings = callable("get_scraper_settings");
+const setScraperLanguageOverride = callable("set_scraper_language_override");
+const setScraperSettings = callable("set_scraper_settings");
+const getRpcs3Settings = callable("get_rpcs3_settings");
+const setRpcs3TrophyId = callable("set_rpcs3_trophy_id");
+const resolveRpcs3FromShortcut = callable("resolve_rpcs3_from_shortcut");
+const searchRpcs3TrophySets = callable("search_rpcs3_trophy_sets");
+const syncRpcs3Progress = callable("sync_rpcs3_progress");
+const clearRpcs3Associations = callable("clear_rpcs3_associations");
 
 var backend = /*#__PURE__*/Object.freeze({
     __proto__: null,
     autoFetchMetadata: autoFetchMetadata,
+    clearAllMetadata: clearAllMetadata,
     clearRetroAchievementsAssociations: clearRetroAchievementsAssociations,
+    clearRpcs3Associations: clearRpcs3Associations,
     clearSteamActivityAssociation: clearSteamActivityAssociation,
     clearXboxAssociations: clearXboxAssociations,
     enrichCommunityMedia: enrichCommunityMedia,
@@ -133,26 +164,35 @@ var backend = /*#__PURE__*/Object.freeze({
     getLocalShortcuts: getLocalShortcuts,
     getMetadata: getMetadata,
     getRetroAchievementsSettings: getRetroAchievementsSettings,
+    getRpcs3Settings: getRpcs3Settings,
     getScanProgress: getScanProgress,
+    getScraperSettings: getScraperSettings,
     getXboxSettings: getXboxSettings,
     loginTrueAchievements: loginTrueAchievements,
     refetchSteamActivityAssociation: refetchSteamActivityAssociation,
     removeMetadata: removeMetadata,
     resolveRetroAchievementsFromPath: resolveRetroAchievementsFromPath,
+    resolveRpcs3FromShortcut: resolveRpcs3FromShortcut,
     resolveXboxFromShortcut: resolveXboxFromShortcut,
     saveMetadata: saveMetadata,
     searchMetadata: searchMetadata,
     searchRetroAchievementsGames: searchRetroAchievementsGames,
+    searchRpcs3TrophySets: searchRpcs3TrophySets,
     searchXboxTitles: searchXboxTitles,
     setAchievementCachePolicy: setAchievementCachePolicy,
     setAchievementSource: setAchievementSource,
     setRetroAchievementsGameId: setRetroAchievementsGameId,
     setRetroAchievementsSettings: setRetroAchievementsSettings,
+    setRpcs3TrophyId: setRpcs3TrophyId,
+    setScraperLanguageOverride: setScraperLanguageOverride,
+    setScraperSettings: setScraperSettings,
+    setSteamActivityEnabled: setSteamActivityEnabled,
     setXboxSettings: setXboxSettings,
     setXboxTitleId: setXboxTitleId,
     startRefreshSteamActivities: startRefreshSteamActivities,
     startScanMissing: startScanMissing,
     syncRetroAchievementsProgress: syncRetroAchievementsProgress,
+    syncRpcs3Progress: syncRpcs3Progress,
     syncTrueAchievementsProgress: syncTrueAchievementsProgress,
     testOpenXblCredentials: testOpenXblCredentials,
     testRetroAchievementsCredentials: testRetroAchievementsCredentials
@@ -162,11 +202,24 @@ const STRINGS = {
     en: {
         pluginName: "Playhub Metadata",
         scanMissing: "Scan metadata",
+        deleteAllMetadata: "Delete metadata",
+        deleteMetadataConfirmTitle: "Are you sure?",
+        deleteAllMetadataConfirm: "Delete metadata for every detected non-Steam game? Achievements and associations are not deleted.",
+        deleteCurrentMetadataConfirm: "Delete metadata for this game? Achievements and associations are not deleted.",
+        confirmYes: "Yes",
+        confirmNo: "No",
+        deleteAllMetadataDone: "All metadata deleted",
+        metadataPhaseIgn: "Downloading from IGN for",
+        metadataPhaseGoogle: "Translating with Google for",
+        metadataPhaseMyMemory: "Translating with MyMemory for",
+        metadataPhaseSaved: "Metadata saved for",
+        metadataPhaseNoMatch: "No IGN match for",
+        metadataPhaseFailed: "Metadata download failed for",
         refreshActivities: "Refresh Activity",
         refreshingActivities: "Refreshing Activity...",
         activityRefreshComplete: "Activity refresh complete",
         showActivitiesInHome: "Show Activity in Home",
-        homeActivityCount: "Home games count",
+        homeActivityCount: "Home Activity count",
         homeActivityCountHint: "Choose how many non-Steam games Playhub can show in Home. Max 6; 3 is recommended for performance.",
         homeActivityMostRecent: "Most recent",
         homeActivityShuffle: "Shuffle",
@@ -175,13 +228,13 @@ const STRINGS = {
         saved: "Metadata saved",
         missing: "Missing metadata",
         openSelected: "Open selected game",
-        editMetadata: "Playhub metadata...",
-        searchTitle: "Search IGN metadata",
+        editMetadata: "Playhub Metadata",
+        searchTitle: "Search metadata",
         search: "Search",
         searching: "Searching...",
         apply: "Apply",
         save: "Save",
-        remove: "Remove metadata",
+        remove: "Delete metadata",
         done: "Done",
         title: "Title",
         description: "Description",
@@ -194,7 +247,8 @@ const STRINGS = {
         communitySource: "Playhub Metadata",
         retroTitle: "Achievements",
         retroEnabled: "Enable achievements",
-        postPlayAchievementSyncEnabled: "Sync progress after closing a game",
+        postPlayAchievementSyncEnabled: "Sync the game just closed",
+        postPlayAchievementSyncHint: "When a game closes, Playhub refreshes achievements only for that title through its linked provider: RetroAchievements, RPCS3 or Xbox.",
         retroUser: "RetroAchievements username",
         retroKey: "RetroAchievements API key",
         retroLogin: "Login",
@@ -261,9 +315,10 @@ const STRINGS = {
         xboxSyncingProgress: "syncing progress",
         xboxConnectedAs: "Connected as",
         achievementAutoSyncTitle: "Automatic achievement progress updates",
-        achievementAutoSyncHint: "Choose how often Playhub syncs progress for each achievement provider.",
+        achievementAutoSyncHint: "Choose how often Playhub runs scheduled progress updates for each achievement provider.",
         achievementCacheRetroTitle: "Automatically update RetroAchievements progress",
         achievementCacheXboxTitle: "Automatically update Xbox progress",
+        achievementCacheRpcs3Title: "Automatically update PS3 trophies",
         achievementCache_hourly: "Hourly",
         achievementCache_daily: "Daily",
         achievementCache_weekly: "Weekly",
@@ -281,18 +336,67 @@ const STRINGS = {
         steamActivityRefetchDone: "Steam Activity refreshed",
         steamActivityClearDone: "Steam Activity association removed",
         steamActivityNoMatch: "No Steam Activity match found",
+        steamActivityEnabledForGame: "Enable Steam Activity for this game",
+        steamActivityEnabledForGameHint: "Turn Steam Activity and Home news on or off only for this title.",
+        steamActivityEnabledDone: "Steam Activity enabled for this game",
+        steamActivityDisabledDone: "Steam Activity disabled for this game",
+        qamLibraryTitle: "Library & metadata",
+        scraperTitle: "IGN metadata",
+        scraperHint: "Game information is downloaded from IGN. Descriptions can be translated automatically into any language supported by Google Translate.",
+        scraperSourceIgn: "IGN",
+        scraperRescanHint: "If you change the language, run \"Scan metadata\" again to overwrite descriptions in the previous language.",
+        scraperLanguage: "Description language",
+        scraperTranslateIgn: "Translate IGN descriptions",
+        scraperTranslateIgnHint: "Automatically translate IGN text into the selected language.",
+        scraperGameLanguage: "Description language for this game",
+        scraperLanguageAuto: "Auto (global language)",
+        scraperGameTranslationEnabled: "IGN translation is enabled and will use the language selected above.",
+        scraperGameTranslationDisabled: "IGN translation is disabled globally; descriptions will remain in English.",
+        scraperGameRefresh: "Update metadata with this language",
+        scraperGameRefreshDone: "Metadata updated for this game",
+        qamAchievementsTitle: "Achievements",
+        metadataFieldsTitle: "Game details",
         achievementSourceTitle: "Achievement source",
-        achievementSourceHint: "Auto keeps RetroAchievements for ROM/emulator shortcuts and uses OpenXBL only for likely Xbox/UWPHook shortcuts.",
+        achievementSourceHint: "Auto keeps RetroAchievements for ROM/emulator shortcuts, reads local RPCS3 trophies for PS3 shortcuts and uses OpenXBL only for likely Xbox/UWPHook shortcuts.",
         achievementSource_auto: "Auto",
         achievementSource_retroachievements: "RetroAchievements",
         achievementSource_xbox: "Xbox",
+        achievementSource_rpcs3: "PS3 (RPCS3)",
         achievementSource_disabled: "Disabled",
+        rpcs3Title: "PS3 trophies (RPCS3)",
+        rpcs3SettingsHint: "Trophies are read locally from RPCS3 (dev_hdd0). If your PS3 games are stored as ISO files, launch each game at least once before its trophies can be displayed.",
+        rpcs3PerGameTitle: "PS3 trophies (RPCS3)",
+        rpcs3Hint: "Playhub reads this game's trophies straight from your RPCS3 folder. If the game is stored as an ISO, launch it at least once before detecting its trophies. Use auto-detect for RPCS3 shortcuts, or pick the trophy set manually below.",
+        rpcs3CurrentMatch: "Current trophy set",
+        rpcs3GameDetect: "Auto-detect trophies",
+        rpcs3SyncProgress: "Sync trophy progress",
+        rpcs3ClearMatch: "Clear RPCS3 association",
+        rpcs3GameSearch: "Search installed trophy sets",
+        rpcs3GameSearchHint: "If auto-detect misses the game, search the trophy sets installed in RPCS3 and pick the right one.",
+        rpcs3GameNoMatches: "No RPCS3 trophy sets found yet. Play the game once in RPCS3 or check the RPCS3 folder.",
+        rpcs3GameOk: "PS3 trophies loaded",
+        rpcs3GameFailed: "No PS3 trophies loaded for this selection.",
+        rpcs3DetectFailed: "No RPCS3 trophy set found from this shortcut.",
+        rpcs3SyncProgressOk: "PS3 trophies synced",
+        rpcs3SyncProgressFailed: "PS3 trophy sync failed",
+        rpcs3BulkScan: "Scan RPCS3 trophies",
+        rpcs3BulkScanning: "Scanning RPCS3 trophies",
+        rpcs3BulkDetecting: "detecting trophy set",
+        rpcs3BulkAppliedOne: "trophies applied",
+        rpcs3BulkSkippedOne: "skipped",
+        rpcs3BulkDone: "RPCS3 scan complete",
+        rpcs3BulkNothing: "No RPCS3 games to scan.",
+        rpcs3SyncingProgress: "syncing trophies",
+        rpcs3SyncDone: "RPCS3 trophy sync complete",
+        rpcs3SyncAllProgress: "Sync all PS3 trophies",
+        rpcs3ClearAll: "Clear RPCS3 associations",
+        rpcs3ClearAllDone: "RPCS3 associations cleared",
         xboxPerGameTitle: "Xbox achievements",
         xboxHint: "Playhub matches Xbox title IDs through OpenXBL. Use the selector if the automatic match is wrong.",
         xboxCurrentMatch: "Current Xbox title ID",
         xboxGameDetect: "Auto-detect with OpenXBL",
         xboxGameTest: "Test Xbox achievements",
-        xboxClearMatch: "Clear Xbox match",
+        xboxClearMatch: "Clear Xbox association",
         xboxGameSearch: "Search Xbox titles",
         xboxGameSearchHint: "Search OpenXBL account history and Microsoft Store for the correct Xbox title.",
         xboxGameNoMatches: "No Xbox results yet.",
@@ -319,11 +423,24 @@ const STRINGS = {
     it: {
         pluginName: "Playhub Metadata",
         scanMissing: "Scansiona metadata",
+        deleteAllMetadata: "Elimina metadata",
+        deleteMetadataConfirmTitle: "Sei sicuro?",
+        deleteAllMetadataConfirm: "Eliminare i metadata di tutti i giochi non-Steam rilevati? Obiettivi e associazioni non verranno eliminati.",
+        deleteCurrentMetadataConfirm: "Eliminare i metadata di questo gioco? Obiettivi e associazioni non verranno eliminati.",
+        confirmYes: "Sì",
+        confirmNo: "No",
+        deleteAllMetadataDone: "Metadata eliminati",
+        metadataPhaseIgn: "Scaricamento da IGN per",
+        metadataPhaseGoogle: "Traduzione da Google per",
+        metadataPhaseMyMemory: "Traduzione da MyMemory per",
+        metadataPhaseSaved: "Metadata salvati per",
+        metadataPhaseNoMatch: "Nessun risultato IGN per",
+        metadataPhaseFailed: "Scaricamento metadata non riuscito per",
         refreshActivities: "Aggiorna attività",
         refreshingActivities: "Aggiornamento attività...",
         activityRefreshComplete: "Aggiornamento attività completato",
         showActivitiesInHome: "Mostra attività nella Home",
-        homeActivityCount: "Numero giochi in Home",
+        homeActivityCount: "Numero attività in Home",
         homeActivityCountHint: "Scegli quanti giochi non-Steam Playhub può mostrare nella Home. Massimo 6; 3 è consigliato per le prestazioni.",
         homeActivityMostRecent: "Più recenti",
         homeActivityShuffle: "Rimescola",
@@ -332,13 +449,13 @@ const STRINGS = {
         saved: "Metadata salvati",
         missing: "Metadata mancanti",
         openSelected: "Apri gioco selezionato",
-        editMetadata: "Playhub metadata...",
-        searchTitle: "Cerca metadata IGN",
+        editMetadata: "Playhub Metadata",
+        searchTitle: "Cerca metadata",
         search: "Cerca",
         searching: "Ricerca...",
         apply: "Applica",
         save: "Salva",
-        remove: "Rimuovi metadata",
+        remove: "Elimina metadata",
         done: "Fine",
         title: "Titolo",
         description: "Descrizione",
@@ -351,7 +468,8 @@ const STRINGS = {
         communitySource: "Playhub Metadata",
         retroTitle: "Obiettivi",
         retroEnabled: "Abilita obiettivi",
-        postPlayAchievementSyncEnabled: "Sincronizza progressi quando finisci di giocare",
+        postPlayAchievementSyncEnabled: "Sincronizza il gioco appena chiuso",
+        postPlayAchievementSyncHint: "Quando chiudi un gioco, Playhub aggiorna gli obiettivi soltanto di quel titolo tramite la fonte associata: RetroAchievements, RPCS3 o Xbox.",
         retroUser: "Username RetroAchievements",
         retroKey: "API key RetroAchievements",
         retroLogin: "Login",
@@ -418,9 +536,10 @@ const STRINGS = {
         xboxSyncingProgress: "sincronizzazione progressi",
         xboxConnectedAs: "Connesso come",
         achievementAutoSyncTitle: "Aggiornamento automatico progressi",
-        achievementAutoSyncHint: "Scegli ogni quanto Playhub sincronizza i progressi per ogni piattaforma.",
+        achievementAutoSyncHint: "Scegli ogni quanto Playhub esegue gli aggiornamenti programmati dei progressi per ogni piattaforma.",
         achievementCacheRetroTitle: "Aggiorna automaticamente i progressi RetroAchievements",
         achievementCacheXboxTitle: "Aggiorna automaticamente i progressi Xbox",
+        achievementCacheRpcs3Title: "Aggiorna automaticamente i trofei PS3",
         achievementCache_hourly: "Ogni ora",
         achievementCache_daily: "Ogni giorno",
         achievementCache_weekly: "Ogni settimana",
@@ -438,18 +557,67 @@ const STRINGS = {
         steamActivityRefetchDone: "Attività Steam aggiornate",
         steamActivityClearDone: "Associazione attività Steam rimossa",
         steamActivityNoMatch: "Nessun match attività Steam trovato",
+        steamActivityEnabledForGame: "Abilita attività Steam per questo gioco",
+        steamActivityEnabledForGameHint: "Attiva o disattiva attività Steam e news nella Home soltanto per questo titolo.",
+        steamActivityEnabledDone: "Attività Steam abilitate per questo gioco",
+        steamActivityDisabledDone: "Attività Steam disabilitate per questo gioco",
+        qamLibraryTitle: "Libreria e metadata",
+        scraperTitle: "Metadata IGN",
+        scraperHint: "Le informazioni dei giochi vengono scaricate da IGN. Le descrizioni possono essere tradotte automaticamente in tutte le lingue supportate da Google Translate.",
+        scraperSourceIgn: "IGN",
+        scraperRescanHint: "Se cambi la lingua, esegui di nuovo \"Scansione metadata\" per sovrascrivere le descrizioni nella lingua precedente.",
+        scraperLanguage: "Lingua della descrizione",
+        scraperTranslateIgn: "Traduci le descrizioni IGN",
+        scraperTranslateIgnHint: "Traduce automaticamente i testi IGN nella lingua scelta.",
+        scraperGameLanguage: "Lingua della descrizione per questo gioco",
+        scraperLanguageAuto: "Automatica (lingua globale)",
+        scraperGameTranslationEnabled: "La traduzione IGN è attiva e userà la lingua selezionata qui sopra.",
+        scraperGameTranslationDisabled: "La traduzione IGN è disattivata globalmente; le descrizioni resteranno in inglese.",
+        scraperGameRefresh: "Aggiorna metadata con questa lingua",
+        scraperGameRefreshDone: "Metadata aggiornati per questo gioco",
+        qamAchievementsTitle: "Obiettivi",
+        metadataFieldsTitle: "Dati del gioco",
         achievementSourceTitle: "Fonte obiettivi",
-        achievementSourceHint: "Auto mantiene RetroAchievements per ROM/emulatori e usa OpenXBL solo per collegamenti probabilmente Xbox/UWPHook.",
+        achievementSourceHint: "Auto mantiene RetroAchievements per ROM/emulatori, legge i trofei locali di RPCS3 per i collegamenti PS3 e usa OpenXBL solo per collegamenti probabilmente Xbox/UWPHook.",
         achievementSource_auto: "Auto",
         achievementSource_retroachievements: "RetroAchievements",
         achievementSource_xbox: "Xbox",
+        achievementSource_rpcs3: "PS3 (RPCS3)",
         achievementSource_disabled: "Disabilitati",
+        rpcs3Title: "Trofei PS3 (RPCS3)",
+        rpcs3SettingsHint: "I trofei vengono letti in locale da RPCS3 (dev_hdd0). Se i tuoi giochi PS3 sono in formato ISO, devi avviarli almeno una volta per visualizzarne i trofei.",
+        rpcs3PerGameTitle: "Trofei PS3 (RPCS3)",
+        rpcs3Hint: "Playhub legge i trofei di questo gioco direttamente dalla cartella di RPCS3. Se il gioco è in formato ISO, avvialo almeno una volta prima di rilevarne i trofei. Usa il rilevamento automatico per i collegamenti RPCS3, o scegli il set di trofei manualmente qui sotto.",
+        rpcs3CurrentMatch: "Set di trofei attuale",
+        rpcs3GameDetect: "Rileva trofei",
+        rpcs3SyncProgress: "Sincronizza trofei",
+        rpcs3ClearMatch: "Cancella associazione RPCS3",
+        rpcs3GameSearch: "Cerca set di trofei installati",
+        rpcs3GameSearchHint: "Se il rilevamento automatico non trova il gioco, cerca tra i set di trofei installati in RPCS3 e scegli quello giusto.",
+        rpcs3GameNoMatches: "Nessun set di trofei RPCS3 trovato. Avvia il gioco almeno una volta in RPCS3 o controlla la cartella di RPCS3.",
+        rpcs3GameOk: "Trofei PS3 caricati",
+        rpcs3GameFailed: "Nessun trofeo PS3 caricato per questa selezione.",
+        rpcs3DetectFailed: "Nessun set di trofei RPCS3 trovato da questo collegamento.",
+        rpcs3SyncProgressOk: "Trofei PS3 sincronizzati",
+        rpcs3SyncProgressFailed: "Sincronizzazione trofei PS3 fallita",
+        rpcs3BulkScan: "Scansiona trofei RPCS3",
+        rpcs3BulkScanning: "Scansione trofei RPCS3",
+        rpcs3BulkDetecting: "rilevamento set di trofei",
+        rpcs3BulkAppliedOne: "trofei applicati",
+        rpcs3BulkSkippedOne: "saltato",
+        rpcs3BulkDone: "Scansione RPCS3 completata",
+        rpcs3BulkNothing: "Nessun gioco RPCS3 da scansionare.",
+        rpcs3SyncingProgress: "sincronizzazione trofei",
+        rpcs3SyncDone: "Sincronizzazione trofei RPCS3 completata",
+        rpcs3SyncAllProgress: "Sincronizza tutti i trofei PS3",
+        rpcs3ClearAll: "Cancella associazioni RPCS3",
+        rpcs3ClearAllDone: "Associazioni RPCS3 cancellate",
         xboxPerGameTitle: "Obiettivi Xbox",
         xboxHint: "Playhub abbina gli Xbox title ID tramite OpenXBL. Usa il selettore se il match automatico è sbagliato.",
         xboxCurrentMatch: "Xbox title ID attuale",
         xboxGameDetect: "Rileva con OpenXBL",
         xboxGameTest: "Testa obiettivi Xbox",
-        xboxClearMatch: "Cancella match Xbox",
+        xboxClearMatch: "Cancella associazione Xbox",
         xboxGameSearch: "Cerca titoli Xbox",
         xboxGameSearchHint: "Cerca nella cronologia OpenXBL e nel Microsoft Store il titolo Xbox corretto.",
         xboxGameNoMatches: "Nessun risultato Xbox per ora.",
@@ -608,6 +776,8 @@ const shouldShowAchievements = (appId) => {
         return true;
     if (achievementSettingsCache?.xbox?.title_ids?.[key])
         return true;
+    if (achievementSettingsCache?.rpcs3?.trophy_ids?.[key])
+        return true;
     const source = achievementSettingsCache?.achievement_sources?.[key] ?? "auto";
     if (source === "disabled")
         return false;
@@ -615,6 +785,8 @@ const shouldShowAchievements = (appId) => {
         return !!achievementSettingsCache?.xbox?.enabled;
     if (source === "retroachievements")
         return !!achievementSettingsCache?.retroachievements?.enabled;
+    if (source === "rpcs3")
+        return true;
     // Auto mode must be allowed to show the section before a title id exists,
     // otherwise Xbox/UWPHook auto-detection never gets a chance to run. The backend
     // still refuses non-UWPHook Xbox calls and avoids RetroAchievements network
@@ -844,6 +1016,58 @@ const applyMetadata = (appId) => {
     }
     catch (_error) {
         // Cache writes can fail if the page has not finished creating app data.
+    }
+};
+const clearAppliedMetadata = (appId, previousMetadata) => {
+    const overview = getOverview(appId);
+    const metadata = previousMetadata || metadataCache[String(appId)] || null;
+    try {
+        if (overview && isNonSteamApp(overview)) {
+            if (typeof overview.metacritic_score === "number") {
+                overview.metacritic_score = 0;
+            }
+            if (overview.m_setStoreCategories?.delete && metadata?.store_categories) {
+                metadata.store_categories.forEach((category) => {
+                    overview.m_setStoreCategories.delete(Number(category));
+                });
+            }
+        }
+    }
+    catch (_error) {
+        // Steam overview objects may temporarily be read-only.
+    }
+    const appData = appDetailsStore?.GetAppData?.(appId);
+    if (!appData)
+        return;
+    const emptyDescriptions = {
+        strFullDescription: "",
+        strSnippet: "",
+    };
+    const emptyAssociations = {
+        rgDevelopers: [],
+        rgPublishers: [],
+        rgFranchises: [],
+    };
+    const emptyScreenshots = {
+        rgScreenshots: [],
+        screenshots: [],
+        vecScreenshots: [],
+        vecScreenShots: [],
+    };
+    appData.descriptionsData = emptyDescriptions;
+    appData.associationData = emptyAssociations;
+    appData.screenshots = emptyScreenshots;
+    if (appData.details) {
+        appData.details.nScreenshots = 0;
+        appData.details.vecScreenShots = [];
+    }
+    try {
+        appDetailsCache?.SetCachedDataForApp?.(appId, "descriptions", 1, emptyDescriptions);
+        appDetailsCache?.SetCachedDataForApp?.(appId, "associations", 1, emptyAssociations);
+        appDetailsCache?.SetCachedDataForApp?.(appId, "screenshots", 1, emptyScreenshots);
+    }
+    catch (_error) {
+        // Best-effort cache reset; the UI event below triggers a fresh render.
     }
 };
 const steamScreenshotsFromMetadata = (appId, metadata) => (metadata.screenshots || [])
@@ -2977,24 +3201,74 @@ const markBackgroundAchievementSyncDone = (provider, policy) => {
         // Storage can be unavailable in some embedded Steam contexts.
     }
 };
-const achievementSyncProviderForGame = (game, settings, allowedProviders) => {
+const syncPayloadForProvider = async (provider, appId) => {
+    if (provider === "xbox") {
+        return ((await syncTrueAchievementsProgress(appId)) || (await fetchAchievements(appId)));
+    }
+    if (provider === "rpcs3") {
+        return (await syncRpcs3Progress(appId)) || (await fetchAchievements(appId));
+    }
+    return ((await syncRetroAchievementsProgress(appId)) || (await fetchAchievements(appId)));
+};
+const providerPolicyFromSettings = (provider, settings) => {
+    const legacyPolicy = settings?.achievement_cache?.policy || "daily";
+    if (provider === "xbox") {
+        return settings?.achievement_cache?.xbox_policy || legacyPolicy;
+    }
+    if (provider === "retroachievements") {
+        return settings?.achievement_cache?.retroachievements_policy || legacyPolicy;
+    }
+    // RPCS3 trophies are read from the local disk, so the default refreshes
+    // once per PC session; the user can pick any policy from the QAM.
+    return settings?.achievement_cache?.rpcs3_policy || "pc_session";
+};
+const isRpcs3GameOption = (game) => {
+    const text = `${game.exe || ""} ${game.start_dir || ""} ${game.launch_options || ""} ${game.shortcut_path || ""} ${game.name || ""}`
+        .toLowerCase()
+        .replace(/\\/g, "/");
+    return (/(?:^|[\s/"'])rpcs3(?:\.exe)?(?:[\s/"']|$)/i.test(text) ||
+        text.includes("/dev_hdd0/") ||
+        text.includes("/ps3_game/") ||
+        text.includes("/ps3iso/") ||
+        text.includes("/roms/ps3/") ||
+        text.includes("/playstation 3/") ||
+        text.includes("eboot.bin"));
+};
+const achievementSyncProviderForGame = (game, settings, allowedProviders, options = {}) => {
     const key = String(game.appid);
     const sources = settings.achievement_sources || {};
     const raIds = settings.retroachievements?.game_ids || {};
     const xboxIds = settings.xbox?.title_ids || {};
+    const rpcs3Ids = settings.rpcs3?.trophy_ids || {};
     const source = sources[key] || "auto";
     if (source === "disabled")
         return null;
+    // Only the post-session path enables this option. A clearly identified
+    // RPCS3 shortcut must be checked even when it had no trophy association
+    // before launch: ISO games often create their local trophy data only after
+    // the first play session. Other platforms keep the existing provider rules.
+    if (options.allowUnmatchedRpcs3 &&
+        (!allowedProviders || allowedProviders.has("rpcs3")) &&
+        isRpcs3GameOption(game)) {
+        return "rpcs3";
+    }
     const hasXbox = Boolean(xboxIds[key]);
     const hasRa = Boolean(raIds[key]);
+    const hasRpcs3 = Boolean(rpcs3Ids[key]);
     if ((!allowedProviders || allowedProviders.has("xbox")) &&
         (source === "xbox" || (source === "auto" && hasXbox)) &&
         hasXbox &&
         isUwphookGameOption(game)) {
         return "xbox";
     }
+    if ((!allowedProviders || allowedProviders.has("rpcs3")) &&
+        (source === "rpcs3" || (source === "auto" && !hasXbox && hasRpcs3)) &&
+        hasRpcs3) {
+        return "rpcs3";
+    }
     if ((!allowedProviders || allowedProviders.has("retroachievements")) &&
-        (source === "retroachievements" || (source === "auto" && !hasXbox && hasRa)) &&
+        (source === "retroachievements" ||
+            (source === "auto" && !hasXbox && !hasRpcs3 && hasRa)) &&
         hasRa) {
         return "retroachievements";
     }
@@ -3019,6 +3293,7 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
     const policies = {
         xbox: "daily",
         retroachievements: "daily",
+        rpcs3: "pc_session",
     };
     const dueProviders = new Set();
     try {
@@ -3027,11 +3302,15 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
         policies.retroachievements =
             settings?.achievement_cache?.retroachievements_policy || legacyPolicy;
         policies.xbox = settings?.achievement_cache?.xbox_policy || legacyPolicy;
+        policies.rpcs3 = settings?.achievement_cache?.rpcs3_policy || "pc_session";
         if (backgroundAchievementSyncIsDue("retroachievements", policies.retroachievements)) {
             dueProviders.add("retroachievements");
         }
         if (backgroundAchievementSyncIsDue("xbox", policies.xbox)) {
             dueProviders.add("xbox");
+        }
+        if (backgroundAchievementSyncIsDue("rpcs3", policies.rpcs3)) {
+            dueProviders.add("rpcs3");
         }
         if (!dueProviders.size)
             return;
@@ -3045,15 +3324,14 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
             return;
         const raCount = targets.filter((target) => target.provider === "retroachievements").length;
         const xboxCount = targets.filter((target) => target.provider === "xbox").length;
+        const rpcs3Count = targets.filter((target) => target.provider === "rpcs3").length;
         toaster.toast({
             title: t("pluginName"),
-            body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}`,
+            body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}, PS3 ${rpcs3Count}`,
         });
         for (const target of targets) {
             try {
-                const payload = target.provider === "xbox"
-                    ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
-                    : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
+                const payload = await syncPayloadForProvider(target.provider, target.appid);
                 if (payload?.steam?.nTotal) {
                     applyAchievementPayload(target.appid, payload);
                     updated += 1;
@@ -3252,13 +3530,11 @@ const syncRecentlyClosedGame = async (target) => {
     }
     try {
         const settings = await refreshRaSettings();
-        const policy = target.provider === "xbox"
-            ? (settings?.achievement_cache?.xbox_policy || settings?.achievement_cache?.policy || "daily")
-            : (settings?.achievement_cache?.retroachievements_policy || settings?.achievement_cache?.policy || "daily");
+        const policy = providerPolicyFromSettings(target.provider, settings);
         if (policy === "manual")
             return;
         const game = (await postPlaySyncGames()).find((candidate) => candidate.appid === target.appid) || target;
-        const provider = achievementSyncProviderForGame(game, settings, new Set([target.provider]));
+        const provider = achievementSyncProviderForGame(game, settings, new Set([target.provider]), { allowUnmatchedRpcs3: true });
         if (provider !== target.provider)
             return;
         if (wasPostPlaySyncedRecently(target.provider, target.appid))
@@ -3268,9 +3544,9 @@ const syncRecentlyClosedGame = async (target) => {
             title: t("pluginName"),
             body: `${t("postPlaySyncStarted")}: ${target.name}`,
         });
-        const payload = target.provider === "xbox"
-            ? ((await syncTrueAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)))
-            : ((await syncRetroAchievementsProgress(target.appid)) || (await fetchAchievements(target.appid)));
+        // Only this game's achievements are synced here: the payload call below is
+        // scoped to target.appid, never to the whole library.
+        const payload = await syncPayloadForProvider(target.provider, target.appid);
         if (payload?.steam?.nTotal) {
             applyAchievementPayload(target.appid, payload);
             toaster.toast({
@@ -3307,6 +3583,64 @@ const queuePostPlaySync = (target) => {
     postPlaySyncPending.add(pendingKey);
     window.setTimeout(() => void syncRecentlyClosedGame(target), POST_PLAY_SYNC_DELAY_MS);
 };
+const postPlayAllowedProviders = (settings) => {
+    const allowed = new Set();
+    for (const provider of ["xbox", "retroachievements", "rpcs3"]) {
+        if (providerPolicyFromSettings(provider, settings) !== "manual") {
+            allowed.add(provider);
+        }
+    }
+    return allowed;
+};
+// Precise per-game session tracking: Steam tells us exactly which app started
+// or stopped, so ONLY that game is queued for an achievement sync when its
+// session ends. Nothing else in the library is touched.
+const handleAppLifetimeNotification = async (notification) => {
+    try {
+        if (!readPostPlayAchievementSyncEnabled$1())
+            return;
+        const appId = Number(notification?.unAppID ??
+            notification?.unAppId ??
+            notification?.appid ??
+            notification?.nAppID ??
+            0);
+        if (!Number.isFinite(appId) || appId <= 0)
+            return;
+        const running = boolLike(notification?.bRunning);
+        const now = Date.now();
+        if (running === true) {
+            const previous = postPlayRunningState.get(appId);
+            postPlayRunningState.set(appId, {
+                running: true,
+                startedAt: previous?.running ? previous.startedAt || now : now,
+                name: previous?.name || "",
+            });
+            return;
+        }
+        if (running !== false)
+            return;
+        const previous = postPlayRunningState.get(appId);
+        postPlayRunningState.delete(appId);
+        // If Steam's UI reloaded while the game was running we have no start time;
+        // still sync the closed game rather than losing its progress.
+        const playedMs = previous?.startedAt
+            ? now - previous.startedAt
+            : Number.POSITIVE_INFINITY;
+        if (playedMs < POST_PLAY_SYNC_MIN_PLAY_MS)
+            return;
+        const game = (await postPlaySyncGames()).find((candidate) => candidate.appid === appId);
+        if (!game)
+            return;
+        const settings = await refreshRaSettings();
+        const provider = achievementSyncProviderForGame(game, settings, postPlayAllowedProviders(settings), { allowUnmatchedRpcs3: true });
+        if (!provider)
+            return;
+        queuePostPlaySync({ appid: game.appid, name: game.name, provider });
+    }
+    catch (error) {
+        console.warn("[Playhub Metadata] app lifetime notification handling failed", error);
+    }
+};
 const pollPostPlayAchievementSync = async () => {
     try {
         if (!readPostPlayAchievementSyncEnabled$1()) {
@@ -3314,21 +3648,14 @@ const pollPostPlayAchievementSync = async () => {
             return;
         }
         const settings = await refreshRaSettings();
-        const legacyPolicy = settings?.achievement_cache?.policy || "daily";
-        const allowedProviders = new Set();
-        if ((settings?.achievement_cache?.retroachievements_policy || legacyPolicy) !== "manual") {
-            allowedProviders.add("retroachievements");
-        }
-        if ((settings?.achievement_cache?.xbox_policy || legacyPolicy) !== "manual") {
-            allowedProviders.add("xbox");
-        }
+        const allowedProviders = postPlayAllowedProviders(settings);
         if (!allowedProviders.size)
             return;
         const games = await postPlaySyncGames();
         const now = Date.now();
         const observedIds = new Set();
         for (const game of games) {
-            const provider = achievementSyncProviderForGame(game, settings, allowedProviders);
+            const provider = achievementSyncProviderForGame(game, settings, allowedProviders, { allowUnmatchedRpcs3: true });
             if (!provider)
                 continue;
             const running = await readAppRunningState(game.appid);
@@ -3375,20 +3702,47 @@ const pollPostPlayAchievementSync = async () => {
 const startPostPlayAchievementSync = () => {
     if (postPlayAchievementSyncTimer)
         window.clearInterval(postPlayAchievementSyncTimer);
-    const run = () => void pollPostPlayAchievementSync();
-    postPlayAchievementSyncTimer = window.setInterval(run, POST_PLAY_SYNC_POLL_MS);
-    const initial = window.setTimeout(run, POST_PLAY_SYNC_INITIAL_DELAY_MS);
+    // Preferred path: Steam's own per-app lifetime notifications. They identify
+    // exactly which game started/stopped, so only the closed game gets synced.
+    let unregisterLifetime;
+    try {
+        const registration = SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.((notification) => void handleAppLifetimeNotification(notification));
+        if (typeof registration?.unregister === "function") {
+            unregisterLifetime = () => {
+                try {
+                    registration.unregister();
+                }
+                catch (_error) {
+                    // Already gone.
+                }
+            };
+        }
+    }
+    catch (_error) {
+        unregisterLifetime = undefined;
+    }
+    let initial;
+    if (!unregisterLifetime) {
+        // Fallback for Steam clients without lifetime notifications: keep the old
+        // poller, which also queues only the specific game whose state flipped.
+        const run = () => void pollPostPlayAchievementSync();
+        postPlayAchievementSyncTimer = window.setInterval(run, POST_PLAY_SYNC_POLL_MS);
+        initial = window.setTimeout(run, POST_PLAY_SYNC_INITIAL_DELAY_MS);
+    }
     const onPolicyChanged = () => {
         postPlayRunningState.clear();
         postPlayAchievementSyncGamesCacheAt = 0;
-        void pollPostPlayAchievementSync();
+        if (!unregisterLifetime)
+            void pollPostPlayAchievementSync();
     };
     window.addEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
     window.addEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
     return () => {
-        window.clearTimeout(initial);
+        if (initial)
+            window.clearTimeout(initial);
         if (postPlayAchievementSyncTimer)
             window.clearInterval(postPlayAchievementSyncTimer);
+        unregisterLifetime?.();
         window.removeEventListener("playhub-metadata:achievement-cache-policy-changed", onPolicyChanged);
         window.removeEventListener("playhub-metadata:post-play-sync-setting-changed", onPolicyChanged);
         postPlayAchievementSyncTimer = undefined;
@@ -3681,7 +4035,11 @@ const loadAchievementsForApp = async (appId) => {
     if (!isNonSteamApp(overview))
         return null;
     const settings = achievementSettingsCache ?? (await refreshRaSettings());
-    const hasAnyProvider = !!settings?.retroachievements?.enabled || !!settings?.xbox?.enabled;
+    const appSource = settings?.achievement_sources?.[String(appId)] ?? "auto";
+    const hasAnyProvider = !!settings?.retroachievements?.enabled ||
+        !!settings?.xbox?.enabled ||
+        !!settings?.rpcs3?.trophy_ids?.[String(appId)] ||
+        appSource === "rpcs3";
     if (!hasAnyProvider)
         return null;
     const appKey = String(appId);
@@ -4676,8 +5034,252 @@ const allNonSteamGames = async () => {
     }
     return Array.from(byId.values()).sort((a, b) => a.name.localeCompare(b.name));
 };
+const RETIRED_RPCS3_INPUT_PROFILE = "Playhub Steam Controller";
+const stripRetiredRpcs3LaunchOptions = (launchOptions) => {
+    const escaped = RETIRED_RPCS3_INPUT_PROFILE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const profilePattern = new RegExp(`(?:^|\\s)--input-config(?:=|\\s+)(?:"${escaped}"|'${escaped}')(?=\\s|$)`, "gi");
+    let seenNoGui = false;
+    return String(launchOptions || "")
+        .replace(profilePattern, " ")
+        .replace(/(?:^|\s)--no-gui(?=\s|$)/gi, () => {
+        if (seenNoGui)
+            return " ";
+        seenNoGui = true;
+        return " --no-gui";
+    })
+        .replace(/\s{2,}/g, " ")
+        .trim();
+};
+/**
+ * Remove launch/config overrides left by the retired RPCS3 controller
+ * experiment. This does not change RPCS3's normal SDL configuration.
+ */
+const cleanupRetiredRpcs3ControllerOverrides = async () => {
+    try {
+        const games = await allNonSteamGames();
+        const apps = window?.SteamClient?.Apps;
+        if (!apps)
+            return;
+        let cleaned = 0;
+        for (const game of games) {
+            if (!isRpcs3GameOption(game))
+                continue;
+            const current = String(game.launch_options || "");
+            const next = stripRetiredRpcs3LaunchOptions(current);
+            try {
+                // Return third-party shortcuts to Steam's default controller policy.
+                apps.SetThirdPartyControllerConfiguration?.(game.appid, 1);
+                if (next !== current.trim() && apps.SetShortcutLaunchOptions) {
+                    apps.SetShortcutLaunchOptions(game.appid, next);
+                    cleaned += 1;
+                }
+            }
+            catch (error) {
+                console.warn(`[Playhub Metadata] retired RPCS3 controller cleanup failed for ${game.name}`, error);
+            }
+        }
+        if (cleaned) {
+            console.log(`[Playhub Metadata] removed retired RPCS3 controller options from ${cleaned} shortcut(s)`);
+        }
+    }
+    catch (error) {
+        console.warn("[Playhub Metadata] retired RPCS3 controller cleanup failed", error);
+    }
+};
 
 const FocusableButton = (props) => (SP_JSX.jsx(DFL.DialogButton, { focusable: true, ...props }));
+// ---------------------------------------------------------------------------
+// Playhub design system (card look inspired by the Now Playing plugin):
+// rounded glass cards, icon badges, subtle hints, option rows with checkmarks.
+// ---------------------------------------------------------------------------
+const PLAYHUB_ACCENTS = {
+    library: "#66c0f4",
+    activity: "#f2a33c",
+    achievements: "#d9a337",
+    ra: "#e8b923",
+    xbox: "#57bb3b",
+    ps3: "#2d7fe0",
+    search: "#9b7ff0",
+    identity: "#66c0f4",
+    categories: "#4ec9b0",
+};
+const cardStyle = {
+    width: "100%",
+    minWidth: 0,
+    boxSizing: "border-box",
+    borderRadius: "14px",
+    border: "1px solid rgba(255,255,255,.10)",
+    background: "linear-gradient(145deg,rgba(255,255,255,.085),rgba(255,255,255,.035))",
+    padding: "14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.6rem",
+    overflow: "hidden",
+};
+const cardHeaderStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "0.55rem",
+    fontSize: "0.98em",
+    fontWeight: 700,
+    letterSpacing: ".01em",
+    minWidth: 0,
+};
+const cardHintStyle = {
+    opacity: 0.6,
+    fontSize: "0.85em",
+    lineHeight: 1.4,
+};
+const cardSubheadingStyle = {
+    fontSize: "0.85em",
+    fontWeight: 700,
+    opacity: 0.85,
+    marginTop: "0.3rem",
+};
+const fieldLabelStyle = {
+    fontSize: "0.8em",
+    opacity: 0.65,
+};
+const statChipRowStyle = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "0.35rem",
+    width: "100%",
+    minWidth: 0,
+};
+const qamCardSpacingStyle = {
+    marginBottom: "12px",
+};
+const QamDropdown = (props) => (SP_JSX.jsx("div", { className: "playhub-qam-dropdown", style: { width: "100%", minWidth: 0, maxWidth: "100%", boxSizing: "border-box" }, children: SP_JSX.jsx(DFL.Dropdown, { ...props }) }));
+const isLikelyRpcs3GameOption = (game) => {
+    const text = `${game.exe || ""} ${game.launch_options || ""} ${game.start_dir || ""} ${game.shortcut_path || ""} ${game.name || ""}`
+        .toLowerCase()
+        .replace(/\\/g, "/");
+    return (/(?:^|[\s/"'])rpcs3(?:\.exe)?(?:[\s/"']|$)/i.test(text) ||
+        text.includes("/dev_hdd0/") ||
+        text.includes("/ps3_game/") ||
+        text.includes("/ps3iso/") ||
+        text.includes("/roms/ps3/") ||
+        text.includes("/playstation 3/") ||
+        text.includes("eboot.bin"));
+};
+const optionButtonStyle = {
+    width: "100%",
+    minWidth: 0,
+};
+const optionContentStyle = {
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    textAlign: "left",
+    minWidth: 0,
+};
+const PlayhubCard = (props) => {
+    const accent = props.accent || PLAYHUB_ACCENTS.library;
+    return (SP_JSX.jsxs("div", { style: { ...cardStyle, ...(props.style || {}) }, children: [SP_JSX.jsxs("div", { style: cardHeaderStyle, children: [props.icon ? (SP_JSX.jsx("span", { style: {
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            width: "26px",
+                            height: "26px",
+                            borderRadius: "8px",
+                            flex: "0 0 auto",
+                            background: `color-mix(in srgb, ${accent} 20%, transparent)`,
+                            color: accent,
+                        }, children: props.icon })) : null, SP_JSX.jsx("span", { style: { minWidth: 0 }, children: props.title })] }), props.hint ? SP_JSX.jsx("div", { style: cardHintStyle, children: props.hint }) : null, props.children] }));
+};
+// Progress bar styled after Now Playing's local-music image cache progress:
+// a slim rounded track with an accent fill, label on top and counts on the right.
+const PlayhubProgressBar = (props) => {
+    const total = Math.max(0, Number(props.total || 0));
+    const completed = Math.max(0, Math.min(Number(props.completed || 0), total || Number(props.completed || 0)));
+    const percent = total > 0 ? Math.max(0, Math.min(100, Math.round((completed / total) * 100))) : 0;
+    const accent = props.accent || "#66c0f4";
+    return (SP_JSX.jsxs("div", { style: {
+            marginTop: 4,
+            padding: "8px 9px",
+            borderRadius: 7,
+            background: "rgba(255,255,255,.045)",
+            overflow: "hidden",
+            width: "100%",
+            boxSizing: "border-box",
+        }, children: [SP_JSX.jsxs("div", { style: {
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
+                    fontSize: ".74em",
+                    lineHeight: 1.3,
+                }, children: [SP_JSX.jsx("span", { style: {
+                            minWidth: 0,
+                            flex: "1 1 auto",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "normal",
+                            display: "-webkit-box",
+                            WebkitBoxOrient: "vertical",
+                            WebkitLineClamp: 2,
+                            lineHeight: 1.3,
+                            maxHeight: "2.6em",
+                            overflowWrap: "anywhere",
+                            opacity: 0.76,
+                        }, children: props.label }), total > 0 ? (SP_JSX.jsxs("span", { style: { flex: "0 0 auto", opacity: 0.5 }, children: [completed, "/", total] })) : null] }), SP_JSX.jsx("div", { style: {
+                    height: 3,
+                    marginTop: 6,
+                    borderRadius: 999,
+                    background: "rgba(255,255,255,.10)",
+                    overflow: "hidden",
+                }, children: SP_JSX.jsx("div", { style: {
+                        width: total > 0 ? `${percent}%` : "0%",
+                        height: "100%",
+                        borderRadius: 999,
+                        background: accent,
+                        transition: "width 180ms ease",
+                    } }) })] }));
+};
+const metadataScanLabel = (progress) => {
+    const title = progress.current_title || progress.current || "";
+    if (progress.phase === "ign" && title)
+        return `${t("metadataPhaseIgn")} ${title}`;
+    if (progress.phase === "google" && title)
+        return `${t("metadataPhaseGoogle")} ${title}`;
+    if (progress.phase === "mymemory" && title)
+        return `${t("metadataPhaseMyMemory")} ${title}`;
+    if (progress.phase === "saved" && title)
+        return `${t("metadataPhaseSaved")} ${title}`;
+    if (progress.phase === "no_match" && title)
+        return `${t("metadataPhaseNoMatch")} ${title}`;
+    if (progress.phase === "failed" && title)
+        return `${t("metadataPhaseFailed")} ${title}`;
+    return progress.message || title || t("scanning");
+};
+const StatChip = (props) => (SP_JSX.jsxs("div", { style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: "10px",
+        width: "100%",
+        boxSizing: "border-box",
+        padding: "8px 12px",
+        borderRadius: "10px",
+        background: "rgba(255,255,255,.06)",
+        border: "1px solid rgba(255,255,255,.08)",
+        minWidth: 0,
+        overflow: "hidden",
+    }, children: [SP_JSX.jsx("span", { style: {
+                fontSize: "0.85em",
+                opacity: 0.7,
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+            }, children: props.label }), SP_JSX.jsx("span", { style: {
+                fontSize: "1.05em",
+                fontWeight: 700,
+                flex: "0 0 auto",
+                color: props.accent || "#ffffff",
+            }, children: props.value })] }));
 const pageStyle = {
     padding: 24,
     paddingTop: 48,
@@ -4704,22 +5306,6 @@ const buttonRowStyle = {
     alignItems: "center",
     flexWrap: "wrap",
 };
-const spacedButtonRowStyle = {
-    ...buttonRowStyle,
-    marginTop: "0.35rem",
-};
-const actionButtonStackStyle = {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "stretch",
-    gap: "0.35rem",
-    flex: "1 1 13rem",
-    minWidth: 0,
-};
-const resultsStackStyle = {
-    ...rowStackStyle,
-    marginTop: "1.25rem",
-};
 const fieldStyle = {
     width: "100%",
     maxWidth: "100%",
@@ -4740,12 +5326,6 @@ const inlineStatusStyle = {
     alignItems: "center",
     gap: "0.5rem",
     ...compactTextStyle,
-};
-const sectionHeadingStyle = {
-    width: "100%",
-    paddingTop: "0.75rem",
-    fontWeight: 700,
-    fontSize: "0.95rem",
 };
 const metadataTemplate = (title) => ({
     title,
@@ -4920,6 +5500,28 @@ const Content = () => {
     const [xboxBulkMessage, setXboxBulkMessage] = SP_REACT.useState("");
     const [raBulkBusy, setRaBulkBusy] = SP_REACT.useState(false);
     const [raBulkMessage, setRaBulkMessage] = SP_REACT.useState("");
+    const [rpcs3BulkBusy, setRpcs3BulkBusy] = SP_REACT.useState(false);
+    const [rpcs3BulkMessage, setRpcs3BulkMessage] = SP_REACT.useState("");
+    const [scraper, setScraper] = SP_REACT.useState(null);
+    const [scanProgress, setScanProgress] = SP_REACT.useState({ completed: 0, total: 0, phase: "idle", current_title: "" });
+    const [activityProgress, setActivityProgress] = SP_REACT.useState({ completed: 0, total: 0 });
+    const [bulkProgress, setBulkProgress] = SP_REACT.useState({ completed: 0, total: 0 });
+    SP_REACT.useEffect(() => {
+        // The scraper choice lives in the backend settings file, so the dropdowns
+        // always reflect what is actually persisted.
+        void getScraperSettings()
+            .then(setScraper)
+            .catch(() => { });
+    }, []);
+    const saveScraperSettings = async (next) => {
+        try {
+            const saved = await setScraperSettings(next.language ?? scraper?.language ?? "", next.translate_ign ?? null);
+            setScraper(saved);
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+    };
     const [ra, setRa] = SP_REACT.useState({
         enabled: false,
         username: "",
@@ -4936,16 +5538,19 @@ const Content = () => {
     });
     const [retroAchievementCachePolicy, setRetroAchievementCachePolicyState] = SP_REACT.useState("daily");
     const [xboxAchievementCachePolicy, setXboxAchievementCachePolicyState] = SP_REACT.useState("daily");
+    const [rpcs3AchievementCachePolicy, setRpcs3AchievementCachePolicyState] = SP_REACT.useState("pc_session");
     const missing = Math.max(games.length - metadataCount, 0);
     const refresh = SP_REACT.useCallback(async () => {
         await refreshMetadataCache();
         await loadGames();
-        setMetadataCount(Object.keys(metadataCache).length);
+        const currentGames = await allNonSteamGames();
+        setMetadataCount(currentGames.filter((game) => metadataCache[String(game.appid)]).length);
         const achievementSettings = await getAchievementSettings();
         setRa(achievementSettings.retroachievements);
         setXbox(achievementSettings.xbox);
         setRetroAchievementCachePolicyState(achievementSettings.achievement_cache?.retroachievements_policy || achievementSettings.achievement_cache?.policy || "daily");
         setXboxAchievementCachePolicyState(achievementSettings.achievement_cache?.xbox_policy || achievementSettings.achievement_cache?.policy || "daily");
+        setRpcs3AchievementCachePolicyState(achievementSettings.achievement_cache?.rpcs3_policy || "pc_session");
     }, [loadGames]);
     SP_REACT.useEffect(() => {
         void refresh();
@@ -4954,14 +5559,19 @@ const Content = () => {
         if (busy)
             return;
         setBusy(true);
-        setScanMessage("");
+        setScanProgress({ completed: 0, total: 0, phase: "starting", current_title: "" });
+        setScanMessage(t("scanning"));
         try {
             await startScanMissing(games);
             const interval = window.setInterval(async () => {
                 const progress = await getScanProgress();
-                setScanMessage(progress.current ||
-                    progress.message ||
-                    `${progress.completed}/${progress.total}`);
+                setScanProgress({
+                    completed: progress.completed || 0,
+                    total: progress.total || 0,
+                    phase: progress.phase || "",
+                    current_title: progress.current_title || progress.current || "",
+                });
+                setScanMessage(metadataScanLabel(progress));
                 if (!progress.running) {
                     window.clearInterval(interval);
                     await refresh();
@@ -4975,6 +5585,34 @@ const Content = () => {
             toaster.toast({ title: t("pluginName"), body: String(error) });
         }
     };
+    const performDeleteAllMetadata = async () => {
+        if (busy)
+            return;
+        setBusy(true);
+        try {
+            const appliedEntries = Object.entries(metadataCache);
+            await clearAllMetadata();
+            appliedEntries.forEach(([appIdText, metadata]) => {
+                clearAppliedMetadata(Number(appIdText), metadata);
+            });
+            Object.keys(metadataCache).forEach((key) => delete metadataCache[key]);
+            await refresh();
+            setScanMessage(t("deleteAllMetadataDone"));
+            toaster.toast({ title: t("pluginName"), body: t("deleteAllMetadataDone") });
+            window.dispatchEvent(new Event("playhub-metadata:updated"));
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setBusy(false);
+        }
+    };
+    const deleteAllMetadata = () => {
+        if (busy)
+            return;
+        DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: t("deleteMetadataConfirmTitle"), strDescription: t("deleteAllMetadataConfirm"), strOKButtonText: t("confirmYes"), strCancelButtonText: t("confirmNo"), bDestructiveWarning: true, onOK: () => void performDeleteAllMetadata() }));
+    };
     const refreshActivities = async () => {
         if (activityBusy)
             return;
@@ -4984,13 +5622,14 @@ const Content = () => {
             await startRefreshSteamActivities(games);
             const interval = window.setInterval(async () => {
                 const progress = await getActivityRefreshProgress();
+                setActivityProgress({ completed: progress.completed || 0, total: progress.total || 0 });
                 setActivityMessage(progress.current ||
                     progress.message ||
                     `${progress.completed}/${progress.total}`);
                 if (!progress.running) {
                     window.clearInterval(interval);
                     await refreshMetadataCache();
-                    setMetadataCount(Object.keys(metadataCache).length);
+                    setMetadataCount(games.filter((game) => metadataCache[String(game.appid)]).length);
                     setActivityBusy(false);
                     window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
                     window.dispatchEvent(new Event("playhub-metadata:updated"));
@@ -5007,8 +5646,61 @@ const Content = () => {
         .map((value) => String(value || ""))
         .filter(Boolean)
         .join(" ");
+    const isExcludedRetroAchievementsPlatform = (game) => {
+        if (isLikelyRpcs3GameOption(game))
+            return true;
+        const text = [
+            game.exe || "",
+            game.launch_options || "",
+            game.start_dir || "",
+            game.shortcut_path || "",
+        ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase()
+            .replace(/\\/g, "/");
+        const emulatorHints = ["xemu", "xenia", "dolphin", "cemu", "rpcs3"];
+        const platformPathHints = [
+            "/roms/xbox/",
+            "/roms/xbox360/",
+            "/roms/xbox 360/",
+            "/roms/gamecube/",
+            "/roms/gc/",
+            "/roms/wii/",
+            "/roms/wiiu/",
+            "/roms/wii u/",
+            "/roms/ps3/",
+            "/roms/playstation 3/",
+            "/ps3iso/",
+            "/xbox/",
+            "/xbox360/",
+            "/xbox 360/",
+            "/gamecube/",
+            "/wii/",
+            "/wiiu/",
+            "/wii u/",
+            "/ps3/",
+            "/playstation 3/",
+            "/dev_hdd0/",
+        ];
+        const platformExtensions = [
+            ".xbe",
+            ".xex",
+            ".xiso",
+            ".rvz",
+            ".wbfs",
+            ".gcz",
+            ".wud",
+            ".wux",
+            ".wua",
+            ".rpx",
+        ];
+        return (emulatorHints.some((hint) => text.includes(hint)) ||
+            platformPathHints.some((hint) => text.includes(hint)) ||
+            platformExtensions.some((extension) => text.includes(extension)));
+    };
     const isLikelyRetroAchievementsTarget = (game, source = "auto") => {
-        if (isUwphookGameOption(game))
+        if (isUwphookGameOption(game) || isExcludedRetroAchievementsPlatform(game))
             return false;
         const text = retroAchievementLaunchText(game).toLowerCase().replace(/\\/g, "/");
         const emulatorHints = [
@@ -5081,6 +5773,7 @@ const Content = () => {
             for (let index = 0; index < targets.length; index += 1) {
                 const game = targets[index];
                 const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
                 setRaBulkMessage(`${prefix}: ${t("retroBulkDetecting")}`);
                 try {
                     let payload = await resolveRetroAchievementsFromPath(game.appid, retroAchievementLaunchText(game), game.name);
@@ -5142,6 +5835,8 @@ const Content = () => {
             const source = sources[key] || "auto";
             if (source === "disabled" || source === "xbox")
                 return false;
+            if (isExcludedRetroAchievementsPlatform(game))
+                return false;
             return Boolean(existingIds[key]);
         });
         if (!targets.length) {
@@ -5156,6 +5851,7 @@ const Content = () => {
             for (let index = 0; index < targets.length; index += 1) {
                 const game = targets[index];
                 const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
                 setRaBulkMessage(`${prefix}: ${t("retroSyncingProgress")}`);
                 try {
                     const payload = await syncRetroAchievementsProgress(game.appid);
@@ -5212,23 +5908,33 @@ const Content = () => {
     const saveAchievementCachePolicy = async (provider, policy) => {
         if (provider === "retroachievements")
             setRetroAchievementCachePolicyState(policy);
-        else
+        else if (provider === "xbox")
             setXboxAchievementCachePolicyState(policy);
+        else
+            setRpcs3AchievementCachePolicyState(policy);
         const saved = await setAchievementCachePolicy(provider, policy);
+        // Reflect exactly what the backend persisted.
         setRetroAchievementCachePolicyState(saved.retroachievements_policy || policy);
         setXboxAchievementCachePolicyState(saved.xbox_policy || policy);
+        setRpcs3AchievementCachePolicyState(saved.rpcs3_policy || policy);
         const settings = await getAchievementSettings();
         const sources = settings.achievement_sources || {};
         const raIds = settings.retroachievements.game_ids || {};
         const xboxIds = settings.xbox.title_ids || {};
+        const rpcs3Ids = settings.rpcs3?.trophy_ids || {};
         clearAchievementsForApps(games
             .filter((game) => {
             const key = String(game.appid);
             const source = sources[key] || "auto";
+            if (source === "disabled")
+                return false;
             if (provider === "retroachievements") {
-                return Boolean(raIds[key]) && source !== "xbox" && source !== "disabled";
+                return Boolean(raIds[key]) && source !== "xbox" && source !== "rpcs3";
             }
-            return Boolean(xboxIds[key]) && source !== "retroachievements" && source !== "disabled";
+            if (provider === "xbox") {
+                return Boolean(xboxIds[key]) && source !== "retroachievements" && source !== "rpcs3";
+            }
+            return Boolean(rpcs3Ids[key]) && source !== "retroachievements" && source !== "xbox";
         })
             .map((game) => game.appid));
         await refreshRaSettings();
@@ -5319,6 +6025,7 @@ const Content = () => {
             for (let index = 0; index < targets.length; index += 1) {
                 const game = targets[index];
                 const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
                 setXboxBulkMessage(`${prefix}: ${t("xboxBulkSearching")}`);
                 try {
                     const results = await searchXboxTitles(game.name, 5, game.appid, false);
@@ -5380,6 +6087,7 @@ const Content = () => {
             for (let index = 0; index < targets.length; index += 1) {
                 const game = targets[index];
                 const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
                 setXboxBulkMessage(`${prefix}: ${t("xboxSyncingProgress")}`);
                 try {
                     const payload = await syncTrueAchievementsProgress(game.appid);
@@ -5406,22 +6114,176 @@ const Content = () => {
             setXboxBulkBusy(false);
         }
     };
-    return (SP_JSX.jsxs(DFL.PanelSection, { children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("detected"), ":"] }), " ", games.length] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("saved"), ":"] }), " ", metadataCount] }), SP_JSX.jsxs("div", { children: [SP_JSX.jsxs("b", { children: [t("missing"), ":"] }), " ", missing] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || !games.length, onClick: scanMissing, children: busy ? t("scanning") : t("scanMissing") }), busy || scanMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: scanMessage || t("scanning") })) : null] }), SP_JSX.jsxs("div", { style: actionButtonStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: activityBusy || busy || !games.length, onClick: refreshActivities, children: activityBusy ? t("refreshingActivities") : t("refreshActivities") }), activityBusy || activityMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: activityMessage || t("refreshingActivities") })) : null] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx(DFL.ToggleField, { label: t("showActivitiesInHome"), checked: showActivitiesInHome, onChange: (checked) => {
+    const scanRpcs3Trophies = async () => {
+        if (rpcs3BulkBusy || raBulkBusy || xboxBulkBusy || busy)
+            return;
+        const settings = await getAchievementSettings();
+        const sources = settings.achievement_sources || {};
+        const existingIds = settings.rpcs3?.trophy_ids || {};
+        const targets = games.filter((game) => {
+            const key = String(game.appid);
+            const source = sources[key] || "auto";
+            if (source === "disabled" || source === "xbox" || source === "retroachievements") {
+                return false;
+            }
+            if (existingIds[key])
+                return false;
+            return isLikelyRpcs3GameOption(game);
+        });
+        if (!targets.length) {
+            toaster.toast({ title: t("pluginName"), body: t("rpcs3BulkNothing") });
+            return;
+        }
+        setRpcs3BulkBusy(true);
+        setRpcs3BulkMessage(`${t("rpcs3BulkScanning")}: 0/${targets.length}`);
+        let assigned = 0;
+        let skipped = 0;
+        try {
+            for (let index = 0; index < targets.length; index += 1) {
+                const game = targets[index];
+                const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
+                setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkDetecting")}`);
+                try {
+                    const payload = await resolveRpcs3FromShortcut(game.appid, game.name, retroAchievementLaunchText(game));
+                    if (payload?.steam?.nTotal) {
+                        await setAchievementSource(game.appid, "rpcs3");
+                        applyAchievementPayload(game.appid, payload);
+                        assigned += 1;
+                        setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkAppliedOne")}`);
+                    }
+                    else {
+                        skipped += 1;
+                        setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkSkippedOne")}`);
+                    }
+                }
+                catch (_error) {
+                    skipped += 1;
+                    setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkSkippedOne")}`);
+                }
+            }
+            await refreshRaSettings();
+            setRpcs3BulkMessage(`${t("rpcs3BulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`);
+            toaster.toast({
+                title: t("pluginName"),
+                body: `${t("rpcs3BulkDone")}: ${assigned} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`,
+            });
+        }
+        finally {
+            setRpcs3BulkBusy(false);
+        }
+    };
+    const syncMatchedRpcs3Progress = async () => {
+        if (rpcs3BulkBusy || raBulkBusy || xboxBulkBusy || busy)
+            return;
+        const settings = await getAchievementSettings();
+        const sources = settings.achievement_sources || {};
+        const existingIds = settings.rpcs3?.trophy_ids || {};
+        const targets = games.filter((game) => {
+            const key = String(game.appid);
+            const source = sources[key] || "auto";
+            if (source === "disabled")
+                return false;
+            return Boolean(existingIds[key]);
+        });
+        if (!targets.length) {
+            toaster.toast({ title: t("pluginName"), body: t("rpcs3BulkNothing") });
+            return;
+        }
+        setRpcs3BulkBusy(true);
+        let synced = 0;
+        let skipped = 0;
+        try {
+            for (let index = 0; index < targets.length; index += 1) {
+                const game = targets[index];
+                const prefix = `${index + 1}/${targets.length} - ${game.name}`;
+                setBulkProgress({ completed: index, total: targets.length });
+                setRpcs3BulkMessage(`${prefix}: ${t("rpcs3SyncingProgress")}`);
+                try {
+                    const payload = await syncRpcs3Progress(game.appid);
+                    if (payload?.steam?.nTotal) {
+                        applyAchievementPayload(game.appid, payload);
+                        synced += 1;
+                        setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkAppliedOne")}`);
+                    }
+                    else {
+                        skipped += 1;
+                        setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkSkippedOne")}`);
+                    }
+                }
+                catch (_error) {
+                    skipped += 1;
+                    setRpcs3BulkMessage(`${prefix}: ${t("rpcs3BulkSkippedOne")}`);
+                }
+            }
+            await refreshRaSettings();
+            setRpcs3BulkMessage(`${t("rpcs3SyncDone")}: ${synced} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`);
+            toaster.toast({
+                title: t("pluginName"),
+                body: `${t("rpcs3SyncDone")}: ${synced} ${t("retroBulkApplied")}, ${skipped} ${t("retroBulkSkipped")}`,
+            });
+        }
+        finally {
+            setRpcs3BulkBusy(false);
+        }
+    };
+    const clearAllRpcs3Matches = async () => {
+        if (rpcs3BulkBusy || busy)
+            return;
+        setRpcs3BulkBusy(true);
+        try {
+            await clearRpcs3Associations();
+            clearAchievementsForApps(games.map((game) => game.appid));
+            await refreshRaSettings();
+            setRpcs3BulkMessage(t("rpcs3ClearAllDone"));
+            toaster.toast({ title: t("pluginName"), body: t("rpcs3ClearAllDone") });
+        }
+        finally {
+            setRpcs3BulkBusy(false);
+        }
+    };
+    return (SP_JSX.jsxs(DFL.PanelSection, { children: [SP_JSX.jsx("style", { children: `
+        .playhub-qam-dropdown {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .playhub-qam-dropdown > * {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+        .playhub-qam-dropdown button,
+        .playhub-qam-dropdown [role="button"] {
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: 100% !important;
+          box-sizing: border-box !important;
+        }
+      ` }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaDatabase, { size: 13 }), accent: PLAYHUB_ACCENTS.library, title: t("qamLibraryTitle"), style: qamCardSpacingStyle, children: [SP_JSX.jsxs("div", { style: statChipRowStyle, children: [SP_JSX.jsx(StatChip, { label: t("detected"), value: games.length }), SP_JSX.jsx(StatChip, { label: t("saved"), value: metadataCount, accent: "#7cc46f" }), SP_JSX.jsx(StatChip, { label: t("missing"), value: missing, accent: missing ? "#f2a33c" : undefined })] }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || !games.length, onClick: scanMissing, children: busy ? t("scanning") : t("scanMissing") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || !metadataCount, onClick: deleteAllMetadata, children: t("deleteAllMetadata") }), busy ? (SP_JSX.jsx(PlayhubProgressBar, { label: scanMessage || t("scanning"), completed: scanProgress.completed, total: scanProgress.total, busy: busy, accent: PLAYHUB_ACCENTS.library })) : scanMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: scanMessage })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaSearch, { size: 13 }), accent: PLAYHUB_ACCENTS.search, title: t("scraperTitle"), hint: t("scraperHint"), style: qamCardSpacingStyle, children: [SP_JSX.jsx("div", { style: cardSubheadingStyle, children: t("scraperSourceIgn") }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("scraperLanguage") }), SP_JSX.jsx(QamDropdown, { rgOptions: (scraper?.languages ?? ["en"]).map((code) => ({
+                                data: code,
+                                label: scraper?.language_labels?.[code] || code,
+                            })), selectedOption: scraper?.language ?? "en", onChange: (option) => void saveScraperSettings({ language: option.data }) }), SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("scraperTranslateIgn"), description: t("scraperTranslateIgnHint"), checked: scraper?.translate_ign ?? true, onChange: (checked) => void saveScraperSettings({ translate_ign: checked }) }), SP_JSX.jsx("div", { style: cardHintStyle, children: t("scraperRescanHint") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaNewspaper, { size: 13 }), accent: PLAYHUB_ACCENTS.activity, title: t("steamActivityTitle"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: activityBusy || busy || !games.length, onClick: refreshActivities, children: activityBusy ? t("refreshingActivities") : t("refreshActivities") }), activityBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: activityMessage || t("refreshingActivities"), completed: activityProgress.completed, total: activityProgress.total, busy: activityBusy, accent: PLAYHUB_ACCENTS.activity })) : activityMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: activityMessage })) : null, SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("showActivitiesInHome"), checked: showActivitiesInHome, onChange: (checked) => {
                                 setShowActivitiesInHome(checked);
                                 setShowActivitiesInHomeSetting(checked);
-                            } }), SP_JSX.jsx(DFL.SliderField, { label: t("homeActivityCount"), value: homeActivityCount, min: 1, max: PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, step: 1, notchCount: PLAYHUB_HOME_ACTIVITY_MAX_LIMIT, notchTicksVisible: true, showValue: true, onChange: (value) => {
-                                const clamped = setHomeActivityCountSetting(value);
+                            } }), SP_JSX.jsx(DFL.DropdownItem, { bottomSeparator: "none", label: t("homeActivityCount"), rgOptions: Array.from({ length: PLAYHUB_HOME_ACTIVITY_MAX_LIMIT }, (_, index) => ({ data: index + 1, label: String(index + 1) })), selectedOption: homeActivityCount, onChange: (option) => {
+                                const clamped = setHomeActivityCountSetting(Number(option.data));
                                 setHomeActivityCount(clamped);
-                            } }), SP_JSX.jsx("div", { style: compactTextStyle, children: t("homeActivityCountHint") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: resetHomeActivitiesToMostRecentSetting, children: t("homeActivityMostRecent") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: shuffleHomeActivitiesSetting, children: t("homeActivityShuffle") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("retroTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("retroEnabled"), checked: ra.enabled, onChange: (checked) => void saveRaSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("postPlayAchievementSyncEnabled"), checked: postPlayAchievementSyncEnabled, onChange: (checked) => {
-                        setPostPlayAchievementSyncEnabled(checked);
-                        setPostPlayAchievementSyncEnabledSetting(checked);
-                    } }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroLoginHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroUser") }), SP_JSX.jsx(DFL.TextField, { value: ra.username, onChange: (e) => setRa((prev) => ({ ...prev, username: e.target.value })), onBlur: () => void saveRaSettings({ username: ra.username }), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("retroKey") }), SP_JSX.jsx(DFL.TextField, { value: ra.api_key, onChange: (e) => setRa((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveRaSettings({ api_key: ra.api_key }), style: fieldStyle })] }) }), SP_JSX.jsxs(DFL.PanelSectionRow, { children: [SP_JSX.jsxs("div", { style: spacedButtonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testRaLogin, children: t("retroLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openRetroAchievements, children: t("retroCreateAccount") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: scanRetroAchievements, children: raBulkBusy ? t("retroBulkScanning") : t("retroBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: syncMatchedRetroAchievementsProgress, children: t("retroSyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length, onClick: clearAllRetroAchievementsMatches, children: t("retroClearAll") })] }), raBulkBusy || raBulkMessage ? (SP_JSX.jsxs("div", { style: inlineStatusStyle, children: [raBulkBusy ? SP_JSX.jsx(DFL.Spinner, {}) : null, SP_JSX.jsx("span", { children: raBulkMessage })] })) : null, SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: SP_JSX.jsx("b", { children: t("achievementCacheRetroTitle") }) }), SP_JSX.jsx("div", { style: buttonRowStyle, children: achievementCachePolicies.map((policy) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementCachePolicy("retroachievements", policy), style: {
-                                        opacity: retroAchievementCachePolicy === policy ? 1 : 0.72,
-                                        fontWeight: retroAchievementCachePolicy === policy ? 700 : 400,
-                                    }, children: t(`achievementCache_${policy}`) }, `ra-${policy}`))) })] })] }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: sectionHeadingStyle, children: t("xboxTitle") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: t("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("xboxProfile") }), SP_JSX.jsx(DFL.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? (SP_JSX.jsx("div", { style: compactTextStyle, children: xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn") })) : null] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: t("xboxLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: t("xboxOpenOpenXbl") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: t("xboxSyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || !games.length, onClick: clearAllXboxMatches, children: t("xboxClearAll") }), xboxBulkBusy || xboxBulkMessage ? (SP_JSX.jsxs("div", { style: inlineStatusStyle, children: [xboxBulkBusy ? SP_JSX.jsx(DFL.Spinner, {}) : null, SP_JSX.jsx("span", { children: xboxBulkMessage })] })) : null, SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: SP_JSX.jsx("b", { children: t("achievementCacheXboxTitle") }) }), SP_JSX.jsx("div", { style: buttonRowStyle, children: achievementCachePolicies.map((policy) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementCachePolicy("xbox", policy), style: {
-                                            opacity: xboxAchievementCachePolicy === policy ? 1 : 0.72,
-                                            fontWeight: xboxAchievementCachePolicy === policy ? 700 : 400,
-                                        }, children: t(`achievementCache_${policy}`) }, `xbox-${policy}`))) })] })] }) })] }));
+                            } }), SP_JSX.jsx("div", { style: cardHintStyle, children: t("homeActivityCountHint") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: resetHomeActivitiesToMostRecentSetting, children: t("homeActivityMostRecent") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: shuffleHomeActivitiesSetting, children: t("homeActivityShuffle") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(PlayhubCard, { icon: SP_JSX.jsx(FaBolt, { size: 13 }), accent: PLAYHUB_ACCENTS.achievements, title: t("qamAchievementsTitle"), hint: t("achievementAutoSyncHint"), style: qamCardSpacingStyle, children: SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("postPlayAchievementSyncEnabled"), description: t("postPlayAchievementSyncHint"), checked: postPlayAchievementSyncEnabled, onChange: (checked) => {
+                            setPostPlayAchievementSyncEnabled(checked);
+                            setPostPlayAchievementSyncEnabledSetting(checked);
+                        } }) }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaTrophy, { size: 13 }), accent: PLAYHUB_ACCENTS.ra, title: "RetroAchievements", hint: t("retroLoginHint"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("retroEnabled"), checked: ra.enabled, onChange: (checked) => void saveRaSettings({ enabled: checked }) }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("retroUser") }), SP_JSX.jsx(DFL.TextField, { value: ra.username, onChange: (e) => setRa((prev) => ({ ...prev, username: e.target.value })), onBlur: () => void saveRaSettings({ username: ra.username }), style: fieldStyle }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("retroKey") }), SP_JSX.jsx(DFL.TextField, { value: ra.api_key, onChange: (e) => setRa((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveRaSettings({ api_key: ra.api_key }), style: fieldStyle }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testRaLogin, children: t("retroLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openRetroAchievements, children: t("retroCreateAccount") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: scanRetroAchievements, children: raBulkBusy ? t("retroBulkScanning") : t("retroBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: syncMatchedRetroAchievementsProgress, children: t("retroSyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: clearAllRetroAchievementsMatches, children: t("retroClearAll") }), raBulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: raBulkMessage || t("retroBulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: raBulkBusy, accent: PLAYHUB_ACCENTS.ra })) : raBulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: raBulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheRetroTitle") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
+                                data: policy,
+                                label: t(`achievementCache_${policy}`),
+                            })), selectedOption: retroAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("retroachievements", option.data) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaXbox, { size: 13 }), accent: PLAYHUB_ACCENTS.xbox, title: t("xboxTitle"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("xboxProfile") }), SP_JSX.jsx(DFL.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? (SP_JSX.jsx("div", { style: cardHintStyle, children: xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn") })) : null, SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: t("xboxLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: t("xboxOpenOpenXbl") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: t("xboxSyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: clearAllXboxMatches, children: t("xboxClearAll") }), xboxBulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: xboxBulkMessage || t("xboxBulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: xboxBulkBusy, accent: PLAYHUB_ACCENTS.xbox })) : xboxBulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: xboxBulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheXboxTitle") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
+                                data: policy,
+                                label: t(`achievementCache_${policy}`),
+                            })), selectedOption: xboxAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("xbox", option.data) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: t("rpcs3Title"), hint: t("rpcs3SettingsHint"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: scanRpcs3Trophies, children: rpcs3BulkBusy ? t("rpcs3BulkScanning") : t("rpcs3BulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: syncMatchedRpcs3Progress, children: t("rpcs3SyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || !games.length, onClick: clearAllRpcs3Matches, children: t("rpcs3ClearAll") }), rpcs3BulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: rpcs3BulkMessage || t("rpcs3BulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: rpcs3BulkBusy, accent: PLAYHUB_ACCENTS.ps3 })) : rpcs3BulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: rpcs3BulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheRpcs3Title") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
+                                data: policy,
+                                label: t(`achievementCache_${policy}`),
+                            })), selectedOption: rpcs3AchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("rpcs3", option.data) })] }) })] }));
 };
 const MetadataPage = () => {
     const { appid } = DFL.useParams();
@@ -5446,6 +6308,12 @@ const MetadataPage = () => {
     const [xboxQuery, setXboxQuery] = SP_REACT.useState(appName(appId));
     const [xboxResults, setXboxResults] = SP_REACT.useState([]);
     const [xboxSearching, setXboxSearching] = SP_REACT.useState(false);
+    const [rpcs3TrophyId, setRpcs3TrophyIdState] = SP_REACT.useState("");
+    const [scraperLanguageOverride, setScraperLanguageOverrideState] = SP_REACT.useState("auto");
+    const [gameScraperSettings, setGameScraperSettings] = SP_REACT.useState(null);
+    const [rpcs3Query, setRpcs3Query] = SP_REACT.useState(appName(appId));
+    const [rpcs3Results, setRpcs3Results] = SP_REACT.useState([]);
+    const [rpcs3Searching, setRpcs3Searching] = SP_REACT.useState(false);
     const [steamActivityQuery, setSteamActivityQuery] = SP_REACT.useState(appName(appId));
     const [steamActivityBusy, setSteamActivityBusy] = SP_REACT.useState(false);
     const setFormMetadata = SP_REACT.useCallback((next) => {
@@ -5464,6 +6332,15 @@ const MetadataPage = () => {
         setRaGameId(settings.retroachievements.game_ids[String(appId)]?.toString() || "");
         setAchievementSourceState(settings.achievement_sources[String(appId)] || "auto");
         setXboxTitleIdState(settings.xbox.title_ids[String(appId)] || "");
+        setRpcs3TrophyIdState(settings.rpcs3?.trophy_ids?.[String(appId)] || "");
+        try {
+            const scraperSettings = await getScraperSettings();
+            setGameScraperSettings(scraperSettings);
+            setScraperLanguageOverrideState(scraperSettings.language_overrides?.[String(appId)] || "auto");
+        }
+        catch (_error) {
+            // Keep the defaults when settings are temporarily unavailable.
+        }
     }, [appId, setFormMetadata]);
     SP_REACT.useEffect(() => {
         void load();
@@ -5487,10 +6364,43 @@ const MetadataPage = () => {
         applyMetadata(appId);
         toaster.toast({ title: t("pluginName"), body: t("saved") });
     };
+    const saveScraperLanguageOverride = async (value) => {
+        try {
+            const overrides = await setScraperLanguageOverride(appId, value === "auto" ? "" : value);
+            setScraperLanguageOverrideState(overrides[String(appId)] || "auto");
+            toaster.toast({ title: t("pluginName"), body: t("saved") });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+    };
+    const refreshMetadataForGame = async () => {
+        setBusy(true);
+        try {
+            await setScraperLanguageOverride(appId, scraperLanguageOverride === "auto" ? "" : scraperLanguageOverride);
+            const latestScraperSettings = await getScraperSettings();
+            setGameScraperSettings(latestScraperSettings);
+            const fetched = await autoFetchMetadata(appId, query || metadata.title || appName(appId));
+            if (!fetched) {
+                toaster.toast({ title: t("pluginName"), body: t("noResults") });
+                return;
+            }
+            metadataCache[String(appId)] = fetched;
+            applyMetadata(appId);
+            setFormMetadata(fetched);
+            toaster.toast({ title: t("pluginName"), body: t("scraperGameRefreshDone") });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setBusy(false);
+        }
+    };
     const search = async () => {
         setBusy(true);
         try {
-            setResults(await searchMetadata(query, 8));
+            setResults(await searchMetadata(query, 8, appId));
         }
         catch (error) {
             toaster.toast({ title: t("pluginName"), body: String(error) });
@@ -5502,7 +6412,7 @@ const MetadataPage = () => {
     const applyResult = async (result) => {
         setBusy(true);
         try {
-            const fetched = await fetchMetadata(result.slug || result.url);
+            const fetched = await fetchMetadata(result.slug || result.url, appId);
             if (!fetched)
                 return;
             const saved = await saveMetadata(appId, fetched);
@@ -5515,11 +6425,28 @@ const MetadataPage = () => {
             setBusy(false);
         }
     };
-    const removeCurrent = async () => {
-        await removeMetadata(appId);
-        delete metadataCache[String(appId)];
-        setFormMetadata(metadataTemplate(appName(appId)));
-        toaster.toast({ title: t("pluginName"), body: t("removeToast") });
+    const performRemoveCurrent = async () => {
+        if (busy)
+            return;
+        setBusy(true);
+        try {
+            const currentMetadata = metadataCache[String(appId)] || metadata;
+            await removeMetadata(appId);
+            clearAppliedMetadata(appId, currentMetadata);
+            delete metadataCache[String(appId)];
+            setFormMetadata(metadataTemplate(appName(appId)));
+            window.dispatchEvent(new Event("playhub-metadata:updated"));
+            toaster.toast({ title: t("pluginName"), body: t("removeToast") });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setBusy(false);
+        }
+    };
+    const removeCurrent = () => {
+        DFL.showModal(SP_JSX.jsx(DFL.ConfirmModal, { strTitle: t("deleteMetadataConfirmTitle"), strDescription: t("deleteCurrentMetadataConfirm"), strOKButtonText: t("confirmYes"), strCancelButtonText: t("confirmNo"), bDestructiveWarning: true, onOK: () => void performRemoveCurrent() }));
     };
     const saveAchievementSource = async (source) => {
         await setAchievementSource(appId, source);
@@ -5687,6 +6614,71 @@ const MetadataPage = () => {
                 : t("xboxGameFailed"),
         });
     };
+    const autoDetectRpcs3Trophies = async () => {
+        const details = await getAppDetails(appId);
+        const launchPath = `${details?.strShortcutExe || ""} ${details?.strShortcutLaunchOptions || ""} ${details?.strShortcutStartDir || ""}`;
+        const payload = await resolveRpcs3FromShortcut(appId, appName(appId), launchPath);
+        applyAchievementPayload(appId, payload);
+        if (payload?.steam?.nTotal) {
+            await saveAchievementSource("rpcs3");
+            const settings = await getAchievementSettings();
+            setRpcs3TrophyIdState(settings.rpcs3?.trophy_ids?.[String(appId)] || "");
+            await refreshRaSettings();
+        }
+        toaster.toast({
+            title: t("pluginName"),
+            body: payload?.steam?.nTotal
+                ? `${t("rpcs3GameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
+                : t("rpcs3DetectFailed"),
+        });
+    };
+    const searchRpcs3 = async () => {
+        setRpcs3Searching(true);
+        try {
+            setRpcs3Results(await searchRpcs3TrophySets(rpcs3Query || appName(appId), 10, appId));
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setRpcs3Searching(false);
+        }
+    };
+    const useRpcs3Result = async (result) => {
+        const ids = await setRpcs3TrophyId(appId, result.id, result.path);
+        setRpcs3TrophyIdState(ids[String(appId)] || result.id);
+        await saveAchievementSource("rpcs3");
+        await refreshRaSettings();
+        clearAchievementsForApp(appId);
+        const payload = await fetchAchievements(appId);
+        applyAchievementPayload(appId, payload);
+        toaster.toast({
+            title: t("pluginName"),
+            body: payload?.steam?.nTotal
+                ? `${t("rpcs3GameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
+                : t("rpcs3GameFailed"),
+        });
+    };
+    const clearRpcs3Match = async () => {
+        const ids = await setRpcs3TrophyId(appId, "");
+        setRpcs3TrophyIdState(ids[String(appId)] || "");
+        clearAchievementsForApp(appId);
+        if (achievementSource === "rpcs3") {
+            await saveAchievementSource("auto");
+        }
+        await refreshRaSettings();
+        toaster.toast({ title: t("pluginName"), body: t("saved") });
+    };
+    const syncRpcs3ProgressForApp = async () => {
+        const payload = await syncRpcs3Progress(appId);
+        applyAchievementPayload(appId, payload);
+        toaster.toast({
+            title: t("pluginName"),
+            body: payload?.steam?.nTotal
+                ? `${t("rpcs3SyncProgressOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
+                : t("rpcs3SyncProgressFailed"),
+        });
+    };
     const syncXboxProgress = async () => {
         const payload = await syncTrueAchievementsProgress(appId);
         applyAchievementPayload(appId, payload);
@@ -5745,6 +6737,30 @@ const MetadataPage = () => {
             setSteamActivityBusy(false);
         }
     };
+    const toggleSteamActivityEnabled = async (enabled) => {
+        if (steamActivityBusy)
+            return;
+        setSteamActivityBusy(true);
+        try {
+            const saved = await setSteamActivityEnabled(appId, enabled, steamActivityQuery || metadata.title || appName(appId));
+            if (saved) {
+                metadataCache[String(appId)] = saved;
+                setFormMetadata(saved);
+                window.dispatchEvent(new Event("playhub-metadata:activity-refreshed"));
+                window.dispatchEvent(new Event("playhub-metadata:updated"));
+            }
+            toaster.toast({
+                title: t("pluginName"),
+                body: enabled ? t("steamActivityEnabledDone") : t("steamActivityDisabledDone"),
+            });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setSteamActivityBusy(false);
+        }
+    };
     const toggleCategory = (category, checked) => {
         setMetadata((prev) => {
             const next = new Set(prev.store_categories || []);
@@ -5755,30 +6771,40 @@ const MetadataPage = () => {
             return { ...prev, store_categories: Array.from(next) };
         });
     };
-    return (SP_JSX.jsx(DFL.ScrollPanel, { children: SP_JSX.jsxs("div", { style: pageStyle, children: [SP_JSX.jsxs(DFL.PanelSection, { title: `${t("pluginName")} - ${appName(appId)}`, children: [!nonSteam ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("notNonSteam") }) })) : null, SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveCurrent, children: t("save") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: removeCurrent, children: t("remove") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => DFL.Navigation.NavigateBack(), children: t("done") })] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("searchTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: query, onChange: (e) => setQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy, onClick: search, children: busy ? t("searching") : t("search") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [busy ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("searching") })) : null, !busy && !results.length ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("noResults") })) : null, results.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void applyResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsx("span", { style: compactTextStyle, children: result.description })] }) }, result.slug || result.url)))] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("source"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("title") }), SP_JSX.jsx(DFL.TextField, { value: metadata.title, onChange: (e) => setMetadata((prev) => ({ ...prev, title: e.target.value })), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("description") }), SP_JSX.jsx(DFL.Focusable, { style: { width: "100%" }, children: SP_JSX.jsx("textarea", { value: metadata.description, onChange: (e) => setMetadata((prev) => ({
-                                                ...prev,
-                                                description: e.target.value,
-                                                short_description: e.target.value,
-                                            })), style: {
-                                                width: "100%",
-                                                minHeight: "9rem",
-                                                boxSizing: "border-box",
-                                                resize: "vertical",
-                                                borderRadius: 4,
-                                                padding: 10,
-                                                color: "white",
-                                                background: "rgba(0,0,0,0.28)",
-                                                border: "1px solid rgba(255,255,255,0.18)",
-                                            } }) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("developers") }), SP_JSX.jsx(DFL.TextField, { value: developerText, onChange: (e) => setDeveloperText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("publishers") }), SP_JSX.jsx(DFL.TextField, { value: publisherText, onChange: (e) => setPublisherText(e.target.value), style: fieldStyle })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "8rem" }, children: [SP_JSX.jsx("label", { children: t("releaseDate") }), SP_JSX.jsx(DFL.TextField, { value: releaseText, onChange: (e) => setReleaseText(e.target.value), style: fieldStyle })] }), SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "7rem" }, children: [SP_JSX.jsx("label", { children: t("rating") }), SP_JSX.jsx(DFL.TextField, { value: ratingText, onChange: (e) => setRatingText(e.target.value), style: fieldStyle })] })] }) })] }), SP_JSX.jsx(DFL.PanelSection, { title: t("categories"), children: Object.entries(CATEGORY_LABELS).map(([category, label]) => (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx(DFL.ToggleField, { label: label, checked: (metadata.store_categories || []).includes(Number(category)), onChange: (checked) => toggleCategory(Number(category), checked) }) }, category))) }), SP_JSX.jsxs(DFL.PanelSection, { title: t("steamActivityTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("steamActivityHint") }), SP_JSX.jsx("div", { style: compactTextStyle, children: metadata.steam_activity_disabled
-                                            ? t("steamActivityDisabled")
-                                            : metadata.steam_appid
-                                                ? `${t("steamActivityCurrentMatch")}: ${metadata.steam_appid}${metadata.steam_news?.length ? ` - ${metadata.steam_news.length} ${t("steamActivityItems")}` : ""}`
-                                                : t("steamActivityNoCurrentMatch") })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("label", { children: t("steamActivitySearchTitle") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: steamActivityQuery, onChange: (e) => setSteamActivityQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy, onClick: refetchSteamActivityMatch, children: steamActivityBusy ? t("refreshingActivities") : t("steamActivityRefetch") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled), onClick: clearSteamActivityMatch, children: t("steamActivityClear") })] })] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("achievementSourceTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("achievementSourceHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: buttonRowStyle, children: ["auto", "retroachievements", "xbox", "disabled"].map((source) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: {
-                                        opacity: achievementSource === source ? 1 : 0.72,
-                                        fontWeight: achievementSource === source ? 700 : 400,
-                                    }, children: t(`achievementSource_${source}`) }, source))) }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("retroTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raGameId, onChange: (e) => setRaGameId(e.target.value), style: { ...flexFieldStyle, minWidth: "8rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveRaGameId, children: t("save") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectAchievements, children: t("retroGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testAchievements, children: t("retroGameTest") })] }) }), raSettings && !raSettings.enabled ? (SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: compactTextStyle, children: [t("retroEnabled"), ": Off"] }) })) : null, SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raQuery, onChange: (e) => setRaQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: raSearching, onClick: searchAchievements, children: raSearching ? t("searching") : t("retroGameSearch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [raSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !raSearching && !raResults.length ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("retroGameNoMatches") })) : null, raResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useAchievementResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [result.console ? `${result.console} - ` : "", Math.round(result.score * 100), "% match"] })] }) }, result.id)))] }) })] }), SP_JSX.jsxs(DFL.PanelSection, { title: t("xboxPerGameTitle"), children: [SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxHint") }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxCurrentMatch") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxTitleId, onChange: (e) => setXboxTitleIdState(e.target.value), style: { ...flexFieldStyle, minWidth: "18rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveXboxMatchManual, children: t("save") })] }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectXboxAchievements, children: t("xboxGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: !xboxTitleId, onClick: syncXboxProgress, children: t("xboxSyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: clearXboxMatch, children: t("xboxClearMatch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxQuery, onChange: (e) => setXboxQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: xboxSearching, onClick: searchXbox, children: xboxSearching ? t("searching") : t("xboxGameSearch") })] })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs("div", { style: resultsStackStyle, children: [xboxSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !xboxSearching && !xboxResults.length ? (SP_JSX.jsx("div", { style: compactTextStyle, children: t("xboxGameNoMatches") })) : null, xboxResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useXboxResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", result.unlocked != null && result.total != null
-                                                            ? ` - ${result.unlocked}/${result.total}`
-                                                            : "", result.gamerscore != null ? ` - ${result.gamerscore}G` : "", ` - ${result.source || "TrueAchievements"} - ${result.id}`] })] }) }, result.id)))] }) })] })] }) }));
+    return (SP_JSX.jsx(DFL.ScrollPanel, { children: SP_JSX.jsxs("div", { style: pageStyle, children: [SP_JSX.jsx("style", { children: `
+          .phShell{width:min(1560px,100%);margin:0 auto}
+          .phGrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start;width:100%}
+          .phCol{display:flex;flex-direction:column;gap:16px;min-width:0;width:100%}
+          @media(max-width:1120px){.phGrid{grid-template-columns:1fr}}
+        ` }), SP_JSX.jsxs("div", { className: "phShell", children: [SP_JSX.jsxs("div", { style: { display: "flex", alignItems: "center", gap: "14px", marginBottom: "6px", minWidth: 0 }, children: [SP_JSX.jsx("span", { style: {
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: "46px",
+                                        height: "46px",
+                                        borderRadius: "12px",
+                                        flex: "0 0 auto",
+                                        background: "color-mix(in srgb, #66c0f4 20%, transparent)",
+                                        color: "#66c0f4",
+                                    }, children: SP_JSX.jsx(FaIdCard, { size: 22 }) }), SP_JSX.jsxs("div", { style: { minWidth: 0 }, children: [SP_JSX.jsx("h1", { style: { margin: 0, fontSize: "28px", letterSpacing: "-.02em", lineHeight: 1.15 }, children: cleanTitle(metadata.title) || appName(appId) }), SP_JSX.jsx("div", { style: { marginTop: 3, opacity: 0.55, fontSize: "0.95em" }, children: [developerText, releaseText, ratingText ? `${ratingText}%` : ""].filter(Boolean).join("  •  ") || t("pluginName") })] })] }), !nonSteam ? SP_JSX.jsx("div", { style: { ...cardHintStyle, marginBottom: "8px" }, children: t("notNonSteam") }) : null, SP_JSX.jsxs("div", { style: { display: "flex", gap: "0.5rem", flexWrap: "wrap", margin: "10px 0 18px" }, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveCurrent, children: t("save") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy, onClick: removeCurrent, children: t("remove") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => DFL.Navigation.NavigateBack(), children: t("done") })] }), SP_JSX.jsxs(DFL.Focusable, { className: "phGrid", "flow-children": "grid", children: [SP_JSX.jsxs(DFL.Focusable, { className: "phCol", "flow-children": "vertical", children: [SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaIdCard, { size: 13 }), accent: PLAYHUB_ACCENTS.identity, title: t("metadataFieldsTitle"), children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("title") }), SP_JSX.jsx(DFL.TextField, { value: metadata.title, onChange: (e) => setMetadata((prev) => ({ ...prev, title: e.target.value })), style: fieldStyle }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("description") }), SP_JSX.jsx(DFL.TextField, { value: metadata.description, onChange: (e) => setMetadata((prev) => ({
+                                                        ...prev,
+                                                        description: e.target.value,
+                                                        short_description: e.target.value,
+                                                    })), style: fieldStyle }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("developers") }), SP_JSX.jsx(DFL.TextField, { value: developerText, onChange: (e) => setDeveloperText(e.target.value), style: fieldStyle }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("publishers") }), SP_JSX.jsx(DFL.TextField, { value: publisherText, onChange: (e) => setPublisherText(e.target.value), style: fieldStyle }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "8rem" }, children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("releaseDate") }), SP_JSX.jsx(DFL.TextField, { value: releaseText, onChange: (e) => setReleaseText(e.target.value), style: fieldStyle })] }), SP_JSX.jsxs("div", { style: { ...flexFieldStyle, minWidth: "7rem" }, children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("rating") }), SP_JSX.jsx(DFL.TextField, { value: ratingText, onChange: (e) => setRatingText(e.target.value), style: fieldStyle })] })] })] }), SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaSearch, { size: 13 }), accent: PLAYHUB_ACCENTS.search, title: t("searchTitle"), children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("scraperGameLanguage") }), SP_JSX.jsx(DFL.DropdownItem, { bottomSeparator: "none", childrenContainerWidth: "max", layout: "below", rgOptions: [
+                                                        { data: "auto", label: `${t("scraperLanguageAuto")} (${gameScraperSettings?.language_labels?.[gameScraperSettings?.language || "en"] || (gameScraperSettings?.language || "en")})` },
+                                                        ...(gameScraperSettings?.languages ?? ["en"]).map((code) => ({
+                                                            data: code,
+                                                            label: gameScraperSettings?.language_labels?.[code] || code,
+                                                        })),
+                                                    ], selectedOption: scraperLanguageOverride, onChange: (option) => void saveScraperLanguageOverride(option.data) }), SP_JSX.jsx("div", { style: cardHintStyle, children: gameScraperSettings?.translate_ign
+                                                        ? t("scraperGameTranslationEnabled")
+                                                        : t("scraperGameTranslationDisabled") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy, onClick: refreshMetadataForGame, children: busy ? t("searching") : t("scraperGameRefresh") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: query, onChange: (e) => setQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy, onClick: search, children: busy ? t("searching") : t("search") })] }), SP_JSX.jsxs("div", { style: rowStackStyle, children: [busy ? SP_JSX.jsx("div", { style: cardHintStyle, children: t("searching") }) : null, !busy && !results.length ? SP_JSX.jsx("div", { style: cardHintStyle, children: t("noResults") }) : null, results.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void applyResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsx("span", { style: compactTextStyle, children: result.description })] }) }, result.slug || result.url)))] })] }), SP_JSX.jsx(PlayhubCard, { icon: SP_JSX.jsx(FaTags, { size: 13 }), accent: PLAYHUB_ACCENTS.categories, title: t("categories"), children: Object.entries(CATEGORY_LABELS).map(([category, label]) => (SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: label, checked: (metadata.store_categories || []).includes(Number(category)), onChange: (checked) => toggleCategory(Number(category), checked) }, category))) }), SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaNewspaper, { size: 13 }), accent: PLAYHUB_ACCENTS.activity, title: t("steamActivityTitle"), hint: t("steamActivityHint"), children: [SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("steamActivityEnabledForGame"), description: t("steamActivityEnabledForGameHint"), checked: !metadata.steam_activity_disabled, disabled: steamActivityBusy, onChange: (checked) => void toggleSteamActivityEnabled(checked) }), SP_JSX.jsx("div", { style: cardSubheadingStyle, children: metadata.steam_activity_disabled
+                                                        ? t("steamActivityDisabled")
+                                                        : metadata.steam_appid
+                                                            ? `${t("steamActivityCurrentMatch")}: ${metadata.steam_appid}${metadata.steam_news?.length ? ` - ${metadata.steam_news.length} ${t("steamActivityItems")}` : ""}`
+                                                            : t("steamActivityNoCurrentMatch") }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("steamActivitySearchTitle") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: steamActivityQuery, onChange: (e) => setSteamActivityQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy, onClick: refetchSteamActivityMatch, children: steamActivityBusy ? t("refreshingActivities") : t("steamActivityRefetch") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled), onClick: clearSteamActivityMatch, children: t("steamActivityClear") })] })] })] }), SP_JSX.jsxs(DFL.Focusable, { className: "phCol", "flow-children": "vertical", children: [SP_JSX.jsx(PlayhubCard, { icon: SP_JSX.jsx(FaBolt, { size: 13 }), accent: PLAYHUB_ACCENTS.achievements, title: t("achievementSourceTitle"), hint: t("achievementSourceHint"), children: ["auto", "retroachievements", "xbox", "rpcs3", "disabled"].map((source) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: { ...optionButtonStyle, opacity: achievementSource === source ? 1 : 0.6 }, children: SP_JSX.jsxs("span", { style: optionContentStyle, children: [SP_JSX.jsx("span", { children: t(`achievementSource_${source}`) }), SP_JSX.jsx("span", { style: { marginLeft: "auto" }, children: achievementSource === source ? SP_JSX.jsx(FaCheck, {}) : null })] }) }, source))) }), SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaTrophy, { size: 13 }), accent: PLAYHUB_ACCENTS.ra, title: "RetroAchievements", hint: t("retroHint"), children: [raSettings && !raSettings.enabled ? (SP_JSX.jsxs("div", { style: cardHintStyle, children: [t("retroEnabled"), ": Off"] })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("retroGameId") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raGameId, onChange: (e) => setRaGameId(e.target.value), style: { ...flexFieldStyle, minWidth: "8rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveRaGameId, children: t("save") })] }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectAchievements, children: t("retroGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testAchievements, children: t("retroGameTest") })] }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("retroGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: raQuery, onChange: (e) => setRaQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: raSearching, onClick: searchAchievements, children: raSearching ? t("searching") : t("retroGameSearch") })] }), SP_JSX.jsxs("div", { style: rowStackStyle, children: [raSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !raSearching && !raResults.length ? (SP_JSX.jsx("div", { style: cardHintStyle, children: t("retroGameNoMatches") })) : null, raResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useAchievementResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [result.console ? `${result.console} - ` : "", Math.round(result.score * 100), "% match"] })] }) }, result.id)))] })] }), SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaXbox, { size: 13 }), accent: PLAYHUB_ACCENTS.xbox, title: t("xboxPerGameTitle"), hint: t("xboxHint"), children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("xboxCurrentMatch") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxTitleId, onChange: (e) => setXboxTitleIdState(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: saveXboxMatchManual, children: t("save") })] }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectXboxAchievements, children: t("xboxGameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: !xboxTitleId, onClick: syncXboxProgress, children: t("xboxSyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: clearXboxMatch, children: t("xboxClearMatch") })] }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("xboxGameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: xboxQuery, onChange: (e) => setXboxQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: xboxSearching, onClick: searchXbox, children: xboxSearching ? t("searching") : t("xboxGameSearch") })] }), SP_JSX.jsxs("div", { style: rowStackStyle, children: [xboxSearching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !xboxSearching && !xboxResults.length ? (SP_JSX.jsx("div", { style: cardHintStyle, children: t("xboxGameNoMatches") })) : null, xboxResults.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useXboxResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", result.unlocked != null && result.total != null
+                                                                                ? ` - ${result.unlocked}/${result.total}`
+                                                                                : "", result.gamerscore != null ? ` - ${result.gamerscore}G` : "", ` - ${result.source || "TrueAchievements"} - ${result.id}`] })] }) }, result.id)))] })] }), SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: t("rpcs3PerGameTitle"), hint: t("rpcs3Hint"), children: [SP_JSX.jsxs("div", { style: cardSubheadingStyle, children: [t("rpcs3CurrentMatch"), ": ", rpcs3TrophyId || t("none")] }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: autoDetectRpcs3Trophies, children: t("rpcs3GameDetect") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: !rpcs3TrophyId, onClick: syncRpcs3ProgressForApp, children: t("rpcs3SyncProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: clearRpcs3Match, children: t("rpcs3ClearMatch") })] }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("rpcs3GameSearchHint") }), SP_JSX.jsxs("div", { style: buttonRowStyle, children: [SP_JSX.jsx(DFL.TextField, { value: rpcs3Query, onChange: (e) => setRpcs3Query(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: rpcs3Searching, onClick: searchRpcs3, children: rpcs3Searching ? t("searching") : t("rpcs3GameSearch") })] }), SP_JSX.jsxs("div", { style: rowStackStyle, children: [rpcs3Searching ? SP_JSX.jsx(DFL.Spinner, {}) : null, !rpcs3Searching && !rpcs3Results.length ? (SP_JSX.jsx("div", { style: cardHintStyle, children: t("rpcs3GameNoMatches") })) : null, rpcs3Results.map((result) => (SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: () => void useRpcs3Result(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: SP_JSX.jsxs("div", { style: rowStackStyle, children: [SP_JSX.jsx("b", { children: result.title }), SP_JSX.jsxs("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", ` - ${result.unlocked}/${result.total}`, ` - ${result.id}`] })] }) }, result.path)))] })] })] })] })] })] }) }));
 };
 
 // Stable key for the entry we inject, so we can find and de-duplicate it.
@@ -5908,6 +6934,7 @@ const METADATA_ROUTE = "/playhub-metadata/:appid";
 var index = DFL.definePlugin(() => {
     void refreshMetadataCache();
     void refreshRaSettings();
+    void cleanupRetiredRpcs3ControllerOverrides();
     const unpatchSteam = installSteamPatches();
     const stopMetadataBootstrap = startMetadataBootstrap();
     const menuPatch = contextMenuPatch(LibraryContextMenu);
