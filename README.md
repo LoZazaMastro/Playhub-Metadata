@@ -70,6 +70,9 @@ Common RPCS3 locations (portable folder next to `rpcs3.exe`, EmuDeck installs,
 and custom `vfs.yml` configurations) are detected automatically. For PS3 games
 stored as ISO files, launch each title at least once so RPCS3 can create the local
 trophy data that Playhub Metadata reads.
+If EmuDeck stores `dev_hdd0` on another drive, open the RPCS3 card in the Quick
+Access menu and choose that data folder manually. The picker accepts the RPCS3
+root, `dev_hdd0`, `home`, a user folder, or the `trophy` folder itself.
 When that PS3 game closes, Playhub checks its local trophy data again even if
 no trophy set had been associated before the session.
 

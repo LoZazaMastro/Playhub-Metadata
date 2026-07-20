@@ -179,7 +179,18 @@ const STRINGS = {
     achievementSource_disabled: "Disabled",
     rpcs3Title: "PS3 trophies (RPCS3)",
     rpcs3SettingsHint:
-      "Trophies are read locally from RPCS3 (dev_hdd0). If your PS3 games are stored as ISO files, launch each game at least once before its trophies can be displayed.",
+      "Trophies are read locally from RPCS3 (dev_hdd0). You can choose a custom data folder when EmuDeck stores it on another drive.",
+    rpcs3DataPath: "RPCS3 data folder",
+    rpcs3DataPathHint:
+      "Choose this when EmuDeck stores dev_hdd0 separately. You can select the RPCS3 folder, dev_hdd0, home, a user folder or the trophy folder.",
+    rpcs3ChooseDataPath: "Choose folder",
+    rpcs3SaveDataPath: "Use this folder",
+    rpcs3ResetDataPath: "Use automatic detection",
+    rpcs3PathAutomatic: "RPCS3 folder: automatic detection",
+    rpcs3PathInvalid: "The selected folder does not exist.",
+    rpcs3PathSavedNoTrophies:
+      "Folder saved. No trophy sets were found yet; launch a PS3 game once.",
+    rpcs3PathSetsFound: "RPCS3 trophy sets found",
     rpcs3PerGameTitle: "PS3 trophies (RPCS3)",
     rpcs3Hint:
       "Playhub reads this game's trophies straight from your RPCS3 folder. If the game is stored as an ISO, launch it at least once before detecting its trophies. Use auto-detect for RPCS3 shortcuts, or pick the trophy set manually below.",
@@ -419,7 +430,18 @@ const STRINGS = {
     achievementSource_disabled: "Disabilitati",
     rpcs3Title: "Trofei PS3 (RPCS3)",
     rpcs3SettingsHint:
-      "I trofei vengono letti in locale da RPCS3 (dev_hdd0). Se i tuoi giochi PS3 sono in formato ISO, devi avviarli almeno una volta per visualizzarne i trofei.",
+      "I trofei vengono letti in locale da RPCS3 (dev_hdd0). Puoi scegliere una cartella dati personalizzata quando EmuDeck la sposta su un altro disco.",
+    rpcs3DataPath: "Cartella dati RPCS3",
+    rpcs3DataPathHint:
+      "Sceglila quando EmuDeck salva dev_hdd0 separatamente. Puoi selezionare la cartella RPCS3, dev_hdd0, home, una cartella utente o la cartella trophy.",
+    rpcs3ChooseDataPath: "Scegli cartella",
+    rpcs3SaveDataPath: "Usa questa cartella",
+    rpcs3ResetDataPath: "Usa il rilevamento automatico",
+    rpcs3PathAutomatic: "Cartella RPCS3: rilevamento automatico",
+    rpcs3PathInvalid: "La cartella selezionata non esiste.",
+    rpcs3PathSavedNoTrophies:
+      "Cartella salvata. Non sono ancora stati trovati set di trofei; avvia una volta un gioco PS3.",
+    rpcs3PathSetsFound: "set di trofei RPCS3 trovati",
     rpcs3PerGameTitle: "Trofei PS3 (RPCS3)",
     rpcs3Hint:
       "Playhub legge i trofei di questo gioco direttamente dalla cartella di RPCS3. Se il gioco è in formato ISO, avvialo almeno una volta prima di rilevarne i trofei. Usa il rilevamento automatico per i collegamenti RPCS3, o scegli il set di trofei manualmente qui sotto.",

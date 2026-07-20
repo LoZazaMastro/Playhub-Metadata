@@ -371,6 +371,37 @@ ROM_EXTENSIONS = {
     ".rpx",
 }
 
+# These containers need RetroAchievements' native platform-aware hasher. A raw
+# MD5 of the whole file is both inaccurate and extremely expensive for disc
+# images, so fall back to the console-scoped title index when no helper exists.
+RA_SPECIALIZED_HASH_EXTENSIONS = {
+    ".7z",
+    ".iso",
+    ".rvz",
+    ".wbfs",
+    ".chd",
+    ".cue",
+    ".img",
+    ".ciso",
+    ".cso",
+    ".cdi",
+    ".gdi",
+    ".m3u",
+    ".ecm",
+    ".mds",
+    ".pbp",
+    ".dump",
+    ".gz",
+    ".mdf",
+    ".gcm",
+    ".gcz",
+    ".wia",
+    ".wua",
+    ".wud",
+    ".wux",
+}
+RA_FALLBACK_HASH_MAX_BYTES = 128 * 1024 * 1024
+
 
 def now() -> int:
     return int(time.time())
@@ -385,8 +416,17 @@ class Plugin:
         self._activity_refresh_task: asyncio.Task[Any] | None = None
         self._activity_refresh_progress = self._new_scan_progress("idle")
         self._data = self._default_data()
+        self._data_file_signature: tuple[int, int] | None = None
         self._hash_library: dict[str, int] = {}
         self._ra_title_index: list[dict[str, Any]] = []
+        self._ra_title_indexes_by_console: dict[
+            tuple[str, tuple[int, ...]], list[dict[str, Any]]
+        ] = {}
+        self._ra_hash_helper_checked = False
+        self._ra_hash_helper_path: Path | None = None
+        self._ra_achievement_cache_lock = threading.RLock()
+        self._ra_achievement_cache_data: dict[str, Any] | None = None
+        self._ra_achievement_cache_signature: tuple[int, int] | None = None
         self._plugin_dir = Path(getattr(decky, "DECKY_PLUGIN_DIR", Path(__file__).parent))
         self._ra_index_file = self._settings_dir / "retroachievements_game_index.json"
         self._ra_hash_file = self._settings_dir / "retroachievements_hash_library.json"
@@ -822,11 +862,16 @@ class Plugin:
         self, enabled: bool, username: str, api_key: str
     ) -> dict[str, Any]:
         self._load_data()
+        previous = self._data["settings"].get("retroachievements") or {}
+        next_api_key = str(api_key or "").strip()
         self._data["settings"]["retroachievements"] = {
             "enabled": bool(enabled),
             "username": str(username or "").strip(),
-            "api_key": str(api_key or "").strip(),
+            "api_key": next_api_key,
         }
+        if str(previous.get("api_key") or "").strip() != next_api_key:
+            self._ra_title_index = []
+            self._ra_title_indexes_by_console = {}
         self._save_data()
         return await self.get_retroachievements_settings()
 
@@ -844,8 +889,11 @@ class Plugin:
         key = str(app_id)
         if game_id and int(game_id) > 0:
             self._data["ra_game_ids"][key] = int(game_id)
+            self._data["achievement_sources"][key] = "retroachievements"
         else:
             self._data["ra_game_ids"].pop(key, None)
+            if self._data["achievement_sources"].get(key) == "retroachievements":
+                self._data["achievement_sources"].pop(key, None)
         self._save_data()
         return self._data["ra_game_ids"]
 
@@ -883,6 +931,7 @@ class Plugin:
         self._load_data()
         ra = self._data["settings"].get("retroachievements") or {}
         xbox = self._data["settings"].get("xbox") or {}
+        rpcs3 = self._data["settings"].get("rpcs3") or {}
         achievement_cache = self._data["settings"].get("achievement_cache") or {}
         return {
             "retroachievements": {
@@ -902,6 +951,7 @@ class Plugin:
             "rpcs3": {
                 "enabled": True,
                 "trophy_ids": self._data["rpcs3_trophy_ids"],
+                "data_path": str(rpcs3.get("data_path") or ""),
             },
             "achievement_sources": self._data["achievement_sources"],
             "achievement_cache": {
@@ -1039,6 +1089,10 @@ class Plugin:
             decky.logger.error(f"Failed clearing RetroAchievements cache: {error}")
         self._hash_library = {}
         self._ra_title_index = []
+        self._ra_title_indexes_by_console = {}
+        with self._ra_achievement_cache_lock:
+            self._ra_achievement_cache_data = None
+            self._ra_achievement_cache_signature = None
         self._save_data()
         return await self.get_retroachievements_settings()
 
@@ -1148,9 +1202,72 @@ class Plugin:
 
     async def get_rpcs3_settings(self) -> dict[str, Any]:
         self._load_data()
+        return self._rpcs3_settings_response()
+
+    async def set_rpcs3_data_path(self, path: str = "") -> dict[str, Any]:
+        self._load_data()
+        cleaned = str(path or "").strip().strip('"')
+        resolved = ""
+        if cleaned:
+            try:
+                candidate = Path(os.path.expandvars(cleaned)).expanduser()
+                if not candidate.is_dir():
+                    result = self._rpcs3_settings_response()
+                    result.update({"ok": False, "error": "not_found"})
+                    return result
+                resolved = str(candidate.resolve())
+            except Exception as error:
+                decky.logger.error(f"Invalid RPCS3 data path {cleaned}: {error}")
+                result = self._rpcs3_settings_response()
+                result.update({"ok": False, "error": "not_found"})
+                return result
+
+        rpcs3 = self._data.setdefault("settings", {}).setdefault("rpcs3", {})
+        rpcs3["data_path"] = resolved
+        # Physical trophy locations may have moved to another drive. Keep the
+        # game-to-NPCOMMID matches, but force their paths to be resolved again.
+        self._data["rpcs3_trophy_dirs"] = {}
+        self._save_data()
+        result = self._rpcs3_settings_response()
+        result.update({"ok": True, "error": ""})
+        return result
+
+    def _rpcs3_settings_response(self) -> dict[str, Any]:
+        configured = self._rpcs3_configured_data_path()
+        configured_text = str(configured) if configured is not None else ""
+        valid = configured is None or configured.is_dir()
+        roots = [configured] if configured is not None and valid else self._rpcs3_known_roots()
+        trophy_dirs: list[Path] = []
+        seen: set[str] = set()
+        for root in roots:
+            for trophy_dir in self._rpcs3_trophy_user_dirs(root):
+                key = os.path.normcase(os.path.abspath(str(trophy_dir)))
+                if key not in seen:
+                    seen.add(key)
+                    trophy_dirs.append(trophy_dir)
+        trophy_sets = 0
+        for trophy_dir in trophy_dirs:
+            try:
+                trophy_sets += sum(
+                    1
+                    for child in trophy_dir.iterdir()
+                    if child.is_dir()
+                    and (
+                        (child / "TROPCONF.SFM").is_file()
+                        or (child / "TROPUSR.DAT").is_file()
+                    )
+                )
+            except Exception:
+                continue
         return {
             "enabled": True,
             "trophy_ids": self._data["rpcs3_trophy_ids"],
+            "data_path": configured_text,
+            "automatic": configured is None,
+            "data_path_valid": valid,
+            "data_path_ready": bool(trophy_dirs),
+            "trophy_set_count": trophy_sets,
+            "resolved_trophy_paths": [str(value) for value in trophy_dirs],
         }
 
     def _default_data(self) -> dict[str, Any]:
@@ -1180,6 +1297,9 @@ class Plugin:
                     "language": "en",
                     "translate_ign": True,
                 },
+                "rpcs3": {
+                    "data_path": "",
+                },
             },
             "ra_game_ids": {},
             "xbox_title_ids": {},
@@ -1196,6 +1316,10 @@ class Plugin:
             self._save_data()
             return
         try:
+            stat = self._data_file.stat()
+            signature = (int(stat.st_mtime_ns), int(stat.st_size))
+            if signature == self._data_file_signature:
+                return
             payload = json.loads(self._data_file.read_text(encoding="utf-8"))
         except Exception as error:
             decky.logger.error(f"Failed reading metadata settings: {error}")
@@ -1249,6 +1373,11 @@ class Plugin:
             scraper_settings.get("language") or "en"
         )
         scraper_settings["translate_ign"] = bool(scraper_settings.get("translate_ign", True))
+        rpcs3_settings = default["settings"].setdefault("rpcs3", {})
+        if not isinstance(rpcs3_settings, dict):
+            rpcs3_settings = {}
+            default["settings"]["rpcs3"] = rpcs3_settings
+        rpcs3_settings["data_path"] = str(rpcs3_settings.get("data_path") or "").strip()
         # Discard settings from pre-1.6.0 experimental scraper/config builds.
         for obsolete_key in ("source", "fallback_ign", "ss_user", "ss_password"):
             scraper_settings.pop(obsolete_key, None)
@@ -1303,6 +1432,7 @@ class Plugin:
                 }
             )
         self._data = default
+        self._data_file_signature = signature
 
     def _save_data(self) -> None:
         self._settings_dir.mkdir(parents=True, exist_ok=True)
@@ -1310,6 +1440,11 @@ class Plugin:
             json.dumps(self._data, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        try:
+            stat = self._data_file.stat()
+            self._data_file_signature = (int(stat.st_mtime_ns), int(stat.st_size))
+        except OSError:
+            self._data_file_signature = None
 
     def _new_scan_progress(self, status: str) -> dict[str, Any]:
         return {
@@ -3399,27 +3534,21 @@ class Plugin:
             decky.logger.error(f"Failed saving OpenXBL achievement cache: {error}")
 
     def _load_ra_achievement_cache(self, cache_key: str) -> Any | None:
-        try:
-            if not self._ra_achievement_cache_file.exists():
-                return None
-            cached = json.loads(self._ra_achievement_cache_file.read_text(encoding="utf-8"))
+        with self._ra_achievement_cache_lock:
+            cached = self._load_ra_achievement_cache_data_locked()
             entry = (cached.get("entries") or {}).get(cache_key)
             if self._achievement_cache_entry_is_fresh(entry, "retroachievements"):
                 return entry.get("payload")
-        except Exception as error:
-            decky.logger.error(f"Failed loading RetroAchievements achievement cache: {error}")
         return None
 
     def _save_ra_achievement_cache(self, cache_key: str, payload: Any) -> None:
-        try:
-            self._settings_dir.mkdir(parents=True, exist_ok=True)
-            cached: dict[str, Any] = {"entries": {}}
-            if self._ra_achievement_cache_file.exists():
-                raw = json.loads(self._ra_achievement_cache_file.read_text(encoding="utf-8"))
-                if isinstance(raw, dict):
-                    cached = raw
-            entries = cached.setdefault("entries", {})
-            if isinstance(entries, dict):
+        with self._ra_achievement_cache_lock:
+            try:
+                cached = self._load_ra_achievement_cache_data_locked()
+                entries = cached.setdefault("entries", {})
+                if not isinstance(entries, dict):
+                    entries = {}
+                    cached["entries"] = entries
                 if self._achievement_cache_policy("retroachievements") != "manual":
                     cutoff = now() - 30 * 24 * 60 * 60
                     for key in list(entries.keys()):
@@ -3427,11 +3556,81 @@ class Plugin:
                         if not isinstance(entry, dict) or int(entry.get("updated_at") or 0) < cutoff:
                             entries.pop(key, None)
                 entries[cache_key] = {"payload": payload, **self._achievement_cache_entry_meta()}
-            self._ra_achievement_cache_file.write_text(
-                json.dumps(cached, ensure_ascii=False), encoding="utf-8"
+                self._write_ra_achievement_cache_locked(cached)
+            except Exception as error:
+                decky.logger.error(f"Failed saving RetroAchievements achievement cache: {error}")
+
+    def _load_ra_achievement_cache_data_locked(self) -> dict[str, Any]:
+        signature: tuple[int, int] | None = None
+        try:
+            stat = self._ra_achievement_cache_file.stat()
+            signature = (int(stat.st_mtime_ns), int(stat.st_size))
+        except OSError:
+            pass
+        if (
+            self._ra_achievement_cache_data is not None
+            and signature == self._ra_achievement_cache_signature
+        ):
+            return self._ra_achievement_cache_data
+
+        cached: dict[str, Any] = {"entries": {}}
+        recovered = False
+        if signature is not None:
+            try:
+                raw = self._ra_achievement_cache_file.read_text(encoding="utf-8")
+                parsed = json.loads(raw)
+                if isinstance(parsed, dict):
+                    cached = parsed
+            except json.JSONDecodeError as error:
+                try:
+                    parsed, end = json.JSONDecoder().raw_decode(raw)
+                    if isinstance(parsed, dict) and raw[end:].strip():
+                        cached = parsed
+                        recovered = True
+                        decky.logger.error(
+                            "Recovered a truncated RetroAchievements achievement cache"
+                        )
+                    else:
+                        raise error
+                except Exception:
+                    decky.logger.error(
+                        f"Failed loading RetroAchievements achievement cache: {error}"
+                    )
+            except Exception as error:
+                decky.logger.error(
+                    f"Failed loading RetroAchievements achievement cache: {error}"
+                )
+        if not isinstance(cached.get("entries"), dict):
+            cached["entries"] = {}
+        self._ra_achievement_cache_data = cached
+        self._ra_achievement_cache_signature = signature
+        if recovered:
+            self._write_ra_achievement_cache_locked(cached)
+        return cached
+
+    def _write_ra_achievement_cache_locked(self, cached: dict[str, Any]) -> None:
+        self._settings_dir.mkdir(parents=True, exist_ok=True)
+        temp_file = self._ra_achievement_cache_file.with_name(
+            f".{self._ra_achievement_cache_file.name}.{os.getpid()}.{threading.get_ident()}.tmp"
+        )
+        try:
+            with temp_file.open("w", encoding="utf-8") as file:
+                json.dump(cached, file, ensure_ascii=False)
+                file.flush()
+                os.fsync(file.fileno())
+            os.replace(temp_file, self._ra_achievement_cache_file)
+            stat = self._ra_achievement_cache_file.stat()
+            self._ra_achievement_cache_data = cached
+            self._ra_achievement_cache_signature = (
+                int(stat.st_mtime_ns),
+                int(stat.st_size),
             )
-        except Exception as error:
-            decky.logger.error(f"Failed saving RetroAchievements achievement cache: {error}")
+        finally:
+            try:
+                if temp_file.exists():
+                    temp_file.unlink()
+            except OSError:
+                pass
 
     def _resolve_xbox_from_shortcut_sync(
         self, app_id: int, title: str = "", path: str = ""
@@ -6874,18 +7073,19 @@ try {
                         break
 
         if not game_id:
-            for fallback_title in self._retroachievements_title_candidates(
-                app_id, path, title, resolved
-            ):
-                game_id = self._resolve_ra_game_id_by_title(
-                    fallback_title, app_id=app_id, path=path, resolved=resolved
-                )
-                if game_id:
-                    break
+            game_id = self._resolve_ra_game_id_by_titles(
+                self._retroachievements_title_candidates(
+                    app_id, path, title, resolved
+                ),
+                app_id=app_id,
+                path=path,
+                resolved=resolved,
+            )
 
         if not game_id:
             return None
         self._data["ra_game_ids"][str(app_id)] = int(game_id)
+        self._data["achievement_sources"][str(app_id)] = "retroachievements"
         self._save_data()
         return self._fetch_ra_achievements_sync(app_id)
 
@@ -6896,13 +7096,49 @@ try {
         path: str = "",
         resolved: Path | None = None,
     ) -> int | None:
-        matches = self._search_retroachievements_games_sync(
-            title, 1, app_id=app_id, path=path, resolved=resolved
+        return self._resolve_ra_game_id_by_titles(
+            [title], app_id=app_id, path=path, resolved=resolved
         )
-        if not matches:
+
+    def _resolve_ra_game_id_by_titles(
+        self,
+        titles: list[str],
+        app_id: int = 0,
+        path: str = "",
+        resolved: Path | None = None,
+    ) -> int | None:
+        ra = self._data["settings"].get("retroachievements") or {}
+        api_key = str(ra.get("api_key") or "").strip()
+        if not ra.get("enabled") or not api_key:
             return None
-        best = matches[0]
-        return int(best["id"]) if float(best.get("score") or 0) >= 0.78 else None
+        context = path or (self._shortcut_launch_text_for_app(app_id) if app_id else "")
+        console_ids = self._ra_console_ids_for_context(
+            context, resolved, " ".join(titles)
+        )
+        index = self._load_ra_title_index(api_key, console_ids=console_ids)
+        targets = [
+            target
+            for target in dict.fromkeys(
+                self._normalise_match_title(title) for title in titles
+            )
+            if target
+        ]
+        if not index or not targets:
+            return None
+        best_id = 0
+        best_score = 0.0
+        for item in index:
+            candidate = str(item.get("match_title") or "")
+            if not candidate:
+                continue
+            for target in targets:
+                score = self._title_match_score(target, candidate)
+                if score > best_score:
+                    best_score = score
+                    best_id = int(item.get("id") or 0)
+                    if best_score >= 1.0:
+                        return best_id
+        return best_id if best_id > 0 and best_score >= 0.78 else None
 
     def _search_retroachievements_games_sync(
         self,
@@ -6960,6 +7196,16 @@ try {
             for console_id in dict.fromkeys(console_ids or [])
             if int(console_id or 0) > 0
         ]
+        memory_key = (api_key_hash, tuple(requested_console_ids))
+        if requested_console_ids and memory_key in self._ra_title_indexes_by_console:
+            return self._ra_title_indexes_by_console[memory_key]
+
+        def remember(games: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            cleaned = [game for game in games if game.get("match_title")]
+            if requested_console_ids:
+                self._ra_title_indexes_by_console[memory_key] = cleaned
+            return cleaned
+
         try:
             if self._ra_title_index and not requested_console_ids:
                 return self._ra_title_index
@@ -6986,7 +7232,7 @@ try {
                         else:
                             missing.append(console_id)
                     if not missing and games:
-                        return games
+                        return remember(games)
                     fetched = self._fetch_ra_console_games(api_key, missing)
                     for console_id, console_games in fetched.items():
                         games_by_console[str(console_id)] = {
@@ -6998,7 +7244,7 @@ try {
                     cached["api_key_hash"] = api_key_hash
                     cached["games_by_console"] = games_by_console
                     self._save_ra_title_cache(cached)
-                    return [game for game in games if game.get("match_title")]
+                    return remember(games)
                 if (
                     not requested_console_ids
                     and cached.get("api_key_hash") == api_key_hash
@@ -7041,7 +7287,7 @@ try {
                     "games": [],
                 }
             )
-            return [game for game in games if game.get("match_title")]
+            return remember(games)
 
         # Building a global RetroAchievements title index means dozens of API calls and
         # quickly hits rate limits. Use cached console indexes unless a game context
@@ -7589,7 +7835,7 @@ try {
             GOOGLE_TRANSLATE_URL,
             data=data,
             headers={
-                "User-Agent": "Mozilla/5.0 PlayhubMetadata/1.6.0",
+                "User-Agent": "Mozilla/5.0 PlayhubMetadata/1.8.0",
                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
             },
         )
@@ -7609,7 +7855,7 @@ try {
     def _translate_text_mymemory(self, text: str, target_language: str) -> str:
         url = f"{MYMEMORY_TRANSLATE_URL}?{urllib.parse.urlencode({'q': text, 'langpair': f'en|{target_language}'})}"
         request = urllib.request.Request(
-            url, headers={"User-Agent": "PlayhubMetadata/1.6.0"}
+            url, headers={"User-Agent": "PlayhubMetadata/1.8.0"}
         )
         context = ssl._create_unverified_context()
         with urllib.request.urlopen(request, timeout=20, context=context) as response:
@@ -7748,6 +7994,15 @@ try {
         candidates.append(home / "Emulation" / "emulators" / "RPCS3")
         return candidates
 
+    def _rpcs3_configured_data_path(self) -> Path | None:
+        try:
+            settings = self._data.get("settings") or {}
+            rpcs3 = settings.get("rpcs3") or {}
+            value = str(rpcs3.get("data_path") or "").strip()
+            return Path(value) if value else None
+        except Exception:
+            return None
+
     def _rpcs3_known_roots(self) -> list[Path]:
         roots: list[Path] = []
 
@@ -7758,6 +8013,9 @@ try {
             except Exception:
                 pass
 
+        configured = self._rpcs3_configured_data_path()
+        if configured is not None:
+            add(configured)
         for value in self._data.get("rpcs3_roots") or []:
             try:
                 add(Path(str(value)))
@@ -7836,10 +8094,28 @@ try {
 
     def _rpcs3_hdd0_dirs(self, root: Path) -> list[Path]:
         dirs: list[Path] = []
+
+        def add(path: Path) -> None:
+            try:
+                key = os.path.normcase(os.path.abspath(str(path)))
+                if path.is_dir() and all(
+                    os.path.normcase(os.path.abspath(str(existing))) != key
+                    for existing in dirs
+                ):
+                    dirs.append(path)
+            except Exception:
+                pass
+
+        # A manually selected path may already be dev_hdd0 instead of the
+        # emulator directory that contains it.
+        try:
+            if root.name.casefold() == "dev_hdd0" or (root / "home").is_dir():
+                add(root)
+        except Exception:
+            pass
         try:
             default = root / "dev_hdd0"
-            if default.is_dir():
-                dirs.append(default)
+            add(default)
         except Exception:
             pass
         # RPCS3 lets the virtual /dev_hdd0/ live anywhere via config/vfs.yml.
@@ -7855,25 +8131,45 @@ try {
                         "$(EmulatorDir)", f"{root}{os.sep}"
                     )
                     custom = Path(raw)
-                    if custom.is_dir() and all(
-                        str(custom) != str(existing) for existing in dirs
-                    ):
-                        dirs.append(custom)
+                    add(custom)
         except Exception:
             pass
         return dirs
 
     def _rpcs3_trophy_user_dirs(self, root: Path) -> list[Path]:
         result: list[Path] = []
+
+        def add(path: Path) -> None:
+            try:
+                key = os.path.normcase(os.path.abspath(str(path)))
+                if path.is_dir() and all(
+                    os.path.normcase(os.path.abspath(str(existing))) != key
+                    for existing in result
+                ):
+                    result.append(path)
+            except Exception:
+                pass
+
+        # Accept every useful level exposed by RPCS3 and EmuDeck: emulator
+        # root, dev_hdd0, home, user, trophy, or an individual trophy set.
+        try:
+            if root.name.casefold() == "trophy":
+                add(root)
+            if (root / "TROPCONF.SFM").is_file() or (root / "TROPUSR.DAT").is_file():
+                add(root.parent)
+            add(root / "trophy")
+            if root.name.casefold() == "home":
+                for user_dir in sorted(root.iterdir()):
+                    add(user_dir / "trophy")
+        except Exception:
+            pass
         for hdd0 in self._rpcs3_hdd0_dirs(root):
             home = hdd0 / "home"
             try:
                 if not home.is_dir():
                     continue
                 for user_dir in sorted(home.iterdir()):
-                    trophy_dir = user_dir / "trophy"
-                    if trophy_dir.is_dir():
-                        result.append(trophy_dir)
+                    add(user_dir / "trophy")
             except Exception:
                 continue
         return result
@@ -8810,45 +9106,53 @@ try {
         return [value for value in dict.fromkeys(candidates) if value]
 
     def _retroachievements_hash_candidates(self, path: Path) -> list[str]:
-        hashes: list[str] = []
-
         helper_hash = self._hash_with_native_helper(path)
         if helper_hash:
-            hashes.append(helper_hash)
+            return [helper_hash]
 
         if path.suffix.lower() == ".zip":
-            hashes.extend(self._zip_hash_candidates(path))
-        else:
-            hashes.extend(self._file_hash_candidates(path))
-
-        return [value for value in dict.fromkeys(hashes) if value]
+            return self._zip_hash_candidates(path)
+        try:
+            size = path.stat().st_size
+        except OSError:
+            return []
+        if (
+            path.suffix.lower() in RA_SPECIALIZED_HASH_EXTENSIONS
+            or size > RA_FALLBACK_HASH_MAX_BYTES
+        ):
+            return []
+        return self._file_hash_candidates(path)
 
     def _hash_with_native_helper(self, path: Path) -> str:
-        names = ["hash.exe", "hash"]
-        folders = [
-            self._plugin_dir / "bin",
-            self._plugin_dir / "backend",
-            self._plugin_dir,
-        ]
-        for folder in folders:
-            for name in names:
-                helper = folder / name
-                if not helper.exists() or not helper.is_file():
-                    continue
-                try:
-                    result = subprocess.run(
-                        [str(helper), str(path)],
-                        capture_output=True,
-                        text=True,
-                        timeout=60,
-                        check=True,
-                    )
-                except Exception as error:
-                    decky.logger.error(f"RetroAchievements hash helper failed: {error}")
-                    continue
+        if not self._ra_hash_helper_checked:
+            self._ra_hash_helper_checked = True
+            for folder in (
+                self._plugin_dir / "bin",
+                self._plugin_dir / "backend",
+                self._plugin_dir,
+            ):
+                for name in ("hash.exe", "hash"):
+                    helper = folder / name
+                    if helper.exists() and helper.is_file():
+                        self._ra_hash_helper_path = helper
+                        break
+                if self._ra_hash_helper_path:
+                    break
+        helper = self._ra_hash_helper_path
+        if helper:
+            try:
+                result = subprocess.run(
+                    [str(helper), str(path)],
+                    capture_output=True,
+                    text=True,
+                    timeout=60,
+                    check=True,
+                )
                 match = re.search(r"[0-9a-fA-F]{32}", result.stdout or "")
                 if match:
                     return match.group(0).lower()
+            except Exception as error:
+                decky.logger.error(f"RetroAchievements hash helper failed: {error}")
         return ""
 
     def _zip_hash_candidates(self, path: Path) -> list[str]:

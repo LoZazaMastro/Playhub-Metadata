@@ -3729,7 +3729,14 @@ const installActivityNewsDomPatch = (unpatchers: Unpatch[]) => {
   window.addEventListener("popstate", popstateListener);
   window.addEventListener("hashchange", hashchangeListener);
   window.addEventListener("playhub-metadata:updated", popstateListener);
-  const interval = window.setInterval(() => schedule(0), 500);
+  let lastFallbackRoute = currentRoutePath();
+  const interval = window.setInterval(() => {
+    const route = currentRoutePath();
+    if (route !== lastFallbackRoute) {
+      lastFallbackRoute = route;
+      schedule(0);
+    }
+  }, 1500);
   schedule(350);
   unpatchers.push(() => {
     cancelled = true;
@@ -3820,7 +3827,7 @@ const PlayhubActivityNewsOverlay = ({ appId, force = false, source = "route" }: 
       if (label) noteDetailsTabSelection(label);
       void refresh().catch((error) => console.warn("[Playhub Metadata] activity overlay click refresh failed", error));
     };
-    const timer = window.setInterval(updateListener, 750);
+    const timer = window.setInterval(updateListener, 1500);
     window.addEventListener("playhub-metadata:updated", updateListener);
     document.addEventListener("click", clickListener, true);
     window.addEventListener("scroll", updateListener, true);
@@ -5317,6 +5324,50 @@ const imageElement = (achievement: SteamAchievement, size = 96) => {
 };
 
 const XBOX_IMAGE_URL_RE = /(trueachievements|imagestore|xboxlive|xboxservices|microsoft|akamaized|store-images|dlassets)/i;
+const XBOX_IMAGE_SELECTOR = [
+  'img[src*="trueachievements" i]',
+  'img[src*="imagestore" i]',
+  'img[src*="xboxlive" i]',
+  'img[src*="xboxservices" i]',
+  'img[src*="microsoft" i]',
+  'img[src*="akamaized" i]',
+  'img[src*="store-images" i]',
+  'img[src*="dlassets" i]',
+  'img[srcset*="trueachievements" i]',
+  'img[srcset*="imagestore" i]',
+  'img[srcset*="xboxlive" i]',
+  'img[srcset*="xboxservices" i]',
+  'img[srcset*="microsoft" i]',
+  'img[srcset*="akamaized" i]',
+  'img[srcset*="store-images" i]',
+  'img[srcset*="dlassets" i]',
+].join(",");
+const XBOX_BACKGROUND_SELECTOR = [
+  '[style*="trueachievements" i][style*="background-image" i]',
+  '[style*="imagestore" i][style*="background-image" i]',
+  '[style*="xboxlive" i][style*="background-image" i]',
+  '[style*="xboxservices" i][style*="background-image" i]',
+  '[style*="microsoft" i][style*="background-image" i]',
+  '[style*="akamaized" i][style*="background-image" i]',
+  '[style*="store-images" i][style*="background-image" i]',
+  '[style*="dlassets" i][style*="background-image" i]',
+].join(",");
+
+const matchingElements = (root: ParentNode, selector: string): Element[] => {
+  const matches: Element[] = [];
+  if (root instanceof Element && root.matches(selector)) matches.push(root);
+  root.querySelectorAll?.(selector).forEach((node) => matches.push(node));
+  return matches;
+};
+
+const setImportantStyle = (element: HTMLElement, property: string, value: string) => {
+  if (
+    element.style.getPropertyValue(property) !== value ||
+    element.style.getPropertyPriority(property) !== "important"
+  ) {
+    element.style.setProperty(property, value, "important");
+  }
+};
 const isLikelyAchievementArtBox = (element: Element) => {
   const rect = (element as HTMLElement).getBoundingClientRect?.();
   if (!rect || rect.width < 18 || rect.height < 18) return false;
@@ -5328,34 +5379,34 @@ const isLikelyAchievementArtBox = (element: Element) => {
 
 const fixNativeAchievementImageStretch = (root: ParentNode = document) => {
   try {
-    root.querySelectorAll?.("img").forEach((node) => {
+    matchingElements(root, XBOX_IMAGE_SELECTOR).forEach((node) => {
       const img = node as HTMLImageElement;
       const src = img.currentSrc || img.src || img.srcset || img.getAttribute("src") || img.getAttribute("srcset") || "";
       const parent = img.parentElement as HTMLElement | null;
       const achievementArtTarget = isLikelyAchievementArtBox(img) || (!!parent && isLikelyAchievementArtBox(parent));
       if (!XBOX_IMAGE_URL_RE.test(src) || !achievementArtTarget) return;
       if (parent) {
-        parent.style.setProperty("overflow", "hidden", "important");
-        if (!parent.style.position) parent.style.setProperty("position", "relative", "important");
-        parent.style.setProperty("background-color", "rgba(0,0,0,0.18)", "important");
+        setImportantStyle(parent, "overflow", "hidden");
+        if (!parent.style.position) setImportantStyle(parent, "position", "relative");
+        setImportantStyle(parent, "background-color", "rgba(0,0,0,0.18)");
       }
-      img.style.setProperty("object-fit", "contain", "important");
-      img.style.setProperty("object-position", "center center", "important");
-      img.style.setProperty("width", "100%", "important");
-      img.style.setProperty("height", "100%", "important");
-      img.style.setProperty("max-width", "none", "important");
-      img.style.setProperty("max-height", "none", "important");
-      img.style.setProperty("display", "block", "important");
+      setImportantStyle(img, "object-fit", "contain");
+      setImportantStyle(img, "object-position", "center center");
+      setImportantStyle(img, "width", "100%");
+      setImportantStyle(img, "height", "100%");
+      setImportantStyle(img, "max-width", "none");
+      setImportantStyle(img, "max-height", "none");
+      setImportantStyle(img, "display", "block");
     });
 
-    root.querySelectorAll?.("*").forEach((node) => {
+    matchingElements(root, XBOX_BACKGROUND_SELECTOR).forEach((node) => {
       const el = node as HTMLElement;
       const bg = el.style?.backgroundImage || "";
       if (!bg || !XBOX_IMAGE_URL_RE.test(bg) || !isLikelyAchievementArtBox(el)) return;
-      el.style.setProperty("background-size", "contain", "important");
-      el.style.setProperty("background-position", "center center", "important");
-      el.style.setProperty("background-repeat", "no-repeat", "important");
-      el.style.setProperty("background-color", "rgba(0,0,0,0.18)", "important");
+      setImportantStyle(el, "background-size", "contain");
+      setImportantStyle(el, "background-position", "center center");
+      setImportantStyle(el, "background-repeat", "no-repeat");
+      setImportantStyle(el, "background-color", "rgba(0,0,0,0.18)");
     });
   } catch (_error) {
     // Best effort: Steam changes this DOM often.
@@ -5405,7 +5456,9 @@ const installAchievementImageCoverPatch = (unpatchers: Unpatch[]) => {
 
   const run = () => fixNativeAchievementImageStretch(document);
   run();
-  const interval = window.setInterval(run, 750);
+  const interval = window.setInterval(() => {
+    if (/achievement/i.test(currentRoutePath())) run();
+  }, 5000);
   unpatchers.push(() => window.clearInterval(interval));
 
   const observer = new MutationObserver((mutations) => {
@@ -5414,10 +5467,17 @@ const installAchievementImageCoverPatch = (unpatchers: Unpatch[]) => {
         if (node instanceof Element) fixNativeAchievementImageStretch(node);
       });
     }
-    run();
   });
-  observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "style", "class"] });
+  observer.observe(document.body, { childList: true, subtree: true });
   unpatchers.push(() => observer.disconnect());
+
+  const imageLoadListener = (event: Event) => {
+    if (event.target instanceof HTMLImageElement) {
+      fixNativeAchievementImageStretch(event.target);
+    }
+  };
+  document.addEventListener("load", imageLoadListener, true);
+  unpatchers.push(() => document.removeEventListener("load", imageLoadListener, true));
 
   window.addEventListener("playhub-metadata:achievements-updated", run);
   unpatchers.push(() => window.removeEventListener("playhub-metadata:achievements-updated", run));
@@ -5839,8 +5899,11 @@ export const installSteamPatches = (): Unpatch => {
   document.addEventListener("click", clickDetailsTabTracker, true);
   unpatchers.push(() => document.removeEventListener("click", clickDetailsTabTracker, true));
 
+  let lastRouteGuardPath = "";
   const routeGuard = () => {
     const path = currentRoutePath();
+    if (path === lastRouteGuardPath) return;
+    lastRouteGuardPath = path;
     const redirected = redirectAchievementTarget(path);
     if (redirected) {
       try {
@@ -5850,8 +5913,19 @@ export const installSteamPatches = (): Unpatch => {
       }
     }
   };
-  const routeGuardTimer = window.setInterval(routeGuard, 250);
-  unpatchers.push(() => window.clearInterval(routeGuardTimer));
+  routeGuard();
+  const routeGuardTimer = window.setInterval(routeGuard, 1000);
+  const routeGuardEvent = () => {
+    lastRouteGuardPath = "";
+    routeGuard();
+  };
+  window.addEventListener("popstate", routeGuardEvent);
+  window.addEventListener("hashchange", routeGuardEvent);
+  unpatchers.push(() => {
+    window.clearInterval(routeGuardTimer);
+    window.removeEventListener("popstate", routeGuardEvent);
+    window.removeEventListener("hashchange", routeGuardEvent);
+  });
 
   if (appStore?.GetAppOverviewByAppID) {
     unpatchers.push(

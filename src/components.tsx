@@ -14,7 +14,7 @@ import {
   showModal,
   useParams,
 } from "@decky/ui";
-import { toaster } from "@decky/api";
+import { openFilePicker, toaster } from "@decky/api";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   FaBolt,
@@ -35,6 +35,7 @@ import {
   getAchievementSettings,
   getMetadata,
   getRetroAchievementsSettings,
+  getRpcs3Settings,
   getScraperSettings,
   setScraperLanguageOverride,
   setScraperSettings,
@@ -53,6 +54,7 @@ import {
   setAchievementSource,
   setRetroAchievementsGameId,
   setRetroAchievementsSettings,
+  setRpcs3DataPath,
   setRpcs3TrophyId,
   setXboxSettings,
   setXboxTitleId,
@@ -86,6 +88,7 @@ import {
   getOverview,
   isNonSteamApp,
   metadataCache,
+  ensureMetadataCache,
   refreshMetadataCache,
   refreshRaSettings,
   isUwphookGameOption,
@@ -99,6 +102,7 @@ import {
   MetadataSearchResult,
   RetroAchievementsGameResult,
   RetroAchievementsSettings,
+  Rpcs3Settings,
   Rpcs3TrophySetResult,
   ScraperSettings,
   StoreCategory,
@@ -696,11 +700,10 @@ const setHomeActivityCountSetting = (count: number) => {
 const useNonSteamGames = () => {
   const [games, setGames] = useState<GameOption[]>([]);
   const loadGames = useCallback(async () => {
-    setGames(await allNonSteamGames());
+    const currentGames = await allNonSteamGames();
+    setGames(currentGames);
+    return currentGames;
   }, []);
-  useEffect(() => {
-    void loadGames();
-  }, [loadGames]);
   return { games, loadGames };
 };
 
@@ -720,19 +723,21 @@ export const Content = () => {
   const [raBulkMessage, setRaBulkMessage] = useState("");
   const [rpcs3BulkBusy, setRpcs3BulkBusy] = useState(false);
   const [rpcs3BulkMessage, setRpcs3BulkMessage] = useState("");
+  const [rpcs3PathBusy, setRpcs3PathBusy] = useState(false);
+  const [rpcs3Settings, setRpcs3SettingsState] = useState<Rpcs3Settings>({
+    enabled: true,
+    trophy_ids: {},
+    data_path: "",
+    automatic: true,
+    data_path_valid: true,
+    data_path_ready: false,
+    trophy_set_count: 0,
+  });
+  const [rpcs3PathDraft, setRpcs3PathDraft] = useState("");
   const [scraper, setScraper] = useState<ScraperSettings | null>(null);
   const [scanProgress, setScanProgress] = useState({ completed: 0, total: 0, phase: "idle", current_title: "" });
   const [activityProgress, setActivityProgress] = useState({ completed: 0, total: 0 });
   const [bulkProgress, setBulkProgress] = useState({ completed: 0, total: 0 });
-
-  useEffect(() => {
-    // The scraper choice lives in the backend settings file, so the dropdowns
-    // always reflect what is actually persisted.
-    void getScraperSettings()
-      .then(setScraper)
-      .catch(() => {});
-  }, []);
-
 
   const saveScraperSettings = async (
     next: Partial<{ language: string; translate_ign: boolean }>
@@ -770,19 +775,29 @@ export const Content = () => {
 
   const missing = Math.max(games.length - metadataCount, 0);
 
-  const refresh = useCallback(async () => {
-    await refreshMetadataCache();
-    await loadGames();
-    const currentGames = await allNonSteamGames();
+  const refresh = useCallback(async (forceMetadata = false) => {
+    const metadataRefresh = forceMetadata
+      ? refreshMetadataCache()
+      : ensureMetadataCache();
+    const [currentGames, achievementSettings, currentRpcs3Settings, currentScraper] =
+      await Promise.all([
+        loadGames(),
+        getAchievementSettings(),
+        getRpcs3Settings(),
+        getScraperSettings(),
+        metadataRefresh,
+      ]);
     setMetadataCount(
       currentGames.filter((game) => metadataCache[String(game.appid)]).length
     );
-    const achievementSettings = await getAchievementSettings();
+    setScraper(currentScraper);
     setRa(achievementSettings.retroachievements);
     setXbox(achievementSettings.xbox);
     setRetroAchievementCachePolicyState(achievementSettings.achievement_cache?.retroachievements_policy || achievementSettings.achievement_cache?.policy || "daily");
     setXboxAchievementCachePolicyState(achievementSettings.achievement_cache?.xbox_policy || achievementSettings.achievement_cache?.policy || "daily");
     setRpcs3AchievementCachePolicyState(achievementSettings.achievement_cache?.rpcs3_policy || "pc_session");
+    setRpcs3SettingsState(currentRpcs3Settings);
+    setRpcs3PathDraft(currentRpcs3Settings.data_path || "");
   }, [loadGames]);
 
   useEffect(() => {
@@ -807,7 +822,7 @@ export const Content = () => {
         setScanMessage(metadataScanLabel(progress));
         if (!progress.running) {
           window.clearInterval(interval);
-          await refresh();
+          await refresh(true);
           setBusy(false);
           toaster.toast({ title: t("pluginName"), body: t("scanComplete") });
         }
@@ -828,7 +843,7 @@ export const Content = () => {
         clearAppliedMetadata(Number(appIdText), metadata);
       });
       Object.keys(metadataCache).forEach((key) => delete metadataCache[key]);
-      await refresh();
+      await refresh(true);
       setScanMessage(t("deleteAllMetadataDone"));
       toaster.toast({ title: t("pluginName"), body: t("deleteAllMetadataDone") });
       window.dispatchEvent(new Event("playhub-metadata:updated"));
@@ -1020,25 +1035,11 @@ export const Content = () => {
         setBulkProgress({ completed: index, total: targets.length });
         setRaBulkMessage(`${prefix}: ${t("retroBulkDetecting")}`);
         try {
-          let payload = await resolveRetroAchievementsFromPath(
+          const payload = await resolveRetroAchievementsFromPath(
             game.appid,
             retroAchievementLaunchText(game),
             game.name
           );
-          if (!payload?.steam?.nTotal) {
-            setRaBulkMessage(`${prefix}: ${t("retroBulkSearching")}`);
-            const results = await searchRetroAchievementsGames(game.name, 8, game.appid);
-            const best = results[0];
-            if (best && best.score >= 0.78) {
-              await setRetroAchievementsGameId(game.appid, best.id);
-              await setAchievementSource(game.appid, "retroachievements");
-              clearAchievementsForApp(game.appid);
-              setRaBulkMessage(`${prefix}: ${t("retroBulkApplying")}`);
-              payload = await fetchAchievements(game.appid);
-            }
-          } else {
-            await setAchievementSource(game.appid, "retroachievements");
-          }
           if (payload?.steam?.nTotal) {
             applyAchievementPayload(game.appid, payload);
             assigned += 1;
@@ -1430,6 +1431,52 @@ export const Content = () => {
     }
   };
 
+  const applyRpcs3DataPath = async (path: string) => {
+    if (rpcs3PathBusy || rpcs3BulkBusy || busy) return;
+    setRpcs3PathBusy(true);
+    try {
+      const saved = await setRpcs3DataPath(path.trim());
+      setRpcs3SettingsState(saved);
+      if (saved.ok === false) {
+        toaster.toast({ title: t("pluginName"), body: t("rpcs3PathInvalid") });
+        return;
+      }
+      setRpcs3PathDraft(saved.data_path || "");
+      setRpcs3BulkMessage("");
+      toaster.toast({
+        title: t("pluginName"),
+        body: saved.automatic
+          ? t("rpcs3PathAutomatic")
+          : saved.data_path_ready
+            ? `${saved.trophy_set_count || 0} ${t("rpcs3PathSetsFound")}`
+            : t("rpcs3PathSavedNoTrophies"),
+      });
+    } catch (error) {
+      toaster.toast({ title: t("pluginName"), body: String(error) });
+    } finally {
+      setRpcs3PathBusy(false);
+    }
+  };
+
+  const chooseRpcs3DataPath = async () => {
+    if (rpcs3PathBusy || rpcs3BulkBusy || busy) return;
+    try {
+      const selected = await openFilePicker(
+        1,
+        rpcs3Settings.data_path || "C:\\",
+        false,
+        true
+      );
+      const path = selected?.realpath || selected?.path || "";
+      if (path) {
+        setRpcs3PathDraft(path);
+        await applyRpcs3DataPath(path);
+      }
+    } catch (_error) {
+      // Closing the picker is not an error.
+    }
+  };
+
   const syncMatchedRpcs3Progress = async () => {
     if (rpcs3BulkBusy || raBulkBusy || xboxBulkBusy || busy) return;
     const settings = await getAchievementSettings();
@@ -1776,6 +1823,50 @@ export const Content = () => {
 
       <PanelSectionRow>
         <PlayhubCard icon={<FaPlaystation size={13} />} accent={PLAYHUB_ACCENTS.ps3} title={t("rpcs3Title")} hint={t("rpcs3SettingsHint")} style={qamCardSpacingStyle}>
+          <div style={fieldLabelStyle}>{t("rpcs3DataPath")}</div>
+          <div style={cardHintStyle}>{t("rpcs3DataPathHint")}</div>
+          <TextField
+            value={rpcs3PathDraft}
+            disabled={rpcs3PathBusy || rpcs3BulkBusy || busy}
+            onChange={(event) => setRpcs3PathDraft(event.target.value)}
+          />
+          <FocusableButton
+            className="DialogButton"
+            disabled={rpcs3PathBusy || rpcs3BulkBusy || busy}
+            onClick={chooseRpcs3DataPath}
+          >
+            {t("rpcs3ChooseDataPath")}
+          </FocusableButton>
+          <FocusableButton
+            className="DialogButton"
+            disabled={
+              rpcs3PathBusy ||
+              rpcs3BulkBusy ||
+              busy ||
+              rpcs3PathDraft.trim() === (rpcs3Settings.data_path || "")
+            }
+            onClick={() => void applyRpcs3DataPath(rpcs3PathDraft)}
+          >
+            {t("rpcs3SaveDataPath")}
+          </FocusableButton>
+          {rpcs3Settings.data_path ? (
+            <FocusableButton
+              className="DialogButton"
+              disabled={rpcs3PathBusy || rpcs3BulkBusy || busy}
+              onClick={() => void applyRpcs3DataPath("")}
+            >
+              {t("rpcs3ResetDataPath")}
+            </FocusableButton>
+          ) : null}
+          <div style={inlineStatusStyle}>
+            {rpcs3Settings.automatic
+              ? t("rpcs3PathAutomatic")
+              : !rpcs3Settings.data_path_valid
+                ? t("rpcs3PathInvalid")
+                : rpcs3Settings.data_path_ready
+                  ? `${rpcs3Settings.trophy_set_count || 0} ${t("rpcs3PathSetsFound")}`
+                  : t("rpcs3PathSavedNoTrophies")}
+          </div>
           <FocusableButton
             className="DialogButton"
             disabled={busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length}
@@ -2032,7 +2123,7 @@ export const MetadataPage = () => {
       Number.isFinite(parsed) && parsed > 0 ? parsed : null
     );
     if (Number.isFinite(parsed) && parsed > 0) {
-      await saveAchievementSource("retroachievements");
+      setAchievementSourceState("retroachievements");
     }
     setRaSettings((prev) => (prev ? { ...prev, game_ids: ids } : prev));
     toaster.toast({ title: t("pluginName"), body: t("saved") });
@@ -2045,7 +2136,7 @@ export const MetadataPage = () => {
       return;
     }
     await setRetroAchievementsGameId(appId, parsed);
-    await saveAchievementSource("retroachievements");
+    setAchievementSourceState("retroachievements");
     await refreshRaSettings();
     const payload = await fetchAchievements(appId);
     applyAchievementPayload(appId, payload);
@@ -2074,7 +2165,7 @@ export const MetadataPage = () => {
     applyAchievementPayload(appId, payload);
     if (payload?.steam?.nTotal) {
       setRaGameId(String(payload.game_id));
-      await saveAchievementSource("retroachievements");
+      setAchievementSourceState("retroachievements");
       await refreshRaSettings();
     }
     toaster.toast({
@@ -2101,7 +2192,7 @@ export const MetadataPage = () => {
   const useAchievementResult = async (result: RetroAchievementsGameResult) => {
     setRaGameId(String(result.id));
     const ids = await setRetroAchievementsGameId(appId, result.id);
-    await saveAchievementSource("retroachievements");
+    setAchievementSourceState("retroachievements");
     setRaSettings((prev) => (prev ? { ...prev, game_ids: ids } : prev));
     await refreshRaSettings();
     const payload = await fetchAchievements(appId);

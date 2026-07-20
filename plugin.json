@@ -21,5 +21,5 @@
     "description": "Add clean game metadata, Steam activity news, RetroAchievements, RPCS3 (PS3) trophies and optional Xbox achievements to non-Steam games in Steam Gaming Mode.",
     "image": "https://opengraph.githubassets.com/1/SteamDeckHomebrew/PluginLoader"
   },
-  "version": "1.6.0"
+  "version": "1.8.0"
 }

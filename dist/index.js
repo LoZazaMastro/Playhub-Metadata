@@ -18,6 +18,7 @@ if (api._version != API_VERSION) {
 const callable = api.callable;
 const routerHook = api.routerHook;
 const toaster = api.toaster;
+const openFilePicker = api.openFilePicker;
 
 var DefaultContext = {
   color: undefined,
@@ -49,11 +50,9 @@ function GenIcon(data) {
 }
 function IconBase(props) {
   var elem = conf => {
-    var {
-        attr,
-        size,
-        title
-      } = props,
+    var attr = props.attr,
+      size = props.size,
+      title = props.title,
       svgProps = _objectWithoutProperties(props, _excluded);
     var computedSize = size || conf.size || "1em";
     var className;
@@ -141,6 +140,7 @@ const getScraperSettings = callable("get_scraper_settings");
 const setScraperLanguageOverride = callable("set_scraper_language_override");
 const setScraperSettings = callable("set_scraper_settings");
 const getRpcs3Settings = callable("get_rpcs3_settings");
+const setRpcs3DataPath = callable("set_rpcs3_data_path");
 const setRpcs3TrophyId = callable("set_rpcs3_trophy_id");
 const resolveRpcs3FromShortcut = callable("resolve_rpcs3_from_shortcut");
 const searchRpcs3TrophySets = callable("search_rpcs3_trophy_sets");
@@ -183,6 +183,7 @@ var backend = /*#__PURE__*/Object.freeze({
     setAchievementSource: setAchievementSource,
     setRetroAchievementsGameId: setRetroAchievementsGameId,
     setRetroAchievementsSettings: setRetroAchievementsSettings,
+    setRpcs3DataPath: setRpcs3DataPath,
     setRpcs3TrophyId: setRpcs3TrophyId,
     setScraperLanguageOverride: setScraperLanguageOverride,
     setScraperSettings: setScraperSettings,
@@ -364,7 +365,16 @@ const STRINGS = {
         achievementSource_rpcs3: "PS3 (RPCS3)",
         achievementSource_disabled: "Disabled",
         rpcs3Title: "PS3 trophies (RPCS3)",
-        rpcs3SettingsHint: "Trophies are read locally from RPCS3 (dev_hdd0). If your PS3 games are stored as ISO files, launch each game at least once before its trophies can be displayed.",
+        rpcs3SettingsHint: "Trophies are read locally from RPCS3 (dev_hdd0). You can choose a custom data folder when EmuDeck stores it on another drive.",
+        rpcs3DataPath: "RPCS3 data folder",
+        rpcs3DataPathHint: "Choose this when EmuDeck stores dev_hdd0 separately. You can select the RPCS3 folder, dev_hdd0, home, a user folder or the trophy folder.",
+        rpcs3ChooseDataPath: "Choose folder",
+        rpcs3SaveDataPath: "Use this folder",
+        rpcs3ResetDataPath: "Use automatic detection",
+        rpcs3PathAutomatic: "RPCS3 folder: automatic detection",
+        rpcs3PathInvalid: "The selected folder does not exist.",
+        rpcs3PathSavedNoTrophies: "Folder saved. No trophy sets were found yet; launch a PS3 game once.",
+        rpcs3PathSetsFound: "RPCS3 trophy sets found",
         rpcs3PerGameTitle: "PS3 trophies (RPCS3)",
         rpcs3Hint: "Playhub reads this game's trophies straight from your RPCS3 folder. If the game is stored as an ISO, launch it at least once before detecting its trophies. Use auto-detect for RPCS3 shortcuts, or pick the trophy set manually below.",
         rpcs3CurrentMatch: "Current trophy set",
@@ -585,7 +595,16 @@ const STRINGS = {
         achievementSource_rpcs3: "PS3 (RPCS3)",
         achievementSource_disabled: "Disabilitati",
         rpcs3Title: "Trofei PS3 (RPCS3)",
-        rpcs3SettingsHint: "I trofei vengono letti in locale da RPCS3 (dev_hdd0). Se i tuoi giochi PS3 sono in formato ISO, devi avviarli almeno una volta per visualizzarne i trofei.",
+        rpcs3SettingsHint: "I trofei vengono letti in locale da RPCS3 (dev_hdd0). Puoi scegliere una cartella dati personalizzata quando EmuDeck la sposta su un altro disco.",
+        rpcs3DataPath: "Cartella dati RPCS3",
+        rpcs3DataPathHint: "Sceglila quando EmuDeck salva dev_hdd0 separatamente. Puoi selezionare la cartella RPCS3, dev_hdd0, home, una cartella utente o la cartella trophy.",
+        rpcs3ChooseDataPath: "Scegli cartella",
+        rpcs3SaveDataPath: "Usa questa cartella",
+        rpcs3ResetDataPath: "Usa il rilevamento automatico",
+        rpcs3PathAutomatic: "Cartella RPCS3: rilevamento automatico",
+        rpcs3PathInvalid: "La cartella selezionata non esiste.",
+        rpcs3PathSavedNoTrophies: "Cartella salvata. Non sono ancora stati trovati set di trofei; avvia una volta un gioco PS3.",
+        rpcs3PathSetsFound: "set di trofei RPCS3 trovati",
         rpcs3PerGameTitle: "Trofei PS3 (RPCS3)",
         rpcs3Hint: "Playhub legge i trofei di questo gioco direttamente dalla cartella di RPCS3. Se il gioco è in formato ISO, avvialo almeno una volta prima di rilevarne i trofei. Usa il rilevamento automatico per i collegamenti RPCS3, o scegli il set di trofei manualmente qui sotto.",
         rpcs3CurrentMatch: "Set di trofei attuale",
@@ -4221,6 +4240,47 @@ const imageElement = (achievement, size = 96) => {
     return SP_REACT.createElement("div", { className: "playhub-achievement-art", style: wrapperStyle }, src ? SP_REACT.createElement("img", { src, style: imgStyle, referrerPolicy: "no-referrer" }) : null);
 };
 const XBOX_IMAGE_URL_RE = /(trueachievements|imagestore|xboxlive|xboxservices|microsoft|akamaized|store-images|dlassets)/i;
+const XBOX_IMAGE_SELECTOR = [
+    'img[src*="trueachievements" i]',
+    'img[src*="imagestore" i]',
+    'img[src*="xboxlive" i]',
+    'img[src*="xboxservices" i]',
+    'img[src*="microsoft" i]',
+    'img[src*="akamaized" i]',
+    'img[src*="store-images" i]',
+    'img[src*="dlassets" i]',
+    'img[srcset*="trueachievements" i]',
+    'img[srcset*="imagestore" i]',
+    'img[srcset*="xboxlive" i]',
+    'img[srcset*="xboxservices" i]',
+    'img[srcset*="microsoft" i]',
+    'img[srcset*="akamaized" i]',
+    'img[srcset*="store-images" i]',
+    'img[srcset*="dlassets" i]',
+].join(",");
+const XBOX_BACKGROUND_SELECTOR = [
+    '[style*="trueachievements" i][style*="background-image" i]',
+    '[style*="imagestore" i][style*="background-image" i]',
+    '[style*="xboxlive" i][style*="background-image" i]',
+    '[style*="xboxservices" i][style*="background-image" i]',
+    '[style*="microsoft" i][style*="background-image" i]',
+    '[style*="akamaized" i][style*="background-image" i]',
+    '[style*="store-images" i][style*="background-image" i]',
+    '[style*="dlassets" i][style*="background-image" i]',
+].join(",");
+const matchingElements = (root, selector) => {
+    const matches = [];
+    if (root instanceof Element && root.matches(selector))
+        matches.push(root);
+    root.querySelectorAll?.(selector).forEach((node) => matches.push(node));
+    return matches;
+};
+const setImportantStyle = (element, property, value) => {
+    if (element.style.getPropertyValue(property) !== value ||
+        element.style.getPropertyPriority(property) !== "important") {
+        element.style.setProperty(property, value, "important");
+    }
+};
 const isLikelyAchievementArtBox = (element) => {
     const rect = element.getBoundingClientRect?.();
     if (!rect || rect.width < 18 || rect.height < 18)
@@ -4232,7 +4292,7 @@ const isLikelyAchievementArtBox = (element) => {
 };
 const fixNativeAchievementImageStretch = (root = document) => {
     try {
-        root.querySelectorAll?.("img").forEach((node) => {
+        matchingElements(root, XBOX_IMAGE_SELECTOR).forEach((node) => {
             const img = node;
             const src = img.currentSrc || img.src || img.srcset || img.getAttribute("src") || img.getAttribute("srcset") || "";
             const parent = img.parentElement;
@@ -4240,28 +4300,28 @@ const fixNativeAchievementImageStretch = (root = document) => {
             if (!XBOX_IMAGE_URL_RE.test(src) || !achievementArtTarget)
                 return;
             if (parent) {
-                parent.style.setProperty("overflow", "hidden", "important");
+                setImportantStyle(parent, "overflow", "hidden");
                 if (!parent.style.position)
-                    parent.style.setProperty("position", "relative", "important");
-                parent.style.setProperty("background-color", "rgba(0,0,0,0.18)", "important");
+                    setImportantStyle(parent, "position", "relative");
+                setImportantStyle(parent, "background-color", "rgba(0,0,0,0.18)");
             }
-            img.style.setProperty("object-fit", "contain", "important");
-            img.style.setProperty("object-position", "center center", "important");
-            img.style.setProperty("width", "100%", "important");
-            img.style.setProperty("height", "100%", "important");
-            img.style.setProperty("max-width", "none", "important");
-            img.style.setProperty("max-height", "none", "important");
-            img.style.setProperty("display", "block", "important");
+            setImportantStyle(img, "object-fit", "contain");
+            setImportantStyle(img, "object-position", "center center");
+            setImportantStyle(img, "width", "100%");
+            setImportantStyle(img, "height", "100%");
+            setImportantStyle(img, "max-width", "none");
+            setImportantStyle(img, "max-height", "none");
+            setImportantStyle(img, "display", "block");
         });
-        root.querySelectorAll?.("*").forEach((node) => {
+        matchingElements(root, XBOX_BACKGROUND_SELECTOR).forEach((node) => {
             const el = node;
             const bg = el.style?.backgroundImage || "";
             if (!bg || !XBOX_IMAGE_URL_RE.test(bg) || !isLikelyAchievementArtBox(el))
                 return;
-            el.style.setProperty("background-size", "contain", "important");
-            el.style.setProperty("background-position", "center center", "important");
-            el.style.setProperty("background-repeat", "no-repeat", "important");
-            el.style.setProperty("background-color", "rgba(0,0,0,0.18)", "important");
+            setImportantStyle(el, "background-size", "contain");
+            setImportantStyle(el, "background-position", "center center");
+            setImportantStyle(el, "background-repeat", "no-repeat");
+            setImportantStyle(el, "background-color", "rgba(0,0,0,0.18)");
         });
     }
     catch (_error) {
@@ -4310,7 +4370,10 @@ const installAchievementImageCoverPatch = (unpatchers) => {
     unpatchers.push(() => style.remove());
     const run = () => fixNativeAchievementImageStretch(document);
     run();
-    const interval = window.setInterval(run, 750);
+    const interval = window.setInterval(() => {
+        if (/achievement/i.test(currentRoutePath()))
+            run();
+    }, 5000);
     unpatchers.push(() => window.clearInterval(interval));
     const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
@@ -4319,10 +4382,16 @@ const installAchievementImageCoverPatch = (unpatchers) => {
                     fixNativeAchievementImageStretch(node);
             });
         }
-        run();
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["src", "style", "class"] });
+    observer.observe(document.body, { childList: true, subtree: true });
     unpatchers.push(() => observer.disconnect());
+    const imageLoadListener = (event) => {
+        if (event.target instanceof HTMLImageElement) {
+            fixNativeAchievementImageStretch(event.target);
+        }
+    };
+    document.addEventListener("load", imageLoadListener, true);
+    unpatchers.push(() => document.removeEventListener("load", imageLoadListener, true));
     window.addEventListener("playhub-metadata:achievements-updated", run);
     unpatchers.push(() => window.removeEventListener("playhub-metadata:achievements-updated", run));
 };
@@ -4652,8 +4721,12 @@ const installSteamPatches = () => {
     };
     document.addEventListener("click", clickDetailsTabTracker, true);
     unpatchers.push(() => document.removeEventListener("click", clickDetailsTabTracker, true));
+    let lastRouteGuardPath = "";
     const routeGuard = () => {
         const path = currentRoutePath();
+        if (path === lastRouteGuardPath)
+            return;
+        lastRouteGuardPath = path;
         const redirected = redirectAchievementTarget(path);
         if (redirected) {
             try {
@@ -4664,8 +4737,19 @@ const installSteamPatches = () => {
             }
         }
     };
-    const routeGuardTimer = window.setInterval(routeGuard, 250);
-    unpatchers.push(() => window.clearInterval(routeGuardTimer));
+    routeGuard();
+    const routeGuardTimer = window.setInterval(routeGuard, 1000);
+    const routeGuardEvent = () => {
+        lastRouteGuardPath = "";
+        routeGuard();
+    };
+    window.addEventListener("popstate", routeGuardEvent);
+    window.addEventListener("hashchange", routeGuardEvent);
+    unpatchers.push(() => {
+        window.clearInterval(routeGuardTimer);
+        window.removeEventListener("popstate", routeGuardEvent);
+        window.removeEventListener("hashchange", routeGuardEvent);
+    });
     if (appStore?.GetAppOverviewByAppID) {
         unpatchers.push(patchMethod(appStore, "GetAppOverviewByAppID", (_thisValue, original, args) => {
             const requestedAppId = Number(args[0]);
@@ -5479,11 +5563,10 @@ const setHomeActivityCountSetting = (count) => {
 const useNonSteamGames = () => {
     const [games, setGames] = SP_REACT.useState([]);
     const loadGames = SP_REACT.useCallback(async () => {
-        setGames(await allNonSteamGames());
+        const currentGames = await allNonSteamGames();
+        setGames(currentGames);
+        return currentGames;
     }, []);
-    SP_REACT.useEffect(() => {
-        void loadGames();
-    }, [loadGames]);
     return { games, loadGames };
 };
 const Content = () => {
@@ -5502,17 +5585,21 @@ const Content = () => {
     const [raBulkMessage, setRaBulkMessage] = SP_REACT.useState("");
     const [rpcs3BulkBusy, setRpcs3BulkBusy] = SP_REACT.useState(false);
     const [rpcs3BulkMessage, setRpcs3BulkMessage] = SP_REACT.useState("");
+    const [rpcs3PathBusy, setRpcs3PathBusy] = SP_REACT.useState(false);
+    const [rpcs3Settings, setRpcs3SettingsState] = SP_REACT.useState({
+        enabled: true,
+        trophy_ids: {},
+        data_path: "",
+        automatic: true,
+        data_path_valid: true,
+        data_path_ready: false,
+        trophy_set_count: 0,
+    });
+    const [rpcs3PathDraft, setRpcs3PathDraft] = SP_REACT.useState("");
     const [scraper, setScraper] = SP_REACT.useState(null);
     const [scanProgress, setScanProgress] = SP_REACT.useState({ completed: 0, total: 0, phase: "idle", current_title: "" });
     const [activityProgress, setActivityProgress] = SP_REACT.useState({ completed: 0, total: 0 });
     const [bulkProgress, setBulkProgress] = SP_REACT.useState({ completed: 0, total: 0 });
-    SP_REACT.useEffect(() => {
-        // The scraper choice lives in the backend settings file, so the dropdowns
-        // always reflect what is actually persisted.
-        void getScraperSettings()
-            .then(setScraper)
-            .catch(() => { });
-    }, []);
     const saveScraperSettings = async (next) => {
         try {
             const saved = await setScraperSettings(next.language ?? scraper?.language ?? "", next.translate_ign ?? null);
@@ -5540,17 +5627,26 @@ const Content = () => {
     const [xboxAchievementCachePolicy, setXboxAchievementCachePolicyState] = SP_REACT.useState("daily");
     const [rpcs3AchievementCachePolicy, setRpcs3AchievementCachePolicyState] = SP_REACT.useState("pc_session");
     const missing = Math.max(games.length - metadataCount, 0);
-    const refresh = SP_REACT.useCallback(async () => {
-        await refreshMetadataCache();
-        await loadGames();
-        const currentGames = await allNonSteamGames();
+    const refresh = SP_REACT.useCallback(async (forceMetadata = false) => {
+        const metadataRefresh = forceMetadata
+            ? refreshMetadataCache()
+            : ensureMetadataCache();
+        const [currentGames, achievementSettings, currentRpcs3Settings, currentScraper] = await Promise.all([
+            loadGames(),
+            getAchievementSettings(),
+            getRpcs3Settings(),
+            getScraperSettings(),
+            metadataRefresh,
+        ]);
         setMetadataCount(currentGames.filter((game) => metadataCache[String(game.appid)]).length);
-        const achievementSettings = await getAchievementSettings();
+        setScraper(currentScraper);
         setRa(achievementSettings.retroachievements);
         setXbox(achievementSettings.xbox);
         setRetroAchievementCachePolicyState(achievementSettings.achievement_cache?.retroachievements_policy || achievementSettings.achievement_cache?.policy || "daily");
         setXboxAchievementCachePolicyState(achievementSettings.achievement_cache?.xbox_policy || achievementSettings.achievement_cache?.policy || "daily");
         setRpcs3AchievementCachePolicyState(achievementSettings.achievement_cache?.rpcs3_policy || "pc_session");
+        setRpcs3SettingsState(currentRpcs3Settings);
+        setRpcs3PathDraft(currentRpcs3Settings.data_path || "");
     }, [loadGames]);
     SP_REACT.useEffect(() => {
         void refresh();
@@ -5574,7 +5670,7 @@ const Content = () => {
                 setScanMessage(metadataScanLabel(progress));
                 if (!progress.running) {
                     window.clearInterval(interval);
-                    await refresh();
+                    await refresh(true);
                     setBusy(false);
                     toaster.toast({ title: t("pluginName"), body: t("scanComplete") });
                 }
@@ -5596,7 +5692,7 @@ const Content = () => {
                 clearAppliedMetadata(Number(appIdText), metadata);
             });
             Object.keys(metadataCache).forEach((key) => delete metadataCache[key]);
-            await refresh();
+            await refresh(true);
             setScanMessage(t("deleteAllMetadataDone"));
             toaster.toast({ title: t("pluginName"), body: t("deleteAllMetadataDone") });
             window.dispatchEvent(new Event("playhub-metadata:updated"));
@@ -5776,22 +5872,7 @@ const Content = () => {
                 setBulkProgress({ completed: index, total: targets.length });
                 setRaBulkMessage(`${prefix}: ${t("retroBulkDetecting")}`);
                 try {
-                    let payload = await resolveRetroAchievementsFromPath(game.appid, retroAchievementLaunchText(game), game.name);
-                    if (!payload?.steam?.nTotal) {
-                        setRaBulkMessage(`${prefix}: ${t("retroBulkSearching")}`);
-                        const results = await searchRetroAchievementsGames(game.name, 8, game.appid);
-                        const best = results[0];
-                        if (best && best.score >= 0.78) {
-                            await setRetroAchievementsGameId(game.appid, best.id);
-                            await setAchievementSource(game.appid, "retroachievements");
-                            clearAchievementsForApp(game.appid);
-                            setRaBulkMessage(`${prefix}: ${t("retroBulkApplying")}`);
-                            payload = await fetchAchievements(game.appid);
-                        }
-                    }
-                    else {
-                        await setAchievementSource(game.appid, "retroachievements");
-                    }
+                    const payload = await resolveRetroAchievementsFromPath(game.appid, retroAchievementLaunchText(game), game.name);
                     if (payload?.steam?.nTotal) {
                         applyAchievementPayload(game.appid, payload);
                         assigned += 1;
@@ -6173,6 +6254,50 @@ const Content = () => {
             setRpcs3BulkBusy(false);
         }
     };
+    const applyRpcs3DataPath = async (path) => {
+        if (rpcs3PathBusy || rpcs3BulkBusy || busy)
+            return;
+        setRpcs3PathBusy(true);
+        try {
+            const saved = await setRpcs3DataPath(path.trim());
+            setRpcs3SettingsState(saved);
+            if (saved.ok === false) {
+                toaster.toast({ title: t("pluginName"), body: t("rpcs3PathInvalid") });
+                return;
+            }
+            setRpcs3PathDraft(saved.data_path || "");
+            setRpcs3BulkMessage("");
+            toaster.toast({
+                title: t("pluginName"),
+                body: saved.automatic
+                    ? t("rpcs3PathAutomatic")
+                    : saved.data_path_ready
+                        ? `${saved.trophy_set_count || 0} ${t("rpcs3PathSetsFound")}`
+                        : t("rpcs3PathSavedNoTrophies"),
+            });
+        }
+        catch (error) {
+            toaster.toast({ title: t("pluginName"), body: String(error) });
+        }
+        finally {
+            setRpcs3PathBusy(false);
+        }
+    };
+    const chooseRpcs3DataPath = async () => {
+        if (rpcs3PathBusy || rpcs3BulkBusy || busy)
+            return;
+        try {
+            const selected = await openFilePicker(1, rpcs3Settings.data_path || "C:\\", false, true);
+            const path = selected?.realpath || selected?.path || "";
+            if (path) {
+                setRpcs3PathDraft(path);
+                await applyRpcs3DataPath(path);
+            }
+        }
+        catch (_error) {
+            // Closing the picker is not an error.
+        }
+    };
     const syncMatchedRpcs3Progress = async () => {
         if (rpcs3BulkBusy || raBulkBusy || xboxBulkBusy || busy)
             return;
@@ -6280,7 +6405,16 @@ const Content = () => {
                             })), selectedOption: retroAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("retroachievements", option.data) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaXbox, { size: 13 }), accent: PLAYHUB_ACCENTS.xbox, title: t("xboxTitle"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(DFL.ToggleField, { bottomSeparator: "none", label: t("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }), SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("xboxProfile") }), SP_JSX.jsx(DFL.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? (SP_JSX.jsx("div", { style: cardHintStyle, children: xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn") })) : null, SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: t("xboxLogin") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: t("xboxOpenOpenXbl") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: t("xboxSyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: clearAllXboxMatches, children: t("xboxClearAll") }), xboxBulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: xboxBulkMessage || t("xboxBulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: xboxBulkBusy, accent: PLAYHUB_ACCENTS.xbox })) : xboxBulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: xboxBulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheXboxTitle") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
                                 data: policy,
                                 label: t(`achievementCache_${policy}`),
-                            })), selectedOption: xboxAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("xbox", option.data) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: t("rpcs3Title"), hint: t("rpcs3SettingsHint"), style: qamCardSpacingStyle, children: [SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: scanRpcs3Trophies, children: rpcs3BulkBusy ? t("rpcs3BulkScanning") : t("rpcs3BulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: syncMatchedRpcs3Progress, children: t("rpcs3SyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || !games.length, onClick: clearAllRpcs3Matches, children: t("rpcs3ClearAll") }), rpcs3BulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: rpcs3BulkMessage || t("rpcs3BulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: rpcs3BulkBusy, accent: PLAYHUB_ACCENTS.ps3 })) : rpcs3BulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: rpcs3BulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheRpcs3Title") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
+                            })), selectedOption: xboxAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("xbox", option.data) })] }) }), SP_JSX.jsx(DFL.PanelSectionRow, { children: SP_JSX.jsxs(PlayhubCard, { icon: SP_JSX.jsx(FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: t("rpcs3Title"), hint: t("rpcs3SettingsHint"), style: qamCardSpacingStyle, children: [SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("rpcs3DataPath") }), SP_JSX.jsx("div", { style: cardHintStyle, children: t("rpcs3DataPathHint") }), SP_JSX.jsx(DFL.TextField, { value: rpcs3PathDraft, disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onChange: (event) => setRpcs3PathDraft(event.target.value) }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onClick: chooseRpcs3DataPath, children: t("rpcs3ChooseDataPath") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy ||
+                                rpcs3BulkBusy ||
+                                busy ||
+                                rpcs3PathDraft.trim() === (rpcs3Settings.data_path || ""), onClick: () => void applyRpcs3DataPath(rpcs3PathDraft), children: t("rpcs3SaveDataPath") }), rpcs3Settings.data_path ? (SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onClick: () => void applyRpcs3DataPath(""), children: t("rpcs3ResetDataPath") })) : null, SP_JSX.jsx("div", { style: inlineStatusStyle, children: rpcs3Settings.automatic
+                                ? t("rpcs3PathAutomatic")
+                                : !rpcs3Settings.data_path_valid
+                                    ? t("rpcs3PathInvalid")
+                                    : rpcs3Settings.data_path_ready
+                                        ? `${rpcs3Settings.trophy_set_count || 0} ${t("rpcs3PathSetsFound")}`
+                                        : t("rpcs3PathSavedNoTrophies") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: scanRpcs3Trophies, children: rpcs3BulkBusy ? t("rpcs3BulkScanning") : t("rpcs3BulkScan") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || xboxBulkBusy || raBulkBusy || !games.length, onClick: syncMatchedRpcs3Progress, children: t("rpcs3SyncAllProgress") }), SP_JSX.jsx(FocusableButton, { className: "DialogButton", disabled: busy || rpcs3BulkBusy || !games.length, onClick: clearAllRpcs3Matches, children: t("rpcs3ClearAll") }), rpcs3BulkBusy ? (SP_JSX.jsx(PlayhubProgressBar, { label: rpcs3BulkMessage || t("rpcs3BulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: rpcs3BulkBusy, accent: PLAYHUB_ACCENTS.ps3 })) : rpcs3BulkMessage ? (SP_JSX.jsx("div", { style: inlineStatusStyle, children: rpcs3BulkMessage })) : null, SP_JSX.jsx("div", { style: fieldLabelStyle, children: t("achievementCacheRpcs3Title") }), SP_JSX.jsx(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
                                 data: policy,
                                 label: t(`achievementCache_${policy}`),
                             })), selectedOption: rpcs3AchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("rpcs3", option.data) })] }) })] }));
@@ -6457,7 +6591,7 @@ const MetadataPage = () => {
         const parsed = Number.parseInt(raGameId, 10);
         const ids = await setRetroAchievementsGameId(appId, Number.isFinite(parsed) && parsed > 0 ? parsed : null);
         if (Number.isFinite(parsed) && parsed > 0) {
-            await saveAchievementSource("retroachievements");
+            setAchievementSourceState("retroachievements");
         }
         setRaSettings((prev) => (prev ? { ...prev, game_ids: ids } : prev));
         toaster.toast({ title: t("pluginName"), body: t("saved") });
@@ -6469,7 +6603,7 @@ const MetadataPage = () => {
             return;
         }
         await setRetroAchievementsGameId(appId, parsed);
-        await saveAchievementSource("retroachievements");
+        setAchievementSourceState("retroachievements");
         await refreshRaSettings();
         const payload = await fetchAchievements(appId);
         applyAchievementPayload(appId, payload);
@@ -6491,7 +6625,7 @@ const MetadataPage = () => {
         applyAchievementPayload(appId, payload);
         if (payload?.steam?.nTotal) {
             setRaGameId(String(payload.game_id));
-            await saveAchievementSource("retroachievements");
+            setAchievementSourceState("retroachievements");
             await refreshRaSettings();
         }
         toaster.toast({
@@ -6516,7 +6650,7 @@ const MetadataPage = () => {
     const useAchievementResult = async (result) => {
         setRaGameId(String(result.id));
         const ids = await setRetroAchievementsGameId(appId, result.id);
-        await saveAchievementSource("retroachievements");
+        setAchievementSourceState("retroachievements");
         setRaSettings((prev) => (prev ? { ...prev, game_ids: ids } : prev));
         await refreshRaSettings();
         const payload = await fetchAchievements(appId);

@@ -136,6 +136,14 @@ export type ScraperSettings = {
 export type Rpcs3Settings = {
   enabled: boolean;
   trophy_ids: Record<string, string>;
+  data_path: string;
+  automatic?: boolean;
+  data_path_valid?: boolean;
+  data_path_ready?: boolean;
+  trophy_set_count?: number;
+  resolved_trophy_paths?: string[];
+  ok?: boolean;
+  error?: string;
 };
 
 export type AchievementSettings = {

@@ -176,6 +176,10 @@ export const setScraperSettings = callable<
 export const getRpcs3Settings = callable<[], Rpcs3Settings>(
   "get_rpcs3_settings"
 );
+export const setRpcs3DataPath = callable<
+  [path?: string],
+  Rpcs3Settings
+>("set_rpcs3_data_path");
 export const setRpcs3TrophyId = callable<
   [appId: number, npcommid: string, trophyDir?: string],
   Record<string, string>
