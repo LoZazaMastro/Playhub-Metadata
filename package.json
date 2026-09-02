@@ -15,7 +15,7 @@
     "metadata",
     "non-steam"
   ],
-  "author": "ZazaMastro",
+  "author": "LoZazaMastro",
   "license": "GPL-3.0-or-later",
   "devDependencies": {
     "@decky/rollup": "^1.0.1",

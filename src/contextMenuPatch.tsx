@@ -11,7 +11,7 @@
  * is a derivative of that work, Playhub Metadata is distributed under the
  * GPL-3.0-or-later license. Full credit to the original authors.
  *
- * Copyright (C) 2026 ZazaMastro
+ * Copyright (C) 2026 LoZazaMastro
  * Portions copyright (C) the SteamGridDB / decky-steamgriddb contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
