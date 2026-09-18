@@ -2,7 +2,7 @@ import { routerHook } from "@decky/api";
 import { definePlugin, staticClasses } from "@decky/ui";
 import { FaDatabase } from "react-icons/fa";
 import { Content, MetadataPage } from "./components";
-import contextMenuPatch, { LibraryContextMenu } from "./contextMenuPatch";
+import contextMenuPatch from "./contextMenuPatch";
 import { t } from "./i18n";
 import {
   installSteamPatches,
@@ -17,13 +17,13 @@ import {
 const METADATA_ROUTE = "/playhub-metadata/:appid";
 
 export default definePlugin(() => {
-  void refreshMetadataCache();
-  void refreshRaSettings();
+  void refreshMetadataCache().catch((error) => console.warn("[Playhub Metadata] initial metadata load failed; bootstrap will retry", error));
+  void refreshRaSettings().catch((error) => console.warn("[Playhub Metadata] initial achievement settings load failed", error));
   void cleanupRetiredRpcs3ControllerOverrides();
 
   const unpatchSteam = installSteamPatches();
   const stopMetadataBootstrap = startMetadataBootstrap();
-  const menuPatch = contextMenuPatch(LibraryContextMenu);
+  const menuPatch = contextMenuPatch();
 
   routerHook.addRoute(METADATA_ROUTE, () => <MetadataPage />, { exact: true });
   routerHook.addRoute(PLAYHUB_ACHIEVEMENTS_ROUTE, () => <PlayhubAchievementsRoute />, { exact: true });

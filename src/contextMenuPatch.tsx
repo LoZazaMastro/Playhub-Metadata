@@ -11,7 +11,7 @@
  * is a derivative of that work, Playhub Metadata is distributed under the
  * GPL-3.0-or-later license. Full credit to the original authors.
  *
- * Copyright (C) 2026 LoZazaMastro
+ * Copyright (C) 2026 ZazaMastro
  * Portions copyright (C) the SteamGridDB / decky-steamgriddb contributors.
  *
  * This program is free software: you can redistribute it and/or modify it
@@ -21,196 +21,103 @@
  * GNU General Public License for more details.
  */
 
-import {
-  afterPatch,
-  fakeRenderComponent,
-  findInReactTree,
-  findInTree,
-  findModuleByExport,
-  Export,
-  MenuItem,
-  Navigation,
-  Patch,
-} from "@decky/ui";
-import { FC } from "react";
-
+import React from "react";
+import { fakeRenderComponent, findInReactTree, findModuleByExport, MenuItem, Navigation } from "@decky/ui";
+import { functionSource, moduleEntries, patchMethod } from "./compat";
 import { getOverview, isNonSteamApp } from "./steam";
 import { t } from "./i18n";
 
-// Stable key for the entry we inject, so we can find and de-duplicate it.
 const ENTRY_KEY = "playhub-metadata-edit";
 
-/**
- * Resolve Steam's internal LibraryContextMenu class at runtime.
- *
- * The class is not exported, so we locate the webpack module that references
- * it, pick the member whose source mentions "navigator:", and read the type
- * back from a throwaway render.
- */
-const resolveLibraryContextMenu = (): any => {
-  const owningModule = findModuleByExport(
-    (member: Export) =>
-      typeof member?.toString === "function" &&
-      member.toString().includes("().LibraryContextMenu")
-  );
+const isLibraryMenuClass = (candidate: any): boolean =>
+  typeof candidate?.prototype?.render === "function" &&
+  (typeof candidate.prototype.GetTargetApps === "function" ||
+   typeof candidate.prototype.BuildManageSubmenu === "function");
 
-  const menuComponent = Object.values(owningModule).find(
-    (member) =>
-      typeof member?.toString === "function" &&
-      member.toString().includes("navigator:")
-  ) as FC;
-
-  return fakeRenderComponent(menuComponent).type;
+/** Resolve lazily: a missing/late Steam chunk must never abort module evaluation. */
+export const resolveLibraryContextMenu = (): any => {
+  try {
+    const owner = findModuleByExport((member: any) =>
+      /\.LibraryContextMenu\b/.test(functionSource(member)) || isLibraryMenuClass(member)
+    );
+    const entries = moduleEntries(owner);
+    for (const [, member] of entries) {
+      if (isLibraryMenuClass(member)) return member;
+    }
+    for (const [, member] of entries) {
+      if (!/navigator\s*:/.test(functionSource(member))) continue;
+      try {
+        // Steam may export a function, React.forwardRef, or React.memo wrapper.
+        const render = typeof member === "function" ? member : member?.render ?? member?.type;
+        if (typeof render !== "function") continue;
+        const element = fakeRenderComponent(render);
+        let type = element?.type;
+        for (let depth = 0; type && depth < 4; depth += 1) {
+          if (isLibraryMenuClass(type)) return type;
+          type = type.type;
+        }
+      } catch (_error) { /* Try the next matching export, not an unrelated component. */ }
+    }
+  } catch (_error) { /* The chunk or fake-render context may not be ready yet. */ }
+  return undefined;
 };
 
-export const LibraryContextMenu = resolveLibraryContextMenu();
-
-/**
- * Work out which appid the menu is really for.
- *
- * Steam reuses context-menu instances, so the appid passed in can be stale.
- * Prefer a fresh appid carried on the owning React node; otherwise scan the
- * node tree for an `app.appid` (used by newer Steam clients).
- */
-const resolveAppId = (nodes: any[], fallbackAppId: number): number => {
-  const fresherNode = (nodes || []).find(
-    (node: any) =>
-      node?._owner?.pendingProps?.overview?.appid &&
-      node._owner.pendingProps.overview.appid !== fallbackAppId
-  );
-  if (fresherNode) {
-    return Number(fresherNode._owner.pendingProps.overview.appid);
-  }
-
-  const taggedNode = findInTree(nodes, (node) => node?.app?.appid, {
-    walkable: ["props", "children"],
-  });
-  return Number(taggedNode?.app?.appid ?? fallbackAppId);
-};
-
-/**
- * True only for the per-game context menu. Its launch action's handler
- * references "launchSource"; menus like the screenshot menu do not, which
- * lets us ignore them.
- */
-const isGameContextMenu = (items: any[]): boolean => {
-  if (!Array.isArray(items) || items.length === 0) return false;
-  return !!findInReactTree(
-    items,
-    (node) => node?.props?.onSelected?.toString?.().includes("launchSource")
-  );
-};
-
-/** Remove any previously injected entry so re-renders cannot stack copies. */
-const removeOurEntry = (items: any[]): void => {
-  const existingIndex = items.findIndex((node: any) => node?.key === ENTRY_KEY);
-  if (existingIndex !== -1) items.splice(existingIndex, 1);
-};
-
-/** Insert our entry just above "Properties..." (or at the end) for shortcuts. */
-const insertOurEntry = (items: any[], appId: number): void => {
-  if (!isNonSteamApp(getOverview(appId))) return;
-
-  const propertiesIndex = items.findIndex((node) =>
-    findInReactTree(
-      node,
-      (x) => x?.onSelected?.toString?.().includes("AppProperties")
+/** Clone only the library menu output, never the shared Steam menu component. */
+export const injectMetadataMenuItem = (menu: any, appId: number): any => {
+  if (!React.isValidElement(menu) || !appId || !isNonSteamApp(getOverview(appId))) return menu;
+  const children: any = (menu.props as any)?.children;
+  const items: any[] = (Array.isArray(children) ? children : [children])
+    .filter((node: any) => node?.key !== ENTRY_KEY);
+  const propertiesIndex = items.findIndex((node: any) =>
+    !!findInReactTree(node, (item: any) =>
+      functionSource(item?.props?.onSelected ?? item?.onSelected).includes("AppProperties")
     )
   );
-  const insertAt = propertiesIndex >= 0 ? propertiesIndex : items.length;
-
-  items.splice(
-    insertAt,
-    0,
-    <MenuItem
-      key={ENTRY_KEY}
-      onSelected={() => Navigation.Navigate(`/playhub-metadata/${appId}`)}
-    >
+  items.splice(propertiesIndex >= 0 ? propertiesIndex : items.length, 0,
+    <MenuItem key={ENTRY_KEY} onSelected={() => Navigation.Navigate(`/playhub-metadata/${appId}`)}>
       {t("editMetadata")}
     </MenuItem>
   );
+  return React.cloneElement(menu as React.ReactElement<any>, { children: items });
 };
 
-/** De-duplicate, then (re)insert the entry against the best-known appid. */
-const syncOurEntry = (items: any[], appId: number): void => {
-  removeOurEntry(items);
-  insertOurEntry(items, resolveAppId(items, appId));
-};
-
-/**
- * Patch the library context menu so non-Steam games gain a Playhub entry.
- * @param LibraryContextMenuClass The resolved menu class.
- * @returns An object exposing unpatch() for plugin teardown.
- */
-const contextMenuPatch = (LibraryContextMenuClass: any) => {
-  let innerPatch: Patch | undefined;
-
-  const outerPatch = afterPatch(
-    LibraryContextMenuClass.prototype,
-    "render",
-    (_renderArgs: any[], menu: any) => {
-      const ownerAppId = Number(
-        menu?._owner?.pendingProps?.overview?.appid ?? 0
-      );
-      const appId =
-        ownerAppId || resolveAppId(menu?.props?.children ?? [], 0);
-
-      if (!innerPatch) {
-        innerPatch = afterPatch(menu, "type", (_typeArgs: any[], rendered: any) => {
-          // First render of the menu body.
-          afterPatch(
-            rendered.type.prototype,
-            "render",
-            (_args: any[], output: any) => {
-              const items = output?.props?.children?.[0];
-              if (isGameContextMenu(items)) {
-                try {
-                  syncOurEntry(items, appId);
-                } catch (_error) {
-                  // Steam reshapes this tree often; skip on mismatch.
-                }
-              }
-              return output;
-            }
-          );
-
-          // Subsequent updates when Steam refreshes the app overview.
-          afterPatch(
-            rendered.type.prototype,
-            "shouldComponentUpdate",
-            ([nextProps]: any[], shouldUpdate: boolean) => {
-              try {
-                removeOurEntry(nextProps.children);
-                if (shouldUpdate === true) {
-                  syncOurEntry(nextProps.children, appId);
-                }
-              } catch (_error) {
-                // Not our menu; leave the decision untouched.
-              }
-              return shouldUpdate;
-            }
-          );
-
-          return rendered;
-        });
-      } else if (Array.isArray(menu?.props?.children)) {
+const contextMenuPatch = (initialClass?: any) => {
+  let disposed = false;
+  let unpatch: (() => void) | undefined;
+  let timer: number | undefined;
+  let attempts = 0;
+  const install = () => {
+    if (disposed || unpatch) return;
+    const MenuClass = initialClass ?? resolveLibraryContextMenu();
+    if (isLibraryMenuClass(MenuClass)) {
+      unpatch = patchMethod(MenuClass.prototype, "render", (instance, original, args) => {
+        const menu = original(...args);
         try {
-          syncOurEntry(menu.props.children, appId);
-        } catch (_error) {
-          // Ignore non-matching menus.
+          const targets = instance?.GetTargetApps?.();
+          if (Array.isArray(targets) && targets.length !== 1) return menu;
+          // Resolve for every render; Steam reuses instances when changing games.
+          const appId = Number(targets?.[0]?.appid ?? instance?.props?.overview?.appid ?? 0);
+          return injectMetadataMenuItem(menu, appId);
+        } catch (error) {
+          console.warn("[Playhub Metadata] library menu injection skipped", error);
+          return menu;
         }
-      }
-
-      return menu;
+      });
+      return;
     }
-  );
-
-  return {
-    unpatch: () => {
-      outerPatch?.unpatch();
-      innerPatch?.unpatch();
-    },
+    attempts += 1;
+    if (attempts === 20) {
+      console.warn("[Playhub Metadata] waiting for Steam library context menu; plugin settings remain available");
+    }
+    timer = window.setTimeout(install, attempts < 20 ? 500 : 5000);
   };
+  install();
+  return { unpatch: () => {
+    disposed = true;
+    if (timer !== undefined) window.clearTimeout(timer);
+    unpatch?.();
+    unpatch = undefined;
+  } };
 };
 
 export default contextMenuPatch;

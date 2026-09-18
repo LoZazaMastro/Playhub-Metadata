@@ -1,4 +1,5 @@
 import React from "react";
+import { getSteamGlobal, getOverviewPrototype, moduleEntries, functionSource, patchMethod } from "./compat";
 import { afterPatch, findInReactTree, findModuleChild, Navigation, Spinner, DialogButton, Focusable } from "@decky/ui";
 import { routerHook, toaster } from "@decky/api";
 import {
@@ -23,11 +24,6 @@ import {
 } from "./types";
 import { t } from "./i18n";
 
-declare const appStore: any;
-declare const appDetailsStore: any;
-declare const appDetailsCache: any;
-declare const appAchievementProgressCache: any;
-declare const SteamClient: any;
 
 type Unpatch = () => void;
 
@@ -142,6 +138,7 @@ const readPlayhubHomeActivityShuffleSeed = () => {
 
 const shouldShowAchievements = (appId: number) => {
   const key = String(appId);
+  if (achievementSettingsCache?.achievement_sources?.[key] === "disabled") return false;
   if (achievementsCache[key]?.steam?.nTotal) return true;
   if (achievementSettingsCache?.retroachievements?.game_ids?.[key]) return true;
   if (achievementSettingsCache?.xbox?.title_ids?.[key]) return true;
@@ -208,7 +205,7 @@ export const isNonSteamApp = (overview: any): boolean => {
 
 export const getOverview = (appId: number): any | null => {
   try {
-    return appStore?.GetAppOverviewByAppID?.(appId) ?? null;
+    return getSteamGlobal("appStore")?.GetAppOverviewByAppID?.(appId) ?? null;
   } catch (_error) {
     return null;
   }
@@ -232,7 +229,7 @@ const shortcutAppIdForSteamAppId = (steamAppId: number): number | null => {
 
 const ensureDetailsOverviewSafeFields = (appId: number) => {
   try {
-    const appData = appDetailsStore?.GetAppData?.(appId);
+    const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
     const details = appData?.details;
     const overview = getOverview(appId);
     if (!details || !isNonSteamApp(overview)) return;
@@ -293,17 +290,19 @@ export const ensureMetadataCache = async () => {
 export const startMetadataBootstrap = (): Unpatch => {
   let cancelled = false;
   let attempts = 0;
+  let timer: number | undefined;
   const tick = async () => {
     if (cancelled) return;
     try {
       await ensureMetadataCache();
+      if (cancelled) return;
       Object.keys(metadataCache).forEach((key) => applyMetadata(Number(key)));
     } catch (error) {
       console.warn("[Playhub Metadata] metadata bootstrap failed", error);
     }
     attempts += 1;
     if (!cancelled && attempts < 24) {
-      window.setTimeout(tick, 500);
+      timer = window.setTimeout(tick, 500);
     }
   };
   void tick();
@@ -311,6 +310,7 @@ export const startMetadataBootstrap = (): Unpatch => {
   const stopPostPlayAchievementSync = startPostPlayAchievementSync();
   return () => {
     cancelled = true;
+    if (timer !== undefined) window.clearTimeout(timer);
     stopAchievementSync?.();
     stopPostPlayAchievementSync?.();
   };
@@ -341,7 +341,7 @@ export const applyMetadata = (appId: number) => {
     // Steam objects are not always writable during early bootstrap.
   }
 
-  const appData = appDetailsStore?.GetAppData?.(appId);
+  const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
   if (!appData) return;
   ensureDetailsOverviewSafeFields(appId);
 
@@ -379,20 +379,20 @@ export const applyMetadata = (appId: number) => {
   }
 
   try {
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "descriptions",
       1,
       appData.descriptionsData
     );
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "associations",
       1,
       appData.associationData
     );
     if (screenshots.length) {
-      appDetailsCache?.SetCachedDataForApp?.(
+      getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
         appId,
         "screenshots",
         1,
@@ -426,7 +426,7 @@ export const clearAppliedMetadata = (
     // Steam overview objects may temporarily be read-only.
   }
 
-  const appData = appDetailsStore?.GetAppData?.(appId);
+  const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
   if (!appData) return;
 
   const emptyDescriptions = {
@@ -455,19 +455,19 @@ export const clearAppliedMetadata = (
   }
 
   try {
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "descriptions",
       1,
       emptyDescriptions
     );
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "associations",
       1,
       emptyAssociations
     );
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "screenshots",
       1,
@@ -1438,7 +1438,7 @@ const refreshPlayhubNativeActivityForApp = async (appId: number, store?: any) =>
   const native = metadata ? makePlayhubNativeActivity(appId, metadata) : null;
   if (!native) return null;
   playhubNativeActivityCache().set(appId, native);
-  const appActivityStore = store || (globalThis as any).appActivityStore;
+  const appActivityStore = store || getSteamGlobal("appActivityStore");
   try {
     if (appActivityStore?.m_mapAppActivity?.set) appActivityStore.m_mapAppActivity.set(appId, native);
   } catch (_error) {
@@ -1450,9 +1450,16 @@ const refreshPlayhubNativeActivityForApp = async (appId: number, store?: any) =>
 const installNativeActivityStorePatch = (unpatchers: Unpatch[]) => {
   let attempts = 0;
   const tryInstall = (): boolean => {
-    const store = (globalThis as any).appActivityStore;
-    if (!store || store.__playhubNativeActivityPatched) return !!store?.__playhubNativeActivityPatched;
+    const store = getSteamGlobal("appActivityStore");
+    if (!store || typeof store.GetAppActivity !== "function" || store.__playhubNativeActivityPatched) return !!store?.__playhubNativeActivityPatched;
     store.__playhubNativeActivityPatched = true;
+    unpatchers.push(() => {
+      delete store.__playhubNativeActivityPatched;
+      for (const [appId, value] of store.m_mapAppActivity?.entries?.() ?? []) {
+        if (value?.__playhubNativeActivity) store.m_mapAppActivity.delete(appId);
+      }
+      playhubNativeActivityCache().clear();
+    });
     unpatchers.push(
       patchMethod(store, "GetAppActivity", (_thisValue, original, args) => {
         const appId = Number(args[0]);
@@ -1470,7 +1477,13 @@ const installNativeActivityStorePatch = (unpatchers: Unpatch[]) => {
         patchMethod(store, methodName, (_thisValue, original, args) => {
           const appId = Number(args[0]);
           const native = getPlayhubNativeActivityForApp(appId);
-          if (native) return methodName.includes("History") || methodName.includes("Server") || methodName.includes("Restore") ? Promise.resolve(native) : undefined;
+          if (native) {
+            store.m_mapAppActivity?.set?.(appId, native);
+            store.m_setAppsLoading?.delete?.(appId);
+            // In the supplied Steam build these two methods are synchronous.
+            return methodName === "RequestRestoreActivity" || methodName === "FetchLatestActivity"
+              ? undefined : Promise.resolve(native);
+          }
           if (appId && isNonSteamApp(getOverview(appId))) {
             void refreshPlayhubNativeActivityForApp(appId, store);
           }
@@ -1498,6 +1511,7 @@ const installNativePartnerEventStorePatch = (unpatchers: Unpatch[]) => {
     for (const event of playhubNativePartnerEventCache().values()) registerPlayhubNativePartnerEventInSteamStore(event, partnerStore);
     if (partnerStore.__playhubNativePartnerEventsPatched || patchedStores.has(partnerStore)) return true;
     partnerStore.__playhubNativePartnerEventsPatched = true;
+    unpatchers.push(() => { delete partnerStore.__playhubNativePartnerEventsPatched; });
     patchedStores.add(partnerStore);
 
     const maybePatch = (methodName: string, handler: (original: (...args: any[]) => any, args: any[]) => any) => {
@@ -3069,6 +3083,8 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
   let refreshTimer: number | undefined;
   const startupSyncTimers: number[] = [];
   let startupSyncScheduled = false;
+  let disposed = false;
+  let unpatchHomeHook: Unpatch | undefined;
   let refreshRunning = false;
   let refreshQueued = false;
 
@@ -3076,7 +3092,7 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
 
   const refreshNativeHomeStore = async () => {
     const store = nativeStore();
-    if (!store) return;
+    if (disposed || !store) return;
     if (refreshRunning) {
       refreshQueued = true;
       return;
@@ -3084,7 +3100,7 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
     refreshRunning = true;
     try {
       await ensureMetadataCache();
-      syncPlayhubHomeEventsIntoNativeStore(store);
+      if (!disposed) syncPlayhubHomeEventsIntoNativeStore(store);
     } catch (error) {
       console.warn("[Playhub Metadata] unable to sync native Home activities", error);
     } finally {
@@ -3097,6 +3113,7 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
   };
 
   function scheduleRefreshNativeHomeStore(delay = PLAYHUB_HOME_ACTIVITY_SYNC_DEBOUNCE_MS) {
+    if (disposed) return;
     if (refreshTimer) window.clearTimeout(refreshTimer);
     refreshTimer = window.setTimeout(refreshNativeHomeStore, delay);
   }
@@ -3117,25 +3134,16 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
 
   const patchOne = (homeModule: any): boolean => {
     const store = homeModule?.dm || (globalThis as any).libraryEventStore || (globalThis as any).window?.libraryEventStore;
-    if (!homeModule && !store) return false;
+    if (disposed || !store) return false;
 
     if (homeModule && typeof homeModule.yX === "function" && !homeModule.__playhubNativeHomeWhatsNewPatched) {
       originalHook = homeModule.yX;
-      const patchedHook = function patchedPlayhubNativeHomeWhatsNewHook(this: any, ...args: any[]) {
-        const result = originalHook.apply(this, args);
-        return mergePlayhubHomeNativeEvents(result);
-      };
-      patchedHook.__playhubOriginalHook = originalHook;
-      try {
-        homeModule.yX = patchedHook;
-      } catch (_error) {
-        try {
-          Object.defineProperty(homeModule, "yX", { value: patchedHook, configurable: true, writable: true });
-        } catch (error) {
-          console.warn("[Playhub Metadata] unable to patch native Home Whats New hook", error);
-        }
-      }
-      homeModule.__playhubNativeHomeWhatsNewPatched = true;
+      unpatchHomeHook = patchMethod(homeModule, "yX", (_instance, original, args) =>
+        disposed ? original(...args) : mergePlayhubHomeNativeEvents(original(...args))
+      );
+      // Read-only webpack getters cannot always be replaced. The observable
+      // store path still works; only mark the hook if replacement succeeded.
+      if (homeModule.yX !== originalHook) homeModule.__playhubNativeHomeWhatsNewPatched = true;
     }
 
     patchedModule = homeModule || { dm: store };
@@ -3163,6 +3171,7 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
   window.addEventListener("playhub-metadata:home-activity-setting-changed", onNativeHomeRefreshSignal as EventListener);
 
   unpatchers.push(() => {
+    disposed = true;
     if (refreshTimer) window.clearTimeout(refreshTimer);
     startupSyncTimers.forEach((timer) => window.clearTimeout(timer));
     startupSyncTimers.length = 0;
@@ -3176,10 +3185,8 @@ const installPlayhubHomeActivityPatch = (unpatchers: Unpatch[]) => {
       const clean = Array.from(store.m_vecHomeBestEventsForUser || []).filter((event: any) => !event?.__playhubNativeHomeWhatsNew);
       replaceSteamObservableArray(store.m_vecHomeBestEventsForUser, clean);
     }
-    if (patchedModule && originalHook && patchedModule.yX?.__playhubOriginalHook === originalHook) {
-      patchedModule.yX = originalHook;
-      patchedModule.__playhubNativeHomeWhatsNewPatched = false;
-    }
+    unpatchHomeHook?.();
+    if (patchedModule && originalHook) delete patchedModule.__playhubNativeHomeWhatsNewPatched;
     invalidatePlayhubHomeNativeEventsCache();
     clearPlayhubHomeActivityCards();
   });
@@ -4555,21 +4562,21 @@ const runningFromObject = (value: any): boolean | undefined => {
 
 const readAppRunningState = async (appId: number): Promise<boolean | undefined> => {
   for (const methodName of ["BIsAppRunning", "IsAppRunning", "GetAppRunning", "GetAppRunState"]) {
-    const fromAppStore = await safeCallRunning(appStore, methodName, appId);
+    const fromAppStore = await safeCallRunning(getSteamGlobal("appStore"), methodName, appId);
     if (typeof fromAppStore === "boolean") return fromAppStore;
-    const fromSteamClient = await safeCallRunning(SteamClient?.Apps, methodName, appId);
+    const fromSteamClient = await safeCallRunning(getSteamGlobal("SteamClient")?.Apps, methodName, appId);
     if (typeof fromSteamClient === "boolean") return fromSteamClient;
   }
   for (const methodName of ["GetRunningAppIDs", "GetRunningApps", "GetRunningAppIds", "GetRunningAppIDList"]) {
-    const fromAppStore = await safeRunningList(appStore, methodName, appId);
+    const fromAppStore = await safeRunningList(getSteamGlobal("appStore"), methodName, appId);
     if (typeof fromAppStore === "boolean") return fromAppStore;
-    const fromSteamClient = await safeRunningList(SteamClient?.Apps, methodName, appId);
+    const fromSteamClient = await safeRunningList(getSteamGlobal("SteamClient")?.Apps, methodName, appId);
     if (typeof fromSteamClient === "boolean") return fromSteamClient;
   }
   const overview = getOverview(appId);
   const appData = (() => {
     try {
-      return appDetailsStore?.GetAppData?.(appId);
+      return getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
     } catch (_error) {
       return null;
     }
@@ -4778,10 +4785,12 @@ export const startPostPlayAchievementSync = (): Unpatch => {
   // exactly which game started/stopped, so only the closed game gets synced.
   let unregisterLifetime: (() => void) | undefined;
   try {
-    const registration = SteamClient?.GameSessions?.RegisterForAppLifetimeNotifications?.(
+    const registration = getSteamGlobal("SteamClient")?.GameSessions?.RegisterForAppLifetimeNotifications?.(
       (notification: any) => void handleAppLifetimeNotification(notification)
     );
-    if (typeof registration?.unregister === "function") {
+    if (typeof registration === "function") {
+      unregisterLifetime = registration;
+    } else if (typeof registration?.unregister === "function") {
       unregisterLifetime = () => {
         try {
           registration.unregister();
@@ -4844,13 +4853,13 @@ export const applyAchievementPayload = (
   clearAchievementStoreMapsForApp(appId);
   achievementsCache[String(appId)] = sortedPayload;
   if (steamAchievementStoreRef) primeAchievementStore(steamAchievementStoreRef, appId, sortedPayload);
-  const appData = appDetailsStore?.GetAppData?.(appId);
+  const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
   if (appData?.details) {
     appData.details.achievements = sortedPayload.steam;
     appData.bLoadingAchievments = false;
   }
   try {
-    appDetailsCache?.SetCachedDataForApp?.(
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(
       appId,
       "achievements",
       2,
@@ -4860,8 +4869,8 @@ export const applyAchievementPayload = (
     // Best effort, same cache route used by Steam.
   }
   try {
-    if (appAchievementProgressCache?.m_achievementProgress) {
-      appAchievementProgressCache.m_achievementProgress.mapCache.set(appId, {
+    if (getSteamGlobal("appAchievementProgressCache")?.m_achievementProgress) {
+      getSteamGlobal("appAchievementProgressCache").m_achievementProgress.mapCache.set(appId, {
         all_unlocked: sortedPayload.progress.achieved === sortedPayload.progress.total,
         appid: appId,
         cache_time: Date.now(),
@@ -4869,13 +4878,13 @@ export const applyAchievementPayload = (
         total: sortedPayload.progress.total,
         unlocked: sortedPayload.progress.achieved,
       });
-      appAchievementProgressCache.SaveCacheFile?.();
+      getSteamGlobal("appAchievementProgressCache").SaveCacheFile?.();
     }
   } catch (_error) {
     // Progress cache is optional across Steam client versions.
   }
   try {
-    appDetailsStore?.GetAchievements?.(appId);
+    getSteamGlobal("appDetailsStore")?.GetAchievements?.(appId);
   } catch (_error) {
     // Touching the getter nudges Steam into re-reading the cached achievement data.
   }
@@ -4924,7 +4933,7 @@ export const clearAchievementsForApp = (appId: number) => {
   const empty = emptySteamAchievementsPayload();
   clearAchievementStoreMapsForApp(appId);
   try {
-    const appData = appDetailsStore?.GetAppData?.(appId);
+    const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
     if (appData?.details) {
       appData.details.achievements = empty;
       appData.bLoadingAchievments = false;
@@ -4933,14 +4942,14 @@ export const clearAchievementsForApp = (appId: number) => {
     // Best effort.
   }
   try {
-    appDetailsCache?.SetCachedDataForApp?.(appId, "achievements", 2, empty);
+    getSteamGlobal("appDetailsCache")?.SetCachedDataForApp?.(appId, "achievements", 2, empty);
   } catch (_error) {
     // Best effort.
   }
   try {
-    appAchievementProgressCache?.m_achievementProgress?.mapCache?.delete?.(appId);
-    appAchievementProgressCache?.m_achievementProgress?.mapCache?.delete?.(String(appId));
-    appAchievementProgressCache?.SaveCacheFile?.();
+    getSteamGlobal("appAchievementProgressCache")?.m_achievementProgress?.mapCache?.delete?.(appId);
+    getSteamGlobal("appAchievementProgressCache")?.m_achievementProgress?.mapCache?.delete?.(String(appId));
+    getSteamGlobal("appAchievementProgressCache")?.SaveCacheFile?.();
   } catch (_error) {
     // Best effort.
   }
@@ -4972,11 +4981,13 @@ const flushTrueAchievementsNativeCache = async () => {
 };
 
 const primeAchievementStore = (store: any, appId: number, payload: AchievementsResponse | null) => {
-  if (!payload) return;
-  const sortedPayload = sortedAchievementPayloadForNative(payload);
+  const sortedPayload = payload ? sortedAchievementPayloadForNative(payload) : {
+    user: emptyAchievementUserPayload(), global: { loading: false, data: {} },
+  };
   try {
     const keys = [appId, String(appId)];
     for (const key of keys) {
+      store?.m_mapInflightMyAchievementsRequests?.delete?.(key);
       if (sortedPayload.global) {
         store?.m_mapGlobalAchievements?.set?.(key, sortedPayload.global);
         store?.m_mapGlobalAchievementPercentages?.set?.(key, sortedPayload.global);
@@ -5087,7 +5098,7 @@ export const getAppDetails = async (appId: number): Promise<any | null> =>
   new Promise((resolve) => {
     let timeoutId: number | undefined;
     try {
-      const { unregister } = SteamClient.Apps.RegisterForAppDetails(
+      const { unregister } = getSteamGlobal("SteamClient").Apps.RegisterForAppDetails(
         appId,
         (details: any) => {
           window.clearTimeout(timeoutId);
@@ -5105,14 +5116,31 @@ export const getAppDetails = async (appId: number): Promise<any | null> =>
     }
   });
 
-const loadAchievementsForApp = async (appId: number) => {
-  if (achievementsCache[String(appId)] || loadingAchievements.has(appId)) {
+const achievementLoads = new Map<number, Promise<AchievementsResponse | null>>();
+const loadAchievementsForApp = (appId: number): Promise<AchievementsResponse | null> => {
+  if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") return Promise.resolve(null);
+  const pending = achievementLoads.get(appId);
+  if (pending) return pending;
+  // Defer the worker until the map entry is set, including synchronous cache hits.
+  const request = Promise.resolve().then(() => fetchAchievementPayloadForApp(appId)).catch((error) => {
+    console.warn("[Playhub Metadata] achievement settings/backend unavailable", error);
+    return achievementsCache[String(appId)] || null;
+  }).finally(() => {
+    if (achievementLoads.get(appId) === request) achievementLoads.delete(appId);
+  });
+  achievementLoads.set(appId, request);
+  return request;
+};
+
+const fetchAchievementPayloadForApp = async (appId: number) => {
+  if (achievementsCache[String(appId)]) {
     return achievementsCache[String(appId)];
   }
   const overview = getOverview(appId);
   if (!isNonSteamApp(overview)) return null;
   const settings = achievementSettingsCache ?? (await refreshRaSettings());
   const appSource = settings?.achievement_sources?.[String(appId)] ?? "auto";
+  if (appSource === "disabled") return null;
   const hasAnyProvider =
     !!settings?.retroachievements?.enabled ||
     !!settings?.xbox?.enabled ||
@@ -5161,21 +5189,6 @@ const loadAchievementsForApp = async (appId: number) => {
   }
 };
 
-const patchMethod = (
-  target: any,
-  methodName: string,
-  replacement: (thisValue: any, original: (...args: any[]) => any, args: any[]) => any
-): Unpatch => {
-  if (!target?.[methodName]) return () => undefined;
-  const original = target[methodName];
-  target[methodName] = function patchedMethod(...args: any[]) {
-    return replacement(this, original.bind(this), args);
-  };
-  return () => {
-    target[methodName] = original;
-  };
-};
-
 let achievementStorePatchInstalled = false;
 
 const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
@@ -5183,16 +5196,17 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
   try {
     const achievementsStore = findModuleChild((module: any) => {
       if (!module || typeof module !== "object") return undefined;
-      for (const prop in module) {
-        const candidate = module[prop];
-        if (candidate?.m_mapMyAchievements || candidate?.m_mapGlobalAchievements) return candidate;
+      for (const [, candidate] of moduleEntries(module)) {
+        if ((candidate?.m_mapMyAchievements || candidate?.m_mapGlobalAchievements) &&
+            typeof candidate?.LoadMyAchievements === "function") return candidate;
       }
       return undefined;
     });
     if (!achievementsStore) return false;
     steamAchievementStoreRef = achievementsStore;
 
-    const proto = achievementsStore.__proto__ ?? achievementsStore;
+    // Patch the instance: newer Steam builds can bind loaders as own properties.
+    const proto = achievementsStore;
     if (achievementsStore?.LoadMyAchievements || proto?.LoadMyAchievements) {
       unpatchers.push(
         patchMethod(
@@ -5202,6 +5216,10 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
             const appId = Number(args[0]);
             if (!isNonSteamApp(getOverview(appId))) {
               return original(...args);
+            }
+            if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
+              primeAchievementStore(thisValue, appId, null);
+              return Promise.resolve(emptyAchievementUserPayload());
             }
             const cached = achievementsCache[String(appId)];
             if (cached) {
@@ -5215,6 +5233,7 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
               })
               .catch((error) => {
                 console.error("[Playhub Metadata] LoadMyAchievements failed", error);
+                primeAchievementStore(thisValue, appId, null);
                 return emptyAchievementUserPayload();
               });
           }
@@ -5234,6 +5253,10 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
           if (!isNonSteamApp(getOverview(appId))) {
             return original(...args);
           }
+          if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
+            primeAchievementStore(thisValue, appId, null);
+            return Promise.resolve({ loading: false, data: {} });
+          }
           const cached = achievementsCache[String(appId)];
           if (cached) {
             primeAchievementStore(thisValue, appId, cached);
@@ -5242,12 +5265,20 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
           return loadAchievementsForApp(appId).then((payload) => {
             primeAchievementStore(thisValue, appId, payload);
             return payload?.global ?? { loading: false, data: {} };
+          }).catch((error) => {
+            console.warn("[Playhub Metadata] global achievements unavailable", error);
+            primeAchievementStore(thisValue, appId, null);
+            return { loading: false, data: {} };
           });
         })
       );
     }
 
     achievementStorePatchInstalled = true;
+    unpatchers.push(() => {
+      achievementStorePatchInstalled = false;
+      if (steamAchievementStoreRef === achievementsStore) steamAchievementStoreRef = null;
+    });
     return true;
   } catch (error) {
     console.warn("[Playhub Metadata] achievement store patch skipped", error);
@@ -5733,6 +5764,33 @@ const backSteamHistory = (steamHistory: any) => {
 };
 
 export const installSteamPatches = (): Unpatch => {
+  const overviewProto = getOverviewPrototype();
+  const detailsStore = getSteamGlobal("appDetailsStore");
+  // Instance-bound methods are used in some Steam builds; do not touch a
+  // shared prototype (or Object.prototype when stores are plain objects).
+  const detailsProto = detailsStore;
+  if (!overviewProto || !detailsProto || typeof detailsStore?.GetAppData !== "function") {
+    let cancelled = false;
+    let delayedUnpatch: Unpatch | undefined;
+    let retryId: number | undefined;
+    let attempts = 0;
+    const retry = () => {
+      if (cancelled) return;
+      if (getOverviewPrototype() && typeof getSteamGlobal("appDetailsStore")?.GetAppData === "function") {
+        delayedUnpatch = installSteamPatches();
+        return;
+      }
+      attempts += 1;
+      retryId = window.setTimeout(retry, attempts < 40 ? 500 : 2000);
+    };
+    retry();
+    return () => {
+      cancelled = true;
+      if (retryId !== undefined) window.clearTimeout(retryId);
+      delayedUnpatch?.();
+    };
+  }
+  let patchesActive = true;
   const unpatchers: Unpatch[] = [];
   installAchievementImageCoverPatch(unpatchers);
   // Activity news now use Steam's own AppActivityStore and native Activity
@@ -5753,31 +5811,8 @@ export const installSteamPatches = (): Unpatch => {
   window.addEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener);
   unpatchers.push(() => window.removeEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener));
   void flushTrueAchievementsNativeCache();
-  window.setTimeout(() => void flushTrueAchievementsNativeCache(), 2500);
-  const overviewProto = appStore?.allApps?.[0]?.__proto__;
-  const detailsProto = appDetailsStore?.__proto__;
-
-  if (!overviewProto || !detailsProto) {
-    let cancelled = false;
-    let delayedUnpatch: Unpatch | null = null;
-    let retryId: number | undefined;
-    const retry = () => {
-      if (cancelled) return;
-      const ready =
-        appStore?.allApps?.[0]?.__proto__ && appDetailsStore?.__proto__;
-      if (ready) {
-        delayedUnpatch = installSteamPatches();
-        return;
-      }
-      retryId = window.setTimeout(retry, 500);
-    };
-    retry();
-    return () => {
-      cancelled = true;
-      if (retryId) window.clearTimeout(retryId);
-      delayedUnpatch?.();
-    };
-  }
+  const flushTimer = window.setTimeout(() => void flushTrueAchievementsNativeCache(), 2500);
+  unpatchers.push(() => window.clearTimeout(flushTimer));
 
   const redirectAchievementTarget = (target: any): string => {
     const raw = String(target || "");
@@ -5927,9 +5962,9 @@ export const installSteamPatches = (): Unpatch => {
     window.removeEventListener("hashchange", routeGuardEvent);
   });
 
-  if (appStore?.GetAppOverviewByAppID) {
+  if (getSteamGlobal("appStore")?.GetAppOverviewByAppID) {
     unpatchers.push(
-      patchMethod(appStore, "GetAppOverviewByAppID", (_thisValue, original, args) => {
+      patchMethod(getSteamGlobal("appStore"), "GetAppOverviewByAppID", (_thisValue, original, args) => {
         const requestedAppId = Number(args[0]);
         const result = original(...args);
         if (result || !Number.isFinite(requestedAppId) || requestedAppId <= 0) {
@@ -5958,7 +5993,7 @@ export const installSteamPatches = (): Unpatch => {
         const metadata = metadataCache[String(appId)];
         if (metadata) {
           applyMetadata(appId);
-          const appData = appDetailsStore?.GetAppData?.(appId);
+          const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
           // Keep Steam's first-run detail bootstrap intact. Returning Playhub data
           // before Steam has created the native details object can make SteamUI
           // render the play bar with an invalid/null AppOverview and crash on
@@ -5989,7 +6024,7 @@ export const installSteamPatches = (): Unpatch => {
       if (isNonSteamApp(overview)) ensureDetailsOverviewSafeFields(appId);
       if (isNonSteamApp(overview) && metadataCache[String(appId)]) {
         applyMetadata(appId);
-        const appData = appDetailsStore?.GetAppData?.(appId);
+        const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
         if (appData?.details && appData?.associationData) {
           return appData.associationData;
         }
@@ -6003,8 +6038,11 @@ export const installSteamPatches = (): Unpatch => {
       const appId = Number(args[0]);
       if (isNonSteamApp(getOverview(appId))) {
         const payload = achievementsCache[String(appId)];
-        if (payload?.steam) return payload.steam;
-        void loadAchievementsForApp(appId);
+        if (payload?.steam && shouldShowAchievements(appId)) return payload.steam;
+        if (shouldShowAchievements(appId)) void loadAchievementsForApp(appId);
+        // Steam's native loader expects details.achievements to exist and calls
+        // its Steam-only API for shortcuts. Keep first-render/empty data safe.
+        return emptySteamAchievementsPayload();
       }
       return original(...args);
     })
@@ -6036,7 +6074,7 @@ export const installSteamPatches = (): Unpatch => {
           return false;
         }
         const path = currentRoutePath();
-        if (path === "/library/home") return false;
+        if (isLibraryHomeRoute()) return false;
         if (bypassCounter > 0) bypassCounter -= 1;
         return bypassCounter === -1 || bypassCounter > 0;
       }).unpatch
@@ -6056,10 +6094,10 @@ export const installSteamPatches = (): Unpatch => {
     if (!overviewProto?.[methodName]) return;
     unpatchers.push(
       patchMethod(overviewProto, methodName, (_thisValue, original, args) => {
+        const previous = bypassCounter;
         bypassCounter = -1;
-        const ret = original(...args);
-        bypassCounter = 0;
-        return ret;
+        try { return original(...args); }
+        finally { bypassCounter = previous; }
       })
     );
   });
@@ -6105,7 +6143,8 @@ export const installSteamPatches = (): Unpatch => {
           appDetailsSections.prototype,
           "GetSections",
           function (this: any, _args: any[], ret: Set<string>) {
-            const overview = this?.props?.overview;
+            if (!ret || typeof ret.add !== "function") return ret;
+            const overview = _args[0]?.appid ? _args[0] : this?.props?.overview;
             const appId = Number(overview?.appid);
             if (appId && isNonSteamApp(overview)) ensureDetailsOverviewSafeFields(appId);
             if (appId && isNonSteamApp(overview) && shouldShowAchievements(appId)) {
@@ -6137,10 +6176,10 @@ export const installSteamPatches = (): Unpatch => {
   try {
     const httpClient = findModuleChild((module: any) => {
       if (!module || typeof module !== "object") return undefined;
-      if (typeof module.g?.get === "function" && typeof module.g?.post === "function") {
-        return module.g;
-      }
-      return undefined;
+      return moduleEntries(module).map(([, value]) => value).find((value: any) =>
+        typeof value?.get === "function" && typeof value?.post === "function" &&
+        (typeof value?.request === "function" || typeof value?.put === "function")
+      );
     });
     const patchFeedMethod = (methodName: "get" | "post") => {
       if (!httpClient?.[methodName]) return;
@@ -6224,10 +6263,20 @@ export const installSteamPatches = (): Unpatch => {
   // page renders. Redirect navigation/history/clicks instead and let the
   // native route fall back safely if Steam opens it by another internal path.
 
+  const patchedRouteProps = new WeakSet<object>();
+  const addRoutePatch = (route: string, callback: (tree: any) => any) => {
+    try {
+      const patch = routerHook.addPatch(route, (tree: any) => patchesActive ? callback(tree) : tree);
+      unpatchers.push(() => routerHook.removePatch(route, patch));
+    } catch (error) {
+      console.warn(`[Playhub Metadata] optional route patch skipped: ${route}`, error);
+    }
+  };
   GAME_DETAIL_ROUTES.forEach((route) => {
-    const patch = routerHook.addPatch(route, (tree: any) => {
+    addRoutePatch(route, (tree: any) => {
       const routeProps = findInReactTree(tree, (x: any) => x?.renderFunc);
-      if (routeProps?.renderFunc) {
+      if (routeProps?.renderFunc && !patchedRouteProps.has(routeProps)) {
+        patchedRouteProps.add(routeProps);
         const renderPatch = afterPatch(routeProps, "renderFunc", (_args: any[], ret: any) => {
           const overview = ret?.props?.children?.props?.overview || overviewFromReactTree(ret);
           const appId = Number(overview?.appid || appIdFromReactTree(ret) || currentGameDetailAppId());
@@ -6250,13 +6299,13 @@ export const installSteamPatches = (): Unpatch => {
       }
       return tree;
     });
-    unpatchers.push(() => routerHook.removePatch(route, patch));
   });
 
   GAME_ACTIVITY_ROUTES.forEach((route) => {
-    const patch = routerHook.addPatch(route, (tree: any) => {
+    addRoutePatch(route, (tree: any) => {
       const routeProps = findInReactTree(tree, (x: any) => x?.renderFunc);
-      if (routeProps?.renderFunc) {
+      if (routeProps?.renderFunc && !patchedRouteProps.has(routeProps)) {
+        patchedRouteProps.add(routeProps);
         const renderPatch = afterPatch(routeProps, "renderFunc", (_args: any[], ret: any) => {
           const treeAppId = appIdFromReactTree(ret);
           const appId = currentGameDetailAppId() || treeAppId;
@@ -6277,10 +6326,10 @@ export const installSteamPatches = (): Unpatch => {
       }
       return tree;
     });
-    unpatchers.push(() => routerHook.removePatch(route, patch));
   });
 
   return () => {
+    patchesActive = false;
     unpatchers.splice(0).reverse().forEach((unpatch) => {
       try {
         unpatch();
@@ -6321,8 +6370,8 @@ export const allNonSteamGames = async (): Promise<{ appid: number; name: string;
   };
 
   try {
-    appStore?.allApps?.forEach?.(addEntry);
-    appStore?.m_mapAppOverview?.forEach?.(addEntry);
+    getSteamGlobal("appStore")?.allApps?.forEach?.(addEntry);
+    getSteamGlobal("appStore")?.m_mapAppOverview?.forEach?.(addEntry);
   } catch (_error) {
     // Continue with backend fallback.
   }

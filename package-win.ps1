@@ -37,15 +37,26 @@ if (Test-Path (Join-Path $Root "dist\index.js.map")) {
   Copy-Item (Join-Path $Root "dist\index.js.map") (Join-Path $StagingPlugin "dist")
 }
 
+foreach ($Extra in @("CHANGELOG.md", "INSTALL_1.8.1_IT.md")) {
+  if (Test-Path (Join-Path $Root $Extra)) { Copy-Item (Join-Path $Root $Extra) $StagingPlugin }
+}
+if (Test-Path (Join-Path $Root "dist\BUILD_INFO.json")) {
+  Copy-Item (Join-Path $Root "dist\BUILD_INFO.json") (Join-Path $StagingPlugin "dist")
+}
+
 Compress-Archive -Path (Join-Path $StagingRoot $PluginFolderName) -DestinationPath $InstallerZip -Force
 
 New-Item -ItemType Directory -Path $StagingProject | Out-Null
-$ProjectExclude = @("build-package", "node_modules", "__pycache__", "work")
+$ProjectExclude = @("build-package", "node_modules", "__pycache__", "work", ".git", ".pytest_cache")
 Get-ChildItem -Path $Root -Force | Where-Object {
   $ProjectExclude -notcontains $_.Name
 } | ForEach-Object {
   Copy-Item -LiteralPath $_.FullName -Destination $StagingProject -Recurse -Force
 }
+
+Get-ChildItem -Path $StagingProject -Recurse -Directory | Where-Object {
+  $_.Name -in @("__pycache__", ".pytest_cache")
+} | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 
 Compress-Archive -Path $StagingProject -DestinationPath $ProjectZip -Force
 Remove-Item -LiteralPath $StagingRoot -Recurse -Force

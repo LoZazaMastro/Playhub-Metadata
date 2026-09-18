@@ -22,3 +22,12 @@ Because that file is a derivative work, the entire Playhub Metadata project is
 distributed under the GNU General Public License v3.0 or later, as stated in the
 accompanying LICENSE file. The BSD 3-Clause attribution above is retained for
 the Decky Plugin Template; the GPL terms govern this project as a whole.
+
+Retained runtime dependencies for the offline source build
+---------------------------------------------------------
+vendor/runtime-deps.cjs retains the Decky API 1.1.3 connection/bootstrap and
+React Icons 5.7.0 functions from the supplied 1.8.0 distribution.
+Decky API: LGPL-2.1; https://github.com/SteamDeckHomebrew/decky-frontend-lib
+React Icons: MIT; https://github.com/react-icons/react-icons
+Font Awesome Free artwork: CC BY 4.0; https://fontawesome.com/license/free
+See vendor/README.md. No Steam bundles or font files are redistributed.

@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import base64
 import concurrent.futures
-import http.server
 import io
 import difflib
 import hashlib
@@ -443,15 +442,23 @@ class Plugin:
         self._rpcs3_icon_proxy_paths: dict[str, str] = {}
         self._openxbl_rate_limited_until = 0.0
         self._last_trueachievements_image_map_diagnostics: dict[str, Any] = {}
-        self._image_proxy_server: http.server.ThreadingHTTPServer | None = None
-        self._image_proxy_thread: threading.Thread | None = None
+        # Some frozen Windows Decky runtimes do not ship http.server/socketserver.
+        # Use the asyncio streams already required by Decky's own RPC transport.
+        self._image_proxy_server: asyncio.AbstractServer | None = None
+        self._image_proxy_clients: set[asyncio.Task[Any]] = set()
+        self._image_proxy_slots: asyncio.Semaphore | None = None
         self._image_proxy_port = 0
+        self._image_proxy_stopping = False
+        self._disconnect_loop: asyncio.AbstractEventLoop | None = None
+        self._previous_exception_handler: Any = None
+        self._disconnect_handler: Any = None
         self._steam_session_id = f"steam-{now()}-{id(self)}"
         self._pc_session_id = str(int(time.time() - time.monotonic()))
 
     async def _main(self) -> None:
         self._settings_dir.mkdir(parents=True, exist_ok=True)
-        self._start_image_proxy_server()
+        self._install_disconnect_handler()
+        await self._start_image_proxy_server()
         self._cleanup_loopback_icons()
         self._load_data()
         cleaned_controller_artifacts = await asyncio.to_thread(
@@ -471,95 +478,221 @@ class Plugin:
         decky.logger.info("Playhub Metadata backend ready")
 
     async def _unload(self) -> None:
-        if self._scan_task and not self._scan_task.done():
-            self._scan_task.cancel()
-        if self._activity_refresh_task and not self._activity_refresh_task.done():
-            self._activity_refresh_task.cancel()
-        self._stop_image_proxy_server()
+        try:
+            pending = [task for task in (self._scan_task, self._activity_refresh_task)
+                       if task is not None and not task.done()]
+            for task in pending:
+                task.cancel()
+            if pending:
+                await asyncio.gather(*pending, return_exceptions=True)
+            await self._stop_image_proxy_server()
+        finally:
+            self._restore_disconnect_handler()
         decky.logger.info("Playhub Metadata backend unloaded")
 
-    def _start_image_proxy_server(self) -> None:
+    @staticmethod
+    def _is_closed_decky_socket_reset(context: dict[str, Any]) -> bool:
+        """Recognise ONLY the closed Decky RPC read seen in the supplied logs.
+
+        This is a graceful-disconnect workaround, not a network/reconnect fix.
+        Other socket failures and all application exceptions keep their normal
+        traceback and are passed to the Loader's existing exception handler.
+        """
+        error = context.get("exception")
+        if not isinstance(error, ConnectionResetError):
+            return False
+        if getattr(error, "winerror", None) not in (64, 10054):
+            return False
+        transport = context.get("transport")
+        if transport is None or not callable(getattr(transport, "is_closing", None)):
+            return False
+        if not transport.is_closing():
+            return False
+        trace = error.__traceback__
+        while trace is not None:
+            code = trace.tb_frame.f_code
+            filename = code.co_filename.replace("\\", "/").casefold()
+            if (filename.endswith("decky_loader/localplatform/localsocket.py")
+                    and code.co_name in ("_listen_for_method_call", "_read_single_line")):
+                return True
+            trace = trace.tb_next
+        return False
+
+    def _install_disconnect_handler(self) -> None:
+        if self._disconnect_handler is not None:
+            return
+        loop = asyncio.get_running_loop()
+        previous = loop.get_exception_handler()
+
+        def handle_exception(event_loop: asyncio.AbstractEventLoop,
+                             context: dict[str, Any]) -> None:
+            if self._is_closed_decky_socket_reset(context):
+                decky.logger.debug("Decky RPC peer closed its socket (Windows reset); connection already closed")
+                return
+            if previous is not None:
+                previous(event_loop, context)
+            else:
+                event_loop.default_exception_handler(context)
+
+        self._disconnect_loop = loop
+        self._previous_exception_handler = previous
+        self._disconnect_handler = handle_exception
+        loop.set_exception_handler(handle_exception)
+
+    def _restore_disconnect_handler(self) -> None:
+        loop = self._disconnect_loop
+        # Do not overwrite a newer handler installed by the Loader or another plugin.
+        if loop is not None and loop.get_exception_handler() is self._disconnect_handler:
+            loop.set_exception_handler(self._previous_exception_handler)
+        self._disconnect_loop = None
+        self._previous_exception_handler = None
+        self._disconnect_handler = None
+
+    async def _start_image_proxy_server(self) -> None:
         if self._image_proxy_server is not None:
             return
-
-        plugin = self
-
-        class Handler(http.server.BaseHTTPRequestHandler):
-            def log_message(self, _format: str, *_args: Any) -> None:
-                return
-
-            def do_GET(self) -> None:
-                try:
-                    parsed = urllib.parse.urlparse(self.path)
-                    if parsed.path == "/rpcs3-icon":
-                        query = urllib.parse.parse_qs(parsed.query)
-                        key = query.get("key", [""])[0]
-                        icon_path = plugin._rpcs3_icon_proxy_paths.get(key, "")
-                        data = b""
-                        if icon_path:
-                            try:
-                                data = Path(icon_path).read_bytes()
-                            except Exception:
-                                data = b""
-                        if not data:
-                            self.send_error(404)
-                            return
-                        self.send_response(200)
-                        self.send_header("Content-Type", "image/png")
-                        self.send_header("Cache-Control", "public, max-age=604800")
-                        self.send_header("Content-Length", str(len(data)))
-                        self.end_headers()
-                        self.wfile.write(data)
-                        return
-                    if parsed.path != "/xbox-icon":
-                        self.send_error(404)
-                        return
-                    query = urllib.parse.parse_qs(parsed.query)
-                    src = query.get("src", [""])[0]
-                    data = plugin._xbox_proxy_icon_bytes(src)
-                    if not data:
-                        self.send_error(404)
-                        return
-                    self.send_response(200)
-                    self.send_header("Content-Type", "image/png")
-                    self.send_header("Cache-Control", "public, max-age=604800")
-                    self.send_header("Content-Length", str(len(data)))
-                    self.end_headers()
-                    self.wfile.write(data)
-                except Exception as error:
-                    try:
-                        decky.logger.error(f"Playhub image proxy failed: {error}")
-                    except Exception:
-                        pass
-                    self.send_error(500)
-
+        self._image_proxy_stopping = False
+        self._image_proxy_slots = asyncio.Semaphore(4)
         try:
-            server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-            server.daemon_threads = True
-            thread = threading.Thread(target=server.serve_forever, name="PlayhubImageProxy", daemon=True)
-            thread.start()
+            server = await asyncio.start_server(
+                self._serve_image_proxy_client, "127.0.0.1", 0,
+                limit=16384, backlog=32,
+            )
             self._image_proxy_server = server
-            self._image_proxy_thread = thread
-            self._image_proxy_port = int(server.server_address[1])
-            decky.logger.info(f"Playhub image proxy ready on 127.0.0.1:{self._image_proxy_port}")
+            self._image_proxy_port = int(server.sockets[0].getsockname()[1])
+            decky.logger.info(f"Playhub image proxy ready on 127.0.0.1:{self._image_proxy_port} (asyncio)")
         except Exception as error:
+            if self._image_proxy_server is not None:
+                self._image_proxy_server.close()
+                await self._image_proxy_server.wait_closed()
             self._image_proxy_server = None
-            self._image_proxy_thread = None
             self._image_proxy_port = 0
-            decky.logger.error(f"Playhub image proxy could not start: {error}")
+            decky.logger.warning(f"Playhub image proxy could not start; Steam loopback icons remain available: {error}")
 
-    def _stop_image_proxy_server(self) -> None:
-        server = self._image_proxy_server
-        self._image_proxy_server = None
-        self._image_proxy_thread = None
-        self._image_proxy_port = 0
-        if server is None:
-            return
+    def _image_proxy_bytes(self, target: str) -> bytes:
+        """Read registered icons only; never serve arbitrary files or proxy URLs."""
+        parsed = urllib.parse.urlsplit(target)
+        query = urllib.parse.parse_qs(parsed.query, max_num_fields=8)
+        if parsed.path == "/rpcs3-icon":
+            key = query.get("key", [""])[0]
+            icon_path = self._rpcs3_icon_proxy_paths.get(key, "")
+            if not icon_path:
+                return b""
+            try:
+                return Path(icon_path).read_bytes()
+            except OSError:
+                return b""
+        if parsed.path == "/xbox-icon":
+            source = query.get("src", [""])[0]
+            if self._is_xbox_card_image_url(source):
+                return self._xbox_proxy_icon_bytes(source)
+        return b""
+
+    async def _serve_image_proxy_client(self, reader: asyncio.StreamReader,
+                                       writer: asyncio.StreamWriter) -> None:
+        task = asyncio.current_task()
+        assert task is not None
+        accepted = not self._image_proxy_stopping and len(self._image_proxy_clients) < 32
+        self._image_proxy_clients.add(task)
+        status, data, method, origin = 200, b"", "", ""
         try:
-            server.shutdown()
-            server.server_close()
-        except Exception:
+            if not accepted:
+                status = 503
+            else:
+                try:
+                    header = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), timeout=10)
+                    lines = header.decode("iso-8859-1").split("\r\n")
+                    method, target, protocol = lines[0].split()
+                    headers: dict[str, str] = {}
+                    for line in lines[1:]:
+                        if not line:
+                            continue
+                        name, separator, value = line.partition(":")
+                        if not separator:
+                            raise ValueError("Invalid HTTP header")
+                        headers[name.strip().lower()] = value.strip()
+                    origin = headers.get("origin", "")
+                    host = headers.get("host", "").lower()
+                    allowed_hosts = {f"127.0.0.1:{self._image_proxy_port}",
+                                     f"localhost:{self._image_proxy_port}"}
+                    if protocol not in ("HTTP/1.0", "HTTP/1.1") or not target.startswith("/") or target.startswith("//"):
+                        status = 400
+                    elif host not in allowed_hosts and not (protocol == "HTTP/1.0" and not host):
+                        status = 403
+                    elif method not in ("GET", "HEAD", "OPTIONS"):
+                        status = 405
+                    elif urllib.parse.urlsplit(target).path not in ("/xbox-icon", "/rpcs3-icon"):
+                        status = 404
+                    elif method == "OPTIONS":
+                        status = 204
+                    else:
+                        assert self._image_proxy_slots is not None
+                        async with self._image_proxy_slots:
+                            data = await asyncio.to_thread(self._image_proxy_bytes, target)
+                        if not data:
+                            status = 404
+                except asyncio.LimitOverrunError:
+                    status = 431
+                except (ValueError, UnicodeError):
+                    status = 400
+                except asyncio.TimeoutError:
+                    status = 408
+                except (asyncio.IncompleteReadError, ConnectionError):
+                    # Steam can abandon image requests while navigating/reloading.
+                    return
+                except Exception as error:
+                    decky.logger.error(f"Playhub image proxy failed: {error}")
+                    status = 500
+            reasons = {200: "OK", 204: "No Content", 400: "Bad Request", 403: "Forbidden",
+                       404: "Not Found", 405: "Method Not Allowed", 408: "Request Timeout",
+                       431: "Request Header Fields Too Large", 500: "Internal Server Error",
+                       503: "Service Unavailable"}
+            if status not in (200, 204):
+                data = reasons[status].encode("ascii")
+            response = [f"HTTP/1.1 {status} {reasons[status]}",
+                        "Content-Type: image/png" if status == 200 else "Content-Type: text/plain; charset=utf-8",
+                        f"Content-Length: {len(data)}", "Connection: close",
+                        "Cache-Control: public, max-age=604800" if status == 200 else "Cache-Control: no-store",
+                        "X-Content-Type-Options: nosniff"]
+            if origin in ("https://steamloopback.host", "https://steamcommunity.com", "https://store.steampowered.com"):
+                response.extend([f"Access-Control-Allow-Origin: {origin}", "Vary: Origin"])
+                if method == "OPTIONS":
+                    response.append("Access-Control-Allow-Methods: GET, HEAD, OPTIONS")
+            if status == 405:
+                response.append("Allow: GET, HEAD, OPTIONS")
+            writer.write(("\r\n".join(response) + "\r\n\r\n").encode("ascii"))
+            if method != "HEAD":
+                writer.write(data)
+            await asyncio.wait_for(writer.drain(), timeout=5)
+        except (ConnectionError, OSError, asyncio.TimeoutError):
+            # Do not try to send a second HTTP response over a closed socket.
             pass
+        finally:
+            try:
+                writer.close()
+                await asyncio.wait_for(writer.wait_closed(), timeout=2)
+            except (ConnectionError, OSError, asyncio.TimeoutError):
+                pass
+            finally:
+                self._image_proxy_clients.discard(task)
+
+    async def _stop_image_proxy_server(self) -> None:
+        self._image_proxy_stopping = True
+        server, self._image_proxy_server = self._image_proxy_server, None
+        self._image_proxy_port = 0
+        if server is not None:
+            server.close()
+        # Let already accepted callbacks register themselves, then close clients
+        # BEFORE wait_closed(): recent Python versions also wait for transports.
+        await asyncio.sleep(0)
+        pending = [task for task in self._image_proxy_clients if task is not asyncio.current_task()]
+        for task in pending:
+            task.cancel()
+        if pending:
+            await asyncio.gather(*pending, return_exceptions=True)
+        self._image_proxy_clients.clear()
+        if server is not None:
+            await server.wait_closed()
 
     @staticmethod
     def _windows_powershell_executable() -> str:
@@ -622,13 +755,18 @@ class Plugin:
 
     @staticmethod
     def _is_xbox_card_image_url(url: Any) -> bool:
-        lower = str(url or "").casefold()
-        return any(token in lower for token in (
-            "images-eds-ssl.xboxlive.com/image",
-            "dlassets.xboxlive.com",
-            "store-images.s-microsoft.com",
-            "store-images.microsoft.com",
-        ))
+        try:
+            parsed = urllib.parse.urlsplit(str(url or ""))
+            if parsed.scheme not in ("http", "https") or parsed.username or parsed.password:
+                return False
+            if parsed.port not in (None, 80, 443):
+                return False
+            host = (parsed.hostname or "").casefold()
+            if host == "images-eds-ssl.xboxlive.com":
+                return parsed.path.casefold().startswith("/image")
+            return host in ("dlassets.xboxlive.com", "store-images.s-microsoft.com", "store-images.microsoft.com")
+        except (ValueError, TypeError):
+            return False
 
     def _steamui_loopback_icon_dir(self) -> Path | None:
         # Resolve <Steam>/steamui once per backend lifetime. Steam's UI serves
@@ -1390,6 +1528,19 @@ class Plugin:
                 cleaned_value = self._normalise_translate_language(value, allow_empty=True)
                 if cleaned_value:
                     default["scraper_language_overrides"][str(key)] = cleaned_value
+        # 1.8.0 saved RA matches but omitted them while rebuilding this dict.
+        # Restore valid IDs, keeping malformed settings from blocking startup.
+        raw_ra_ids = payload.get("ra_game_ids") or {}
+        if isinstance(raw_ra_ids, dict):
+            for key, value in raw_ra_ids.items():
+                try:
+                    if isinstance(value, bool):
+                        continue
+                    game_id = int(value)
+                    if game_id > 0:
+                        default["ra_game_ids"][str(key)] = game_id
+                except (TypeError, ValueError, OverflowError):
+                    continue
         raw_rpcs3_ids = payload.get("rpcs3_trophy_ids") or {}
         if isinstance(raw_rpcs3_ids, dict):
             for key, value in raw_rpcs3_ids.items():

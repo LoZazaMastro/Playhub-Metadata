@@ -1,12 +1,16 @@
 {
   "name": "playhub-metadata",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "description": "A Decky Loader plugin that adds web metadata, RetroAchievements, RPCS3 (PS3) trophies, and Xbox achievements to non-Steam games in Steam Big Picture.",
   "type": "module",
   "scripts": {
     "build": "rollup -c",
     "watch": "rollup -c -w",
-    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File ./package-win.ps1"
+    "package": "powershell -NoProfile -ExecutionPolicy Bypass -File ./package-win.ps1",
+    "typecheck": "tsc --noEmit",
+    "test:backend": "python -m unittest discover -s tests -p \"test_*.py\" -v",
+    "test:frontend": "node tests/frontend.mjs",
+    "build:offline": "node scripts/build-offline.mjs"
   },
   "keywords": [
     "decky",
@@ -15,7 +19,7 @@
     "metadata",
     "non-steam"
   ],
-  "author": "LoZazaMastro",
+  "author": "ZazaMastro",
   "license": "GPL-3.0-or-later",
   "devDependencies": {
     "@decky/rollup": "^1.0.1",
