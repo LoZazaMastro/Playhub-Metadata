@@ -1,169 +1,77 @@
+<div align="center">
+
 # Playhub Metadata
 
-Playhub Metadata is a Decky Loader plugin for Windows.
+### Even non-Steam games can feel right at home in your library.
 
-This plugin is built for Steam Big Picture on Windows, especially for non-Steam
-PC games, Game Pass games, Xbox App games, and emulated games.
+Descriptions, details, media, and achievements for PC games, Game Pass, and emulators, integrated directly into Steam Big Picture pages.
 
-The goal is simple: make your Steam Big Picture library feel cleaner, richer,
-and more console-like, even when the games are not from Steam.
+[![Release](https://img.shields.io/github/v/release/LoZazaMastro/Playhub-Metadata?style=for-the-badge&label=Release&labelColor=111111&color=ffffff)](https://github.com/LoZazaMastro/Playhub-Metadata/releases/latest)
+[![Licenza GPL-3.0](https://img.shields.io/badge/Licenza-GPL--3.0-EA4335?style=for-the-badge&labelColor=111111)](LICENSE)
 
-It can add metadata, community images and videos, categories, and achievements to non-Steam games,
-including RetroAchievements and Xbox PC achievements.
+</div>
 
-## Features
+## A complete details page for every game
 
-- Finds missing game metadata automatically.
-- Adds descriptions, developers, publishers, release dates, ratings, and info fields.
-- Adds screenshots and community media when available.
-- Lets you edit metadata manually for each game.
-- Downloads game metadata from IGN, with a global or per-game description language.
-- Can translate IGN descriptions automatically using Google Translate with MyMemory as a fallback.
-- Includes every language exposed by Google Cloud Translation's NMT language list.
+Playhub Metadata enriches non-Steam shortcuts without creating a parallel interface. Information appears within standard Big Picture pages, keeping PC games, Microsoft Store titles, and ROMs consistent with the rest of your library.
 
-## Steam Activity News
+- automatic search for missing metadata;
+- description, developer, publisher, release date, rating, and info fields;
+- manual editing per individual game;
+- community screenshots and content when available;
+- IGN metadata with global or game-specific language options;
+- automatic description translation via Google Translate with MyMemory fallback;
+- Steam news in the Activity area for shortcuts that can be linked to a Store page.
 
-For non-Steam shortcuts that can be matched to a Steam Store app, Playhub Metadata can fetch Steam news and announcements and feed them into Steam Big Picture's normal Activity area. Steam Activity can be enabled or disabled separately for each game from that game's Playhub settings page.
+## Achievements and trophies
 
+The plugin can display three sources on non-Steam game pages:
 
-## Achievements
+- **RetroAchievements** for ROMs and emulator shortcuts;
+- **Xbox / OpenXBL** for PC Xbox, Game Pass, and Microsoft Store games imported via UWPHook;
+- **RPCS3** for PS3 trophies read directly from local emulator data.
 
-Playhub Metadata can show achievements for non-Steam games inside Steam Big Picture.
+For each title, you can choose automatic detection, select a specific source, or disable achievements entirely. The data is displayed within Steam but does not become official achievements on your Steam account.
 
-It supports three achievement sources:
+## Source configuration
 
-- RetroAchievements for ROMs and emulator shortcuts.
-- Xbox / OpenXBL achievements for Xbox PC, Game Pass, Microsoft Store. (Important! You need to use UWPHook to import your games in Steam!).
-- RPCS3 (PS3) trophies, read locally from your RPCS3 folder. No account or API key needed.
+### RetroAchievements
 
-You can choose the achievement source per game:
+Enter your username and Web API key from your RetroAchievements account settings, then log in via the QAM. The plugin attempts to automatically match the ROM and still allows for manual search.
 
-- Auto
-- RetroAchievements
-- Xbox
-- PS3 (RPCS3)
-- Disabled
+### Xbox / OpenXBL
 
-## RPCS3 (PS3) Trophies
+Create a key on [OpenXBL](https://xbl.io), enter it in the settings, and start the scan. OpenXBL limits are respected through caching and conservative updates. To properly recognize Microsoft games, they must be imported into Steam using UWPHook.
 
-Playhub Metadata reads PS3 trophies straight from RPCS3's own trophy data
-(`dev_hdd0/home/<user>/trophy/<NPCOMMID>/`), including trophy names,
-descriptions, grades (Bronze/Silver/Gold/Platinum), icons and unlock dates.
-Everything is local: no account, no API key, no rate limits.
+### RPCS3
 
-In Steam, trophies are shown ordered by unlock date with the most recent
-unlocks first. When you close an RPCS3 game, only that game's trophies are
-re-synced automatically.
+Trophies are read from `dev_hdd0/home/<user>/trophy/<NPCOMMID>/`, including icons, grade, and unlock date. No accounts or APIs are required. Common RPCS3 folders, EmuDeck installations, and paths defined in `vfs.yml` are automatically detected; you can also specify the data folder manually.
 
-Setup:
+Launch each game at least once in RPCS3, then use **Automatically detect trophies** on the title page or run a global scan from the QAM.
 
-1. Add your RPCS3 games to Steam as non-Steam shortcuts (pointing at
-   `rpcs3.exe` with the game's `EBOOT.BIN` in the launch options, as most
-   frontends like EmuDeck/Steam ROM Manager do).
-2. Play the game at least once in RPCS3 so its trophy set is installed.
-3. Open the game page in Playhub and press `Auto-detect trophies`, or use
-   `Scan RPCS3 trophies` in the Quick Access menu to match everything at once.
-4. If the automatic match fails, search the installed trophy sets manually
-   and pick the right one.
+## Cache and updates
 
-Common RPCS3 locations (portable folder next to `rpcs3.exe`, EmuDeck installs,
-and custom `vfs.yml` configurations) are detected automatically. For PS3 games
-stored as ISO files, launch each title at least once so RPCS3 can create the local
-trophy data that Playhub Metadata reads.
-If EmuDeck stores `dev_hdd0` on another drive, open the RPCS3 card in the Quick
-Access menu and choose that data folder manually. The picker accepts the RPCS3
-root, `dev_hdd0`, `home`, a user folder, or the `trophy` folder itself.
-When that PS3 game closes, Playhub checks its local trophy data again even if
-no trophy set had been associated before the session.
+You can update achievements hourly, daily, weekly, per PC session, or strictly manually. The post-game update only affects the title that was just closed and does not trigger a full library scan.
 
-## Xbox PC Achievements
+## Installation
 
-Playhub Metadata can show Xbox PC / Game Pass achievements directly inside Steam Big Picture for matched UWPHook games.
+You can install and update Playhub Metadata from the [Playhub](https://github.com/LoZazaMastro/Playhub) Plugin Store, or download the ZIP from the [latest release](https://github.com/LoZazaMastro/Playhub-Metadata/releases/latest) and install it via **Decky → Settings → Developer → Install plugin from ZIP**.
 
-This means Xbox PC achievements can appear in Steam's interface for non-Steam shortcuts.
+## Development
 
-To use Xbox achievements, you need an OpenXBL API key first.
-
-## OpenXBL Setup
-
-1. Create an account at `https://xbl.io`.
-2. Open your OpenXBL dashboard.
-3. Copy your API key.
-4. Open Playhub Metadata in Decky.
-5. Paste the API key in the OpenXBL field.
-6. Press `Login`.
-7. Press `Scan Xbox achievements`.
-
-OpenXBL API limits apply, so Playhub keeps scans conservative and uses cache settings to avoid unnecessary requests.
-
-## RetroAchievements Setup
-
-1. Create or open your RetroAchievements account.
-2. Copy your RetroAchievements web API key from your account settings.
-3. Open Playhub Metadata in Decky.
-4. Enter your RetroAchievements username and API key.
-5. Press `Login`.
-
-For individual ROMs, Playhub can try to detect the matching RetroAchievements game automatically. You can also search and select the correct game manually.
-
-## Cache Options
-
-Playhub Metadata lets you choose when achievement data should refresh:
-
-- Hourly
-- Daily
-- Weekly
-- PC session
-- Manually
-
-Manual mode is useful if you want fewer API calls and prefer refreshing only when you explicitly scan or sync.
-
-The optional post-play refresh is always scoped to the title that has just closed. It does not refresh every game from RetroAchievements, RPCS3, or Xbox.
-
-## Notes
-
-Keep in mind that Playhub Metadata does not turn non-Steam achievements into "real" Steam achievements. It just displays supported achievement data inside Steam Big Picture.
-Xbox achievement data comes from OpenXBL. RetroAchievements data comes from RetroAchievements.
-
-## License & credits
-
-Playhub Metadata is licensed under the **GNU General Public License v3.0 or later** (see `LICENSE`).
-
-Playhub Metadata was bootstrapped from the [Decky Plugin Template](https://github.com/SteamDeckHomebrew/decky-plugin-template). Full credit and thanks to the Steam Deck Homebrew contributors.
-
-The library context-menu integration (`src/contextMenuPatch.tsx`) is derived from the
-[decky-steamgriddb](https://github.com/SteamGridDB/decky-steamgriddb) plugin by the SteamGridDB
-project, which is licensed under the GPL-3.0. Full credit and thanks to its authors and contributors.
-
-## Release 1.8.1 / development checks
-
-See `CHANGELOG.md` and `TEST_REPORT_1.8.1.md` for the fixes, exact test coverage,
-and remaining Windows-client validation. Installation notes are available in
-`INSTALL_1.8.1_IT.md`.
-
-The delivered bundle was rebuilt from all current sources with the offline
-compiler workflow, not by reusing the old plugin bundle. It needs an installed
-TypeScript compiler (local or global); `TYPESCRIPT_PATH` is also supported.
-
-```sh
-node scripts/build-offline.mjs
-node tests/frontend.mjs
-python -m unittest discover -s tests -p "test_*.py" -v
-python scripts/package.py --output-dir ..
+```powershell
+pnpm install
+pnpm run build
+python -m py_compile main.py
+.\package-win.ps1
 ```
 
-The existing `npm ci && npm run build` Rollup workflow is also retained for a
-network-enabled development environment. After a Rollup build, run
-`node scripts/record-build.mjs rollup` before packaging to refresh provenance.
-A full TypeScript semantic check is available through `npm run typecheck` once
-the dependency/type packages are installed; this was not performed in the
-network-restricted delivery environment.
+## License and credits
 
-To inspect another Steam snapshot without distributing Valve's files:
+Playhub Metadata is distributed under the [GNU GPL-3.0-or-later](LICENSE) license. The project uses the Decky Plugin Template; the context menu integration in `src/contextMenuPatch.tsx` is derived from [decky-steamgriddb](https://github.com/SteamGridDB/decky-steamgriddb), which is also GPL-3.0. Details and attributions are collected in [NOTICE](NOTICE).
 
-```sh
-python tests/check_steam_snapshot.py /path/to/extracted/steamui
-```
+<div align="center">
 
-Snapshot signature checks are not a live Steam UI test. Reload/restart Steam and
-Decky completely after replacing an older plugin to remove its existing hooks.
+Created and maintained by **[LoZazaMastro](https://github.com/LoZazaMastro)**.
+
+</div>
