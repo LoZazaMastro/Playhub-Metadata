@@ -1,17 +1,18 @@
 {
-  "version": "1.8.1",
+  "version": "1.8.2",
   "build": "offline-source-rebuild",
-  "compiler": "TypeScript 5.8.3",
+  "compiler": "TypeScript 5.9.3",
   "sources": {
     "src/backend.ts": "e9faa0539147dd3ae75d66373c39378350efd36566ab14ef9fb31e0405825cdf",
     "src/compat.ts": "9387df1385a8de8c4b5f6a2d89fdbe6dc78e2f675dfee9d8f9254abb91844e9a",
     "src/components.tsx": "aeb57b94f3215545dc0d9009deadd916499bafe42c55f060a6f0a07c9aa67fff",
-    "src/contextMenuPatch.tsx": "b1bd0810cf181c38e6573ce806f0e11280b9e74c3a206347adc12cad98e70de3",
+    "src/contextMenuPatch.tsx": "082462e9921b923129586a0c6fbf5c81cbc053141488e2250660a842026e5491",
     "src/i18n.ts": "cfc7ae6e07f82aa34aa0c96e7157885bd8a148ffbb470d478fcbdad3948b1dcf",
     "src/index.tsx": "a1f84309a5eefb362fe3854c4c0573935abc5e6f2e3a4e5e856111a7eab376a1",
-    "src/steam.ts": "63a1cbb58a4a5049bdf7d09ceac5241686ac89eabb886c57cb0320ccb00bdef7",
+    "src/pluginMenuSection.ts": "552b4dc8e544faa81460a8400f534642b308b7717c680515c57ae5d19a127530",
+    "src/steam.ts": "9deaa0c753ae6ad7ce38ac0897e88b3b2f9ca1cdd22b310b0aa7c2a540b445ae",
     "src/types.ts": "dec30b8158e60306492eb11a9813b34058e6a0dc5997767a86057cf6de3478e8",
     "vendor/runtime-deps.cjs": "1bc89de8d7d8b6b0b5d4252c21a09890633f63bc0a07ce2c6bf2b7bebba21f78"
   },
-  "bundle_sha256": "0632aa4356ce811911419cea83d793206cbb6d850b59588215146e2acfe98177"
+  "bundle_sha256": "27f5b6a41e336d8e059ae73c77339be8d3af20d2dddf707c3a190feaade08e91"
 }

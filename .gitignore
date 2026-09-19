@@ -5,3 +5,13 @@ node_modules/
 __pycache__/
 *.py[cod]
 *.zip
+CHANGELOG*
+HANDOVER*
+HOTFIX*.md
+HOTFIX*.txt
+TESTING_*
+TEST_REPORT*
+SOURCE_RECOVERY*
+STEAM_SNAPSHOT_AUDIT*
+INSTALL_*
+dist/index.js.map

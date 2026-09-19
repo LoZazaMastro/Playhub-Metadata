@@ -145,7 +145,6 @@ const shouldShowAchievements = (appId: number) => {
   if (achievementSettingsCache?.rpcs3?.trophy_ids?.[key]) return true;
 
   const source = achievementSettingsCache?.achievement_sources?.[key] ?? "auto";
-  if (source === "disabled") return false;
   if (source === "xbox") return !!achievementSettingsCache?.xbox?.enabled;
   if (source === "retroachievements") return !!achievementSettingsCache?.retroachievements?.enabled;
   if (source === "rpcs3") return true;

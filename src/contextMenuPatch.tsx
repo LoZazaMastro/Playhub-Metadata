@@ -1,3 +1,5 @@
+import * as DeckyUI from "@decky/ui";
+import { insertPluginSection, installMenuSectionFallback } from "./pluginMenuSection";
 /*
  * Playhub Metadata - library context-menu integration.
  *
@@ -64,24 +66,16 @@ export const resolveLibraryContextMenu = (): any => {
 
 /** Clone only the library menu output, never the shared Steam menu component. */
 export const injectMetadataMenuItem = (menu: any, appId: number): any => {
-  if (!React.isValidElement(menu) || !appId || !isNonSteamApp(getOverview(appId))) return menu;
-  const children: any = (menu.props as any)?.children;
-  const items: any[] = (Array.isArray(children) ? children : [children])
-    .filter((node: any) => node?.key !== ENTRY_KEY);
-  const propertiesIndex = items.findIndex((node: any) =>
-    !!findInReactTree(node, (item: any) =>
-      functionSource(item?.props?.onSelected ?? item?.onSelected).includes("AppProperties")
-    )
-  );
-  items.splice(propertiesIndex >= 0 ? propertiesIndex : items.length, 0,
+  if (!React.isValidElement(menu) || !appId) return menu;
+  return insertPluginSection(React, menu,
     <MenuItem key={ENTRY_KEY} onSelected={() => Navigation.Navigate(`/playhub-metadata/${appId}`)}>
       {t("editMetadata")}
-    </MenuItem>
-  );
-  return React.cloneElement(menu as React.ReactElement<any>, { children: items });
+    </MenuItem>);
+
 };
 
 const contextMenuPatch = (initialClass?: any) => {
+  const stopFallback = installMenuSectionFallback(React, DeckyUI, injectMetadataMenuItem);
   let disposed = false;
   let unpatch: (() => void) | undefined;
   let timer: number | undefined;
@@ -114,6 +108,7 @@ const contextMenuPatch = (initialClass?: any) => {
   install();
   return { unpatch: () => {
     disposed = true;
+    stopFallback();
     if (timer !== undefined) window.clearTimeout(timer);
     unpatch?.();
     unpatch = undefined;

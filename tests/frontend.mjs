@@ -158,7 +158,44 @@ test('menu cloning handles frozen output and inserts before Properties without d
   assert.deepEqual(out.props.children.map(x=>x.key),['launch','playhub-metadata-edit','properties']);
   const again=injectMetadataMenuItem(out,202);assert.equal(again.props.children.filter(x=>x.key==='playhub-metadata-edit').length,1);
   again.props.children[1].props.onSelected();assert.equal(e.calls.at(-1).navigate,'/playhub-metadata/202');
-  assert.equal(injectMetadataMenuItem(menu,440),menu);assert.equal(injectMetadataMenuItem(null,101),null);
+  assert.notEqual(injectMetadataMenuItem(menu,440),menu);assert.equal(injectMetadataMenuItem(null,101),null);
+});
+test('all plugin entries move below a nested Steam divider and stay unique regardless of load order',()=>{
+  const e=environment(), {insertPluginSection}=e.load('pluginMenuSection');
+  const keys=['playhub-metadata-edit','themedeck-change-music','trailerhero-game-settings','launch-curtain-game-settings','quick-settings-game-profile','playhub-artworks-change-artwork'];
+  const item=(key)=>e.React.createElement('Item',{key});
+  const properties=e.React.createElement('Item',{key:'properties',onSelected:()=>navigator.AppProperties(101)});
+  const group=e.React.createElement(e.React.Fragment,{children:[item('divider'),properties]});
+  const original=e.React.createElement('Menu',{children:[item('manage'),item(keys[0]),group,item('cancel')]});
+  let menu=original;
+  for(const key of [...keys].reverse()) menu=insertPluginSection(e.React,menu,item(key));
+  menu=insertPluginSection(e.React,menu,item(keys[0]));
+  const flatten=node=>Array.isArray(node)?node.flatMap(flatten):node?.props?.children?flatten(node.props.children):node?[node.key]:[];
+  assert.deepEqual(flatten(menu),['manage','divider',...keys,'properties','cancel']);
+  assert.deepEqual(flatten(original),['manage',keys[0],'divider','properties','cancel']);
+  const noProperties=e.React.createElement('Menu',{children:[item('manage')]});
+  assert.equal(insertPluginSection(e.React,noProperties,item(keys[0])),noProperties);
+});
+test('production menu without element owners survives MobX instance render and game changes',()=>{
+  const e=environment(),{installMenuSectionFallback,insertPluginSection}=e.load('pluginMenuSection');
+  const hooks={useId:()=> 'native'},originalHook=hooks.useId;
+  class Menu {
+    render(){const render=()=>e.React.createElement('menu',{children:this.props.children});Object.defineProperty(this,'render',{value:render,configurable:false});return render();}
+    shouldComponentUpdate(){return true;}
+  }
+  const originalRender=Menu.prototype.render, originalUpdate=Menu.prototype.shouldComponentUpdate;
+  const ui={applyHookStubs:()=>hooks,removeHookStubs:()=>{},Menu:()=>e.React.createElement(Menu,{})};
+  const stop=installMenuSectionFallback(e.React,ui,(tree,id)=>insertPluginSection(e.React,tree,e.React.createElement('Item',{key:'playhub-metadata-edit',appid:id})));
+  assert.equal(hooks.useId,originalHook);
+  let targets=[{appid:101}];
+  const menu=new Menu();menu._reactInternals={return:{stateNode:{GetTargetApps:()=>targets}}};
+  const children=()=>[e.React.createElement('Separator',{}),e.React.createElement('Item',{onSelected:()=>({}).AppProperties()})];
+  menu.props={children:children()};
+  assert.equal(menu.render().props.children[1].props.appid,101);
+  targets=[{appid:202}];const next={children:children()};menu.shouldComponentUpdate(next);menu.props=next;
+  assert.equal(menu.render().props.children[1].props.appid,202);
+  targets=[{appid:202},{appid:303}];const multi={children:children()};menu.shouldComponentUpdate(multi);assert.equal(multi.children.length,2);
+  stop();assert.equal(Menu.prototype.render,originalRender);assert.equal(Menu.prototype.shouldComponentUpdate,originalUpdate);
 });
 test('reused menu class follows selected AppID; multi-select untouched; teardown restores class',()=>{
   const e=environment();e.addSteam();const {LibraryMenu,menu}=makeMenu(e),original=LibraryMenu.prototype.render;
@@ -218,7 +255,7 @@ test('full Steam patch install protects shortcut achievements and restores metho
 });
 test('all bundled source hashes match BUILD_INFO',()=>{
   const info=JSON.parse(fs.readFileSync(path.join(root,'dist/BUILD_INFO.json'),'utf8'));
-  assert.equal(info.version,'1.8.1');for(const [name,hash] of Object.entries(info.sources))assert.equal(createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),hash,name);
+  assert.equal(info.version,JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version);for(const [name,hash] of Object.entries(info.sources))assert.equal(createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),hash,name);
   assert.equal(createHash('sha256').update(fs.readFileSync(path.join(root,'dist/index.js'))).digest('hex'),info.bundle_sha256);
 });
 test('actual Installer bundle imports, mounts, and unmounts before Steam stores exist',async()=>{
