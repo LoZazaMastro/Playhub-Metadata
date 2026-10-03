@@ -23,6 +23,7 @@ import {
   StoreCategory,
 } from "./types";
 import { t } from "./i18n";
+import { repairLegacyCollectionCaches } from "./collectionCacheMigration";
 
 
 type Unpatch = () => void;
@@ -210,22 +211,6 @@ export const getOverview = (appId: number): any | null => {
   }
 };
 
-const shortcutAppIdForSteamAppId = (steamAppId: number): number | null => {
-  if (!Number.isFinite(steamAppId) || steamAppId <= 0) return null;
-  for (const [shortcutAppIdText, metadata] of Object.entries(metadataCache)) {
-    const shortcutAppId = Number(shortcutAppIdText);
-    const metadataSteamAppId = Number((metadata as MetadataData | undefined)?.steam_appid);
-    if (
-      Number.isFinite(shortcutAppId) &&
-      shortcutAppId > 0 &&
-      metadataSteamAppId === steamAppId
-    ) {
-      return shortcutAppId;
-    }
-  }
-  return null;
-};
-
 const ensureDetailsOverviewSafeFields = (appId: number) => {
   try {
     const appData = getSteamGlobal("appDetailsStore")?.GetAppData?.(appId);
@@ -233,17 +218,13 @@ const ensureDetailsOverviewSafeFields = (appId: number) => {
     const overview = getOverview(appId);
     if (!details || !isNonSteamApp(overview)) return;
 
-    const detailsAppId = Number(details.unAppID ?? details.appid ?? details.nAppID ?? 0);
-    const detailsOverview = Number.isFinite(detailsAppId) && detailsAppId > 0 ? getOverview(detailsAppId) : null;
-
     // Steam's play bar calls GetAppOverviewByAppID(details.unAppID).BIsApplicationOrTool().
-    // For non-Steam games that have been enriched with official Steam data, the first
-    // page render can temporarily expose a details object whose unAppID points nowhere
-    // in the local library. Keep it tied to the actual shortcut AppID so SteamUI never
-    // dereferences a null overview during the first open.
-    if (!detailsOverview) {
-      details.unAppID = appId;
-    }
+    // Store metadata describes this shortcut; it must never replace its identity.
+    // Keep the repair local to the shortcut details instead of aliasing Steam's
+    // global overview lookup, which can duplicate shortcuts in library collections.
+    details.unAppID = appId;
+    details.appid = appId;
+    details.nAppID = appId;
 
     // Some SteamUI reactions iterate these arrays while details are still being
     // bootstrapped. Non-Steam shortcut details can miss them on first render.
@@ -251,8 +232,6 @@ const ensureDetailsOverviewSafeFields = (appId: number) => {
     if (!Array.isArray(details.vecChildConfigApps)) details.vecChildConfigApps = [];
     if (!Array.isArray(details.vecScreenShots)) details.vecScreenShots = [];
 
-    if (details.appid == null) details.appid = appId;
-    if (details.nAppID == null) details.nAppID = appId;
   } catch (_error) {
     // Best-effort guard only; never block Steam's native bootstrap.
   }
@@ -5790,6 +5769,7 @@ export const installSteamPatches = (): Unpatch => {
     };
   }
   let patchesActive = true;
+  repairLegacyCollectionCaches(getSteamGlobal("collectionStore"), getSteamGlobal("appStore"));
   const unpatchers: Unpatch[] = [];
   installAchievementImageCoverPatch(unpatchers);
   // Activity news now use Steam's own AppActivityStore and native Activity
@@ -5960,27 +5940,6 @@ export const installSteamPatches = (): Unpatch => {
     window.removeEventListener("popstate", routeGuardEvent);
     window.removeEventListener("hashchange", routeGuardEvent);
   });
-
-  if (getSteamGlobal("appStore")?.GetAppOverviewByAppID) {
-    unpatchers.push(
-      patchMethod(getSteamGlobal("appStore"), "GetAppOverviewByAppID", (_thisValue, original, args) => {
-        const requestedAppId = Number(args[0]);
-        const result = original(...args);
-        if (result || !Number.isFinite(requestedAppId) || requestedAppId <= 0) {
-          return result;
-        }
-        const shortcutAppId = shortcutAppIdForSteamAppId(requestedAppId);
-        if (!shortcutAppId || shortcutAppId === requestedAppId) return result;
-        try {
-          const shortcutOverview = original(shortcutAppId);
-          if (isNonSteamAppWithoutPatchedMethod(shortcutOverview)) return shortcutOverview;
-        } catch (_error) {
-          // Fall through to Steam's native null result.
-        }
-        return result;
-      })
-    );
-  }
 
   unpatchers.push(
     patchMethod(detailsProto, "GetDescriptions", (_thisValue, original, args) => {

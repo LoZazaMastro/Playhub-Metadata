@@ -253,6 +253,30 @@ test('full Steam patch install protects shortcut achievements and restores metho
   assert.equal(apps[0].GetGameID(),101);assert.equal(s.__test.getBypass(),7);
   await e.settle();stop();assert.equal(e.window.appDetailsStore.GetAchievements,original);assert.equal(e.routePatches.size,0);assert.equal(e.listenerCount(),0);assert.equal(e.timers.size,0);
 });
+
+test('metadata never aliases a missing store ID to a shortcut in Steam collections',()=>{
+  const e=environment();const {apps}=e.addSteam(),s=e.load('steam');s.__test.setSettings(settings());
+  s.metadataCache['101']={steam_appid:999,description:'Shortcut description'};
+  const lookup=e.window.appStore.GetAppOverviewByAppID,stop=s.installSteamPatches();
+  assert.equal(e.window.appStore.GetAppOverviewByAppID(101),apps[0]);
+  assert.equal(e.window.appStore.GetAppOverviewByAppID(999),undefined);
+  assert.equal(e.window.appStore.GetAppOverviewByAppID,lookup);
+  const collection=[101,999].map(id=>e.window.appStore.GetAppOverviewByAppID(id)).filter(Boolean);
+  assert.equal(collection.length,1);stop();
+});
+
+test('enriched shortcut details retain shortcut identity with installed or absent store games',()=>{
+  const e=environment();e.addSteam();const s=e.load('steam');
+  for(const storeId of [999,440]){
+    s.metadataCache['101']={steam_appid:storeId,description:'Shortcut description'};
+    const details=e.window.appDetailsStore.GetAppData(101).details;
+    details.unAppID=storeId;details.appid=storeId;details.nAppID=storeId;
+    s.applyMetadata(101);
+    assert.equal(details.unAppID,101);assert.equal(details.appid,101);assert.equal(details.nAppID,101);
+    assert.equal(e.window.appStore.GetAppOverviewByAppID(440).appid,440);
+    assert.equal(e.window.appDetailsStore.GetAppData(101).descriptionsData.strFullDescription,'Shortcut description');
+  }
+});
 test('all bundled source hashes match BUILD_INFO',()=>{
   const info=JSON.parse(fs.readFileSync(path.join(root,'dist/BUILD_INFO.json'),'utf8'));
   assert.equal(info.version,JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8')).version);for(const [name,hash] of Object.entries(info.sources))assert.equal(createHash('sha256').update(fs.readFileSync(path.join(root,name))).digest('hex'),hash,name);
@@ -291,6 +315,50 @@ test('native achievement loaders respect disabled source even with a cached payl
   assert.equal(Object.keys(store.m_mapMyAchievements.get(101).data.achieved).length,0);
   assert.equal(Object.keys(store.m_mapGlobalAchievements.get(101).data).length,0);stop.reverse().forEach(fn=>fn());
 });
+test('legacy alias cache migration invalidates only proven duplicates and preserves all memberships', () => {
+  const e=environment(),migration=e.load('collectionCacheMigration');
+  const forza={appid:2262950469},dawn={appid:2979426017},other={appid:3357650};
+  const map=new Map([[forza.appid,forza],[dawn.appid,dawn],[other.appid,other]]);
+  const appStore={GetAppOverviewByAppID:id=>map.get(id)??null};
+  function collection(ids,cache){
+    return {apps:new Set(ids),addedManually:new Set(ids),removedManually:new Set([123]),allApps:cache,
+      appCounts:new Map([['filter',cache.length]]),sets:0,clears:0,
+      SetApps(next){this.sets++;this.apps=new Set(next);this.allApps=next.map(appStore.GetAppOverviewByAppID).filter(Boolean);},
+      ClearAppCounts(){this.clears++;this.appCounts.clear();},
+      Save(){throw Error('migration must never persist collections');},RemoveApps(){throw Error('migration must never remove memberships');}};
+  }
+  const damaged=collection([3751260,forza.appid,2483190,dawn.appid,other.appid],[forza,forza,dawn,dawn,other]);
+  const healthy=collection([forza.appid],[forza]);
+  const otherCollection=collection([forza.appid,other.appid],[forza,other]);
+  const membership=[...damaged.apps],added=damaged.addedManually,removed=damaged.removedManually;
+  const store={collectionsFromStorage:new Map([['novita',damaged],['healthy',healthy],['other',otherCollection]]),
+    SaveCollection(){throw Error('migration must never write cloud storage');}};
+  assert.equal(migration.repairLegacyCollectionCaches(store,appStore),1);
+  assert.deepEqual([...damaged.apps],membership);assert.equal(damaged.addedManually,added);assert.equal(damaged.removedManually,removed);
+  assert.deepEqual(Array.from(damaged.allApps),[forza,dawn,other]);assert.equal(damaged.appCounts.size,0);
+  assert.equal(damaged.sets,1);assert.equal(damaged.clears,1);assert.equal(healthy.sets,0);assert.equal(otherCollection.sets,0);
+  assert.equal(migration.repairLegacyCollectionCaches(store,appStore),0);assert.equal(damaged.sets,1);
+});
+test('collection cache migration fails closed while alias is active or native shape is unsupported', () => {
+  const e=environment(),migration=e.load('collectionCacheMigration'),shortcut={appid:2262950469};let writes=0;
+  const native={apps:new Set([3751260,shortcut.appid]),allApps:[shortcut,shortcut],SetApps(){writes++;},ClearAppCounts(){writes++;}};
+  assert.equal(migration.repairLegacyCollectionCaches({collectionsFromStorage:new Map([['novita',native]])},{GetAppOverviewByAppID:()=>shortcut}),0);
+  assert.equal(migration.repairLegacyCollectionCaches(undefined,undefined),0);
+  const badIds={...native,apps:new Set(['3751260',shortcut.appid])};
+  assert.equal(migration.repairLegacyCollectionCaches({collectionsFromStorage:new Map([['bad',badIds]])},{GetAppOverviewByAppID:id=>id===shortcut.appid?shortcut:null}),0);
+  const unknown={...native,SetApps:undefined};
+  assert.equal(migration.repairLegacyCollectionCaches({collectionsFromStorage:new Map([['unknown',unknown]])},{GetAppOverviewByAppID:id=>id===shortcut.appid?shortcut:null}),0);
+  assert.equal(writes,0);
+});
+test('Steam patch startup repairs a stale collection through native setters without replacing the lookup', () => {
+  const e=environment();const {apps}=e.addSteam(),s=e.load('steam');
+  const lookup=e.window.appStore.GetAppOverviewByAppID;let sets=0,clears=0;
+  const collection={apps:new Set([101,9999]),allApps:[apps[0],apps[0]],SetApps(ids){sets++;this.apps=new Set(ids);this.allApps=ids.map(lookup).filter(Boolean);},ClearAppCounts(){clears++;}};
+  e.window.collectionStore={collectionsFromStorage:new Map([['collection',collection]])};
+  const stop=s.installSteamPatches();assert.equal(sets,1);assert.equal(clears,1);
+  assert.equal(e.window.appStore.GetAppOverviewByAppID,lookup);assert.deepEqual([...collection.apps],[101,9999]);stop();
+});
+
 let failures=0;
 for(const [name,fn] of tests){try{await fn();console.log(`PASS ${name}`);}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`);}}
 console.log(`\n${tests.length-failures}/${tests.length} frontend regressions passed (${ts.version}).`);

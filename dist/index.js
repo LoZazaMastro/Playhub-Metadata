@@ -1,4 +1,4 @@
-// Playhub Metadata 1.8.2: rebuilt from src with TypeScript 5.9.3.
+// Playhub Metadata 1.8.3: rebuilt from src with TypeScript 5.9.3.
 const index = (() => {
 const factories = Object.create(null);
 factories["backend"] = function(module, exports, require) {
@@ -54,6 +54,53 @@ exports.resolveRpcs3FromShortcut = (0, api_1.callable)("resolve_rpcs3_from_short
 exports.searchRpcs3TrophySets = (0, api_1.callable)("search_rpcs3_trophy_sets");
 exports.syncRpcs3Progress = (0, api_1.callable)("sync_rpcs3_progress");
 exports.clearRpcs3Associations = (0, api_1.callable)("clear_rpcs3_associations");
+};
+factories["collectionCacheMigration"] = function(module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.repairLegacyCollectionCaches = repairLegacyCollectionCaches;
+/** Invalidate only caches left by the retired global Steam-ID alias on a hot upgrade. */
+function repairLegacyCollectionCaches(collectionStore, appStore) {
+    const collections = collectionStore?.collectionsFromStorage;
+    if (typeof collections?.values !== "function" || typeof appStore?.GetAppOverviewByAppID !== "function")
+        return 0;
+    let repaired = 0;
+    for (const collection of collections.values()) {
+        try {
+            if (typeof collection?.SetApps !== "function" || typeof collection?.ClearAppCounts !== "function"
+                || typeof collection?.apps?.values !== "function")
+                continue;
+            const cached = collection.allApps;
+            if (!Array.isArray(cached) || cached.length < 2)
+                continue;
+            const cachedIds = cached.map(app => app?.appid);
+            if (cachedIds.some(id => !Number.isInteger(id) || id <= 0))
+                continue;
+            if (new Set(cachedIds).size === cachedIds.length)
+                continue;
+            const membership = Array.from(collection.apps.values());
+            if (membership.some(id => !Number.isInteger(id) || id <= 0) || new Set(membership).size !== membership.length)
+                continue;
+            const fresh = membership.map(id => appStore.GetAppOverviewByAppID(id));
+            // If the old alias is still active, touching the cache would just compute
+            // another aliased list. Wait for the original lookup to be restored.
+            if (fresh.some((app, index) => app && app.appid !== membership[index]))
+                continue;
+            const freshIds = fresh.filter(Boolean).map(app => app.appid);
+            if (new Set(freshIds).size !== freshIds.length)
+                continue;
+            // Native setters notify MobX. Keep every stored membership, including IDs
+            // whose app is temporarily absent; never save or remove collection IDs.
+            collection.SetApps(membership);
+            collection.ClearAppCounts();
+            repaired++;
+        }
+        catch {
+            // Steam builds with a different collection shape need no speculative fix.
+        }
+    }
+    return repaired;
+}
 };
 factories["compat"] = function(module, exports, require) {
 "use strict";
@@ -2913,6 +2960,7 @@ const api_1 = require("@decky/api");
 const backend_1 = require("./backend");
 const types_1 = require("./types");
 const i18n_1 = require("./i18n");
+const collectionCacheMigration_1 = require("./collectionCacheMigration");
 exports.metadataCache = {};
 exports.achievementsCache = {};
 const NON_STEAM_APP_TYPE = 1073741824;
@@ -3096,20 +3144,6 @@ const getOverview = (appId) => {
     }
 };
 exports.getOverview = getOverview;
-const shortcutAppIdForSteamAppId = (steamAppId) => {
-    if (!Number.isFinite(steamAppId) || steamAppId <= 0)
-        return null;
-    for (const [shortcutAppIdText, metadata] of Object.entries(exports.metadataCache)) {
-        const shortcutAppId = Number(shortcutAppIdText);
-        const metadataSteamAppId = Number(metadata?.steam_appid);
-        if (Number.isFinite(shortcutAppId) &&
-            shortcutAppId > 0 &&
-            metadataSteamAppId === steamAppId) {
-            return shortcutAppId;
-        }
-    }
-    return null;
-};
 const ensureDetailsOverviewSafeFields = (appId) => {
     try {
         const appData = (0, compat_1.getSteamGlobal)("appDetailsStore")?.GetAppData?.(appId);
@@ -3117,16 +3151,13 @@ const ensureDetailsOverviewSafeFields = (appId) => {
         const overview = (0, exports.getOverview)(appId);
         if (!details || !(0, exports.isNonSteamApp)(overview))
             return;
-        const detailsAppId = Number(details.unAppID ?? details.appid ?? details.nAppID ?? 0);
-        const detailsOverview = Number.isFinite(detailsAppId) && detailsAppId > 0 ? (0, exports.getOverview)(detailsAppId) : null;
         // Steam's play bar calls GetAppOverviewByAppID(details.unAppID).BIsApplicationOrTool().
-        // For non-Steam games that have been enriched with official Steam data, the first
-        // page render can temporarily expose a details object whose unAppID points nowhere
-        // in the local library. Keep it tied to the actual shortcut AppID so SteamUI never
-        // dereferences a null overview during the first open.
-        if (!detailsOverview) {
-            details.unAppID = appId;
-        }
+        // Store metadata describes this shortcut; it must never replace its identity.
+        // Keep the repair local to the shortcut details instead of aliasing Steam's
+        // global overview lookup, which can duplicate shortcuts in library collections.
+        details.unAppID = appId;
+        details.appid = appId;
+        details.nAppID = appId;
         // Some SteamUI reactions iterate these arrays while details are still being
         // bootstrapped. Non-Steam shortcut details can miss them on first render.
         if (!Array.isArray(details.vecDLC))
@@ -3135,10 +3166,6 @@ const ensureDetailsOverviewSafeFields = (appId) => {
             details.vecChildConfigApps = [];
         if (!Array.isArray(details.vecScreenShots))
             details.vecScreenShots = [];
-        if (details.appid == null)
-            details.appid = appId;
-        if (details.nAppID == null)
-            details.nAppID = appId;
     }
     catch (_error) {
         // Best-effort guard only; never block Steam's native bootstrap.
@@ -8460,6 +8487,7 @@ const installSteamPatches = () => {
         };
     }
     let patchesActive = true;
+    (0, collectionCacheMigration_1.repairLegacyCollectionCaches)((0, compat_1.getSteamGlobal)("collectionStore"), (0, compat_1.getSteamGlobal)("appStore"));
     const unpatchers = [];
     installAchievementImageCoverPatch(unpatchers);
     // Activity news now use Steam's own AppActivityStore and native Activity
@@ -8631,27 +8659,6 @@ const installSteamPatches = () => {
         window.removeEventListener("popstate", routeGuardEvent);
         window.removeEventListener("hashchange", routeGuardEvent);
     });
-    if ((0, compat_1.getSteamGlobal)("appStore")?.GetAppOverviewByAppID) {
-        unpatchers.push((0, compat_1.patchMethod)((0, compat_1.getSteamGlobal)("appStore"), "GetAppOverviewByAppID", (_thisValue, original, args) => {
-            const requestedAppId = Number(args[0]);
-            const result = original(...args);
-            if (result || !Number.isFinite(requestedAppId) || requestedAppId <= 0) {
-                return result;
-            }
-            const shortcutAppId = shortcutAppIdForSteamAppId(requestedAppId);
-            if (!shortcutAppId || shortcutAppId === requestedAppId)
-                return result;
-            try {
-                const shortcutOverview = original(shortcutAppId);
-                if (isNonSteamAppWithoutPatchedMethod(shortcutOverview))
-                    return shortcutOverview;
-            }
-            catch (_error) {
-                // Fall through to Steam's native null result.
-            }
-            return result;
-        }));
-    }
     unpatchers.push((0, compat_1.patchMethod)(detailsProto, "GetDescriptions", (_thisValue, original, args) => {
         const appId = Number(args[0]);
         const overview = (0, exports.getOverview)(appId);
