@@ -4,7 +4,7 @@ import asyncio
 import base64
 import concurrent.futures
 import io
-import difflib
+import importlib.util
 import hashlib
 import html
 import json
@@ -24,6 +24,17 @@ from pathlib import Path
 from typing import Any
 
 import decky
+
+# Frozen Windows Decky builds may omit difflib. Keep CPython's title matching.
+try:
+    import difflib
+except ModuleNotFoundError as error:
+    if error.name != "difflib":
+        raise
+    _diff_spec = importlib.util.spec_from_file_location(
+        "playhub_metadata_difflib", os.path.join(os.path.dirname(__file__), "vendor", "difflib.py"))
+    difflib = importlib.util.module_from_spec(_diff_spec)
+    _diff_spec.loader.exec_module(difflib)
 
 try:
     from PIL import Image
@@ -256,6 +267,7 @@ MICROSOFT_STORE_PRODUCTS_URL = "https://storeedgefd.dsx.mp.microsoft.com/v8.0/sd
 MICROSOFT_DISPLAY_CATALOG_PRODUCTS_URL = "https://displaycatalog.mp.microsoft.com/v7.0/products"
 TRUEACHIEVEMENTS_BASE_URL = "https://www.trueachievements.com"
 STEAM_STORE_SEARCH_URL = "https://store.steampowered.com/api/storesearch/"
+STEAM_STORE_APP_DETAILS_URL = "https://store.steampowered.com/api/appdetails"
 STEAM_NEWS_URL = "https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/"
 STEAM_EVENTS_URL = "https://store.steampowered.com/events/ajaxgetpartnereventspageable/"
 STEAM_STORE_APP_URL = "https://store.steampowered.com/app/{appid}/"
@@ -406,6 +418,27 @@ def now() -> int:
     return int(time.time())
 
 
+class _AuthenticatedProviderRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        origin = urllib.parse.urlsplit(req.full_url)
+        target = urllib.parse.urlsplit(newurl)
+        if target.scheme != "https" or (target.hostname, target.port or 443) != (origin.hostname, origin.port or 443):
+            raise urllib.error.HTTPError(
+                origin._replace(query="", fragment="").geturl(), code, "Unsafe provider redirect", headers, fp
+            )
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _open_authenticated_provider_request(request: urllib.request.Request, timeout: int):
+    if request.type != "https":
+        raise ValueError("Authenticated provider requests require HTTPS")
+    opener = urllib.request.build_opener(
+        urllib.request.HTTPSHandler(context=ssl.create_default_context()),
+        _AuthenticatedProviderRedirectHandler(),
+    )
+    return opener.open(request, timeout=timeout)
+
+
 class Plugin:
     def __init__(self) -> None:
         self._settings_dir = Path(decky.DECKY_PLUGIN_SETTINGS_DIR)
@@ -413,6 +446,7 @@ class Plugin:
         self._scan_task: asyncio.Task[Any] | None = None
         self._scan_progress = self._new_scan_progress("idle")
         self._activity_refresh_task: asyncio.Task[Any] | None = None
+        self._activity_write_lock = threading.Lock()
         self._activity_refresh_progress = self._new_scan_progress("idle")
         self._data = self._default_data()
         self._data_file_signature: tuple[int, int] | None = None
@@ -1722,6 +1756,18 @@ class Plugin:
                 blocked.add(title)
         return blocked
 
+    def _save_steam_activity_metadata(
+        self, key: str, refreshed: dict[str, Any], expected: dict[str, Any] | None = None
+    ) -> bool:
+        with self._activity_write_lock:
+            self._load_data()
+            current = self._data["metadata"].get(key)
+            if not isinstance(current, dict) or (expected is not None and current != expected):
+                return False
+            self._data["metadata"][key] = refreshed
+            self._save_data()
+            return True
+
     def _clear_steam_activity_association_sync(self, app_id: int) -> dict[str, Any] | None:
         self._load_data()
         key = str(int(app_id))
@@ -1750,9 +1796,7 @@ class Plugin:
         next_metadata["steam_news"] = []
         next_metadata["steam_news_enriched_at"] = 0
         saved = self._sanitize_metadata(next_metadata)
-        self._data["metadata"][key] = saved
-        self._save_data()
-        return saved
+        return saved if self._save_steam_activity_metadata(key, saved) else None
 
     def _refetch_steam_activity_association_sync(
         self, app_id: int, title: str = ""
@@ -1782,9 +1826,7 @@ class Plugin:
         next_metadata["steam_news_enriched_at"] = 0
         refreshed = self._metadata_with_steam_news_sync(next_metadata, clean_title, 10)
         saved = self._sanitize_metadata(refreshed or next_metadata)
-        self._data["metadata"][key] = saved
-        self._save_data()
-        return saved
+        return saved if self._save_steam_activity_metadata(key, saved) else None
 
     def _set_steam_activity_enabled_sync(
         self, app_id: int, enabled: bool, title: str = ""
@@ -1812,49 +1854,48 @@ class Plugin:
 
     async def _refresh_steam_activities(self, games: list[dict[str, Any]]) -> None:
         self._load_data()
-        targets: list[dict[str, Any]] = []
+        targets: dict[str, str] = {}
         for game in games:
-            if not isinstance(game, dict) or not str(game.get("appid", "")).strip():
+            if not isinstance(game, dict):
                 continue
-            metadata = self._data["metadata"].get(str(int(game.get("appid"))))
-            if isinstance(metadata, dict) and not bool(metadata.get("steam_activity_disabled", False)):
-                targets.append(game)
-        self._activity_refresh_progress.update({"total": len(targets), "completed": 0})
-        for game in targets:
-            app_id = int(game.get("appid"))
-            metadata = self._data["metadata"].get(str(app_id))
-            title = self._clean_game_title(str(game.get("name") or (metadata or {}).get("title") or ""))
-            current = f"{self._activity_refresh_progress['completed'] + 1}/{len(targets)} - {title}" if title else f"{self._activity_refresh_progress['completed'] + 1}/{len(targets)}"
-            self._activity_refresh_progress["current"] = current
-            self._activity_refresh_progress["message"] = f"Refreshing Steam Activity for {title}"
+            raw_id = str(game.get("appid", "")).strip()
+            if not re.fullmatch(r"[0-9]{1,10}", raw_id) or not 0 < int(raw_id) <= 0xffffffff:
+                continue
+            key = str(int(raw_id))
+            metadata = self._data["metadata"].get(key)
+            if isinstance(metadata, dict) and not metadata.get("steam_activity_disabled"):
+                targets.setdefault(key, str(game.get("name") or ""))
+        progress = self._activity_refresh_progress
+        progress.update({"total": len(targets), "completed": 0})
+        for key, name in targets.items():
+            title = name
             try:
-                refreshed = await asyncio.to_thread(
-                    self._metadata_with_steam_news_sync,
-                    dict(metadata or {}),
-                    title,
-                    10,
-                )
-                if refreshed and self._sanitize_steam_news(refreshed.get("steam_news")):
-                    self._data["metadata"][str(app_id)] = refreshed
-                    self._save_data()
-                    self._activity_refresh_progress["assigned"] += 1
-                    self._activity_refresh_progress["message"] = f"Updated Steam Activity for {title}"
+                metadata = self._data["metadata"].get(key)
+                if not isinstance(metadata, dict) or metadata.get("steam_activity_disabled"):
+                    continue
+                title = self._clean_game_title(name or str(metadata.get("title") or ""))
+                current = f"{progress['completed'] + 1}/{len(targets)}"
+                progress["current"] = f"{current} - {title}" if title else current
+                progress["message"] = f"Refreshing Steam Activity for {title}"
+                refreshed = await asyncio.to_thread(self._metadata_with_steam_news_sync, dict(metadata), title, 10)
+                # A slow download must not undo a manual change made in the meantime.
+                if refreshed and not self._save_steam_activity_metadata(key, refreshed, expected=metadata):
+                    progress["message"] = f"Steam Activity changed during refresh for {title}"
+                    continue
+                if refreshed and refreshed.get("steam_news"):
+                    progress["assigned"] += 1
+                    progress["message"] = f"Updated Steam Activity for {title}"
                 else:
-                    if refreshed:
-                        self._data["metadata"][str(app_id)] = refreshed
-                        self._save_data()
-                    self._activity_refresh_progress["failed"] += 1
-                    self._activity_refresh_progress["message"] = f"No Steam Activity found for {title}"
+                    progress["failed"] += 1
+                    progress["message"] = f"No Steam Activity found for {title}"
             except Exception as error:
-                self._activity_refresh_progress["failed"] += 1
-                self._activity_refresh_progress["message"] = f"Failed: {title}"
-                self._activity_refresh_progress["error"] = str(error)
+                progress["failed"] += 1
+                progress["message"] = f"Failed: {title}"
+                progress["error"] = str(error)
                 decky.logger.error(f"Steam Activity refresh failed for {title}: {error}")
             finally:
-                self._activity_refresh_progress["completed"] += 1
-        self._activity_refresh_progress["running"] = False
-        self._activity_refresh_progress["status"] = "completed"
-        self._activity_refresh_progress["current"] = ""
+                progress["completed"] += 1
+        progress.update({"running": False, "status": "completed", "current": ""})
 
     def _search_metadata_sync(
         self, query: str, limit: int = 8, app_id: int = 0
@@ -2139,12 +2180,25 @@ class Plugin:
             next_metadata["steam_news"] = []
             next_metadata["steam_news_enriched_at"] = 0
             return self._sanitize_metadata(next_metadata)
+        next_metadata = dict(metadata)
+        steam_appid = self._safe_int(metadata.get("steam_appid"))
+        if (
+            steam_appid
+            and str(metadata.get("source") or "").casefold() == "ign"
+            and not metadata.get("steam_activity_title")
+            and not self._steam_activity_source_appid(metadata)
+            and re.search(r"\b\d+\b", self._normalise_match_title(clean_title))
+        ):
+            # This runs only when refreshing Activity. Older automatic matches
+            # were reused by AppID without checking the game's sequel number.
+            store_title = self._steam_activity_store_title(steam_appid)
+            if store_title and not self._steam_activity_title_numbers_compatible(clean_title, store_title):
+                next_metadata.update(steam_appid=None, steam_store_url="", steam_news=[], steam_news_enriched_at=0)
         steam_appid, steam_store_url, steam_news = self._steam_news_for_metadata(
-            metadata,
+            next_metadata,
             clean_title,
             limit=limit,
         )
-        next_metadata = dict(metadata)
         if steam_appid:
             next_metadata["steam_appid"] = steam_appid
         if steam_store_url:
@@ -2483,6 +2537,11 @@ class Plugin:
                     "event_gid": event_gid,
                     "news_id": announcement_gid or event_gid,
                     "announcement_gid": announcement_gid or event_gid,
+                    "clan_steamid": str(event.get("clan_steamid") or "") if announcement_gid else "",
+                    "forum_topic_gid": str(announcement.get("forum_topic_id") or event.get("forum_topic_id") or ""),
+                    "upvotes": announcement.get("voteupcount"),
+                    "downvotes": announcement.get("votedowncount"),
+                    "comment_count": announcement.get("commentcount"),
                     "event_type": event_type,
                     "type": event_type,
                     "title": title_text,
@@ -2505,14 +2564,41 @@ class Plugin:
                 break
         return self._sanitize_steam_news(rows)
 
-    @staticmethod
-    def _steam_activity_title_numbers_compatible(query: str, candidate: str) -> bool:
-        # Store search can rank sequels very close to each other. If both titles
-        # contain Arabic numerals and none match, treat it as a different game
-        # instead of borrowing activity from a newer sequel.
-        query_numbers = set(re.findall(r"\d+", str(query or "")))
-        candidate_numbers = set(re.findall(r"\d+", str(candidate or "")))
-        return not (query_numbers and candidate_numbers and not query_numbers.intersection(candidate_numbers))
+    def _steam_activity_title_numbers_compatible(self, query: str, candidate: str) -> bool:
+        query = self._normalise_match_title(query)
+        candidate = self._normalise_match_title(candidate)
+        pattern = r"\b\d+\b"
+        query_number = re.search(pattern, query)
+        candidate_number = re.search(pattern, candidate)
+        if not query_number or not candidate_number:
+            return True
+        # If both titles start with the same series name, compare the sequel
+        # number. A car model, year or DLC pack later in the name can't match it.
+        query_series = query[:query_number.start()].strip()
+        candidate_series = candidate[:candidate_number.start()].strip()
+        if query_series and query_series == candidate_series:
+            return query_number.group() == candidate_number.group()
+        return bool(set(re.findall(pattern, query)).intersection(re.findall(pattern, candidate)))
+
+    def _steam_activity_source_appid(self, metadata: dict[str, Any]) -> int | None:
+        for value in (metadata.get("source_url"), metadata.get("id")):
+            match = re.search(r"store\.steampowered\.com/app/(\d+)", str(value or ""), re.I)
+            if match:
+                return self._safe_int(match.group(1))
+        return None
+
+    def _steam_activity_store_title(self, appid: int) -> str:
+        params = urllib.parse.urlencode({"appids": appid, "cc": "US", "l": "english", "filters": "basic"})
+        try:
+            payload = self._http_json(f"{STEAM_STORE_APP_DETAILS_URL}?{params}", timeout=8)
+        except Exception as error:
+            decky.logger.debug(f"Couldn't verify Steam Activity title for {appid}: {error}")
+            return ""
+        row = payload.get(str(appid)) if isinstance(payload, dict) else None
+        data = row.get("data") if isinstance(row, dict) and row.get("success") is True else None
+        if isinstance(data, dict) and self._safe_int(data.get("steam_appid")) == appid:
+            return self._clean_game_title(str(data.get("name") or ""))
+        return ""
 
     def _resolve_steam_appid_for_title(
         self,
@@ -2531,16 +2617,22 @@ class Plugin:
         clean_title = self._clean_game_title(title)
         if not clean_title:
             return None, ""
-        try:
-            params = urllib.parse.urlencode({"term": clean_title, "cc": "US", "l": "english"})
-            payload = self._http_json(f"{STEAM_STORE_SEARCH_URL}?{params}", timeout=12)
-        except Exception as error:
-            decky.logger.error(f"Failed Steam store search for {clean_title}: {error}")
-            return None, ""
-        items = payload.get("items") if isinstance(payload, dict) else []
-        if not isinstance(items, list):
-            return None, ""
         normalised_query = self._normalise_match_title(clean_title)
+        terms = [clean_title]
+        if normalised_query and normalised_query != clean_title.casefold():
+            terms.append(normalised_query)
+        items = []
+        for term in terms:
+            try:
+                params = urllib.parse.urlencode({"term": term, "cc": "US", "l": "english"})
+                payload = self._http_json(f"{STEAM_STORE_SEARCH_URL}?{params}", timeout=12)
+            except Exception as error:
+                decky.logger.error(f"Failed Steam store search for {clean_title}: {error}")
+                return None, ""
+            candidates = payload.get("items") if isinstance(payload, dict) else None
+            if isinstance(candidates, list) and candidates:
+                items = candidates
+                break
         best: tuple[int, int, str, str] | None = None
         for index, item in enumerate(items[:12]):
             if not isinstance(item, dict):
@@ -2854,6 +2946,11 @@ class Plugin:
                     "news_id": raw_gid,
                     "announcement_gid": str(item.get("announcement_gid") or raw_gid).strip(),
                     "event_gid": str(item.get("event_gid") or raw_gid).strip(),
+                    "clan_steamid": str(item.get("clan_steamid") or "").strip(),
+                    "forum_topic_gid": str(item.get("forum_topic_gid") or "").strip(),
+                    "upvotes": max(0, self._safe_int(item.get("upvotes")) or 0),
+                    "downvotes": max(0, self._safe_int(item.get("downvotes")) or 0),
+                    "comment_count": max(0, self._safe_int(item.get("comment_count")) or 0),
                     "event_type": event_type,
                     "type": event_type,
                     "title": title,
@@ -3062,8 +3159,7 @@ class Plugin:
             f"{RETROACHIEVEMENTS_GAME_URL}?{params}",
             headers={"User-Agent": "PlayhubMetadata/0.1 (+Decky Loader)"},
         )
-        context = ssl._create_unverified_context()
-        with urllib.request.urlopen(request, timeout=25, context=context) as response:
+        with _open_authenticated_provider_request(request, 25) as response:
             payload = json.loads(response.read().decode("utf-8", errors="ignore"))
         self._save_ra_achievement_cache(cache_key, payload)
         return self._retro_payload_to_steam(payload, int(game_id))
@@ -3198,9 +3294,8 @@ class Plugin:
                 "User-Agent": "PlayhubMetadata/1.3.18 (+Decky Loader)",
             },
         )
-        context = ssl._create_unverified_context()
         try:
-            with urllib.request.urlopen(request, timeout=timeout, context=context) as response:
+            with _open_authenticated_provider_request(request, timeout) as response:
                 payload = json.loads(response.read().decode("utf-8", errors="ignore") or "null")
         except urllib.error.HTTPError as error:
             decky.logger.error(f"OpenXBL {method} {path} -> HTTP {error.code}")
@@ -7179,9 +7274,8 @@ try {
             f"{RETROACHIEVEMENTS_PROFILE_URL}?{params}",
             headers={"User-Agent": "PlayhubMetadata/0.1 (+Decky Loader)"},
         )
-        context = ssl._create_unverified_context()
         try:
-            with urllib.request.urlopen(request, timeout=20, context=context) as response:
+            with _open_authenticated_provider_request(request, 20) as response:
                 payload = json.loads(response.read().decode("utf-8", errors="ignore"))
         except urllib.error.HTTPError as error:
             return {
@@ -7519,7 +7613,6 @@ try {
     def _ra_request_json(
         self, url: str, params: dict[str, Any], timeout: int = 25
     ) -> Any:
-        context = ssl._create_unverified_context()
         last_error: Exception | None = None
         for attempt in range(4):
             request = urllib.request.Request(
@@ -7527,9 +7620,7 @@ try {
                 headers={"User-Agent": "PlayhubMetadata/0.1 (+Decky Loader)"},
             )
             try:
-                with urllib.request.urlopen(
-                    request, timeout=timeout, context=context
-                ) as response:
+                with _open_authenticated_provider_request(request, timeout) as response:
                     return json.loads(
                         response.read().decode("utf-8", errors="ignore")
                     )

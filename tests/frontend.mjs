@@ -11,6 +11,7 @@ const ts = loadTypeScript();
 const compiled = new Map();
 const testExports = `\nexport const __test = { primeAchievementStore, loadAchievementsForApp, shouldShowAchievements,
   tryInstallAchievementStorePatch, installPlayhubHomeActivityPatch, installNativeActivityStorePatch,
+  installNativePartnerEventStorePatch,
   setSettings(value: any) { achievementSettingsCache = value; },
   getBypass() { return bypassCounter; }, setBypass(value: number) { bypassCounter = value; } };\n`;
 for (const filename of fs.readdirSync(path.join(root, 'src')).filter(x => /\.tsx?$/.test(x))) {
@@ -245,6 +246,110 @@ test('Home integration waits for a real store and cleans timers/listeners',async
   assert([...e.timers.values()].some(x=>x.interval));e.window.libraryEventStore={m_vecHomeBestEventsForUser:[]};await e.runTimer(x=>x.interval);
   assert(![...e.timers.values()].some(x=>x.interval));cleanup.reverse().forEach(fn=>fn());assert.equal(e.timers.size,0);assert.equal(e.listenerCount(),0);
 });
+test('shortcut Activity announcements satisfy the native card and navigation contract', async () => {
+  const e = environment();
+  e.addSteam();
+  const s = e.load('steam');
+  const appId = 101;
+  const storeAppId = 999;
+  const releaseGid = '1234567890123456789';
+  const announcementGid = '2345678901234567890';
+  const image = 'https://clan.cloudflare.steamstatic.com/images/123/card.jpg';
+  s.metadataCache[appId] = { steam_appid: storeAppId, steam_news: [
+    { gid: announcementGid, event_gid: releaseGid, date: 1700000000, event_type: 14,
+      url: `https://store.steampowered.com/news/app/${storeAppId}/view/${releaseGid}`,
+      title: 'Developer update', summary: 'Event summary', image, raw_body: '[b]Full event[/b]',
+      clan_steamid: '103582791440971704', upvotes: 7, downvotes: 2, comment_count: 3 },
+    { gid: '3456789012345678901', date: 1699999999, event_type: 12, title: 'Patch notes',
+      url: `https://steamcommunity.com/games/${storeAppId}/announcements/detail/3456789012345678901` },
+  ] };
+  const nativeSteamFeed = { native: true };
+  const activityStore = e.window.appActivityStore = {
+    m_mapAppActivity: new Map(),
+    GetAppActivity: id => id === 440 ? nativeSteamFeed : undefined,
+  };
+  const nativeAdjacent = [{ native: true }];
+  const partnerStore = e.context.partnerEventStore = {
+    GetClanEventModel: () => undefined,
+    LoadAdjacentPartnerEventsByEvent: async () => nativeAdjacent,
+  };
+  const cleanup = [];
+  s.__test.installNativeActivityStorePatch(cleanup);
+  s.__test.installNativePartnerEventStorePatch(cleanup);
+  try {
+    const feed = activityStore.GetAppActivity(appId);
+    assert.equal(feed.appid, appId);
+    const events = Array.from(feed.appActivityByDay).flatMap(day => Array.from(day.events));
+    assert.equal(events.length, 2);
+    // Steam gates each PostedAnnouncement on BCanRender, then uses preview to render and open it.
+    const event = events[0];
+    assert.equal(event.BCanRender(), true);
+    assert.equal(event.eEventType, 1002);
+    assert.equal(event.preview.strTitle, 'Developer update');
+    assert.equal(event.preview.strSummary, 'Event summary');
+    assert.equal(event.preview.eType, 14);
+    assert.equal(event.preview.rgCapsuleImages[0], image);
+    assert.equal(event.preview.rtPostTime, 1700000000);
+    assert.equal(event.preview.appid, appId);
+    assert.equal(event.preview.gid, releaseGid);
+    assert.equal(event.preview.gidAnnouncement, announcementGid);
+    const partnerEvent = await event.GetEvent();
+    assert.equal(partnerEvent.GID, event.preview.gid);
+    assert.equal(partnerEvent.GetReferenceAppID(), storeAppId);
+    assert.equal(partnerEvent.clanSteamID.GetAccountID(), 11450296);
+    assert.equal(event.preview.clanAccountID, 11450296);
+    const modalEvent = partnerStore.GetClanEventModel(releaseGid);
+    assert.equal(modalEvent.GID, releaseGid);
+    assert.equal(modalEvent.AnnouncementGID, announcementGid);
+    assert.equal(modalEvent.nVotesUp, 7);
+    assert.equal(modalEvent.nVotesDown, 2);
+    assert.equal(modalEvent.nCommentCount, 3);
+    modalEvent.UpdateVoteCount('up', 1);
+    modalEvent.UpdateVoteCount('down', -5);
+    assert.equal(modalEvent.nVotesUp, 8);
+    assert.equal(modalEvent.nVotesDown, 0);
+    assert.equal(partnerEvent.GetDescriptionWithFallback(), '[b]Full event[/b]');
+    assert.equal(partnerEvent.GetDiscussionURL(),
+      `https://steamcommunity.com/games/${storeAppId}/announcements/detail/${announcementGid}`);
+    const patch = events[1];
+    assert.equal(patch.BCanRender(), true);
+    assert.equal(patch.preview.gid, 'old_announce_3456789012345678901');
+    assert.equal(patch.preview.strTitle, 'Patch notes');
+    assert.equal(patch.preview.strSummary, '');
+    // The legacy entry can be read without submitting a vote to an unverified clan.
+    assert.equal((await patch.GetEvent()).AnnouncementGID, undefined);
+    assert.equal(partnerStore.GetClanEventModel(patch.preview.gid).AnnouncementGID, undefined);
+    assert.equal(activityStore.GetAppActivity(440), nativeSteamFeed);
+    const adjacent = await partnerStore.LoadAdjacentPartnerEventsByEvent(partnerEvent, partnerEvent.clanSteamID, appId, 0, 1);
+    assert.deepEqual(Array.from(adjacent, model => model.GID), [releaseGid, patch.preview.gid]);
+    assert.equal(await partnerStore.LoadAdjacentPartnerEventsByEvent(partnerEvent, partnerEvent.clanSteamID, 440, 0, 1), nativeAdjacent);
+    assert.equal(await partnerStore.LoadAdjacentPartnerEventsByEvent({ appid: appId }, null, appId, 0, 1), nativeAdjacent);
+  } finally {
+    cleanup.reverse().forEach(fn => fn());
+  }
+  assert.equal(activityStore.GetAppActivity(appId), undefined);
+});
+
+test('refresh removes obsolete shortcut Activity from Steam’s cache without touching native feeds', async () => {
+  const e = environment();
+  e.addSteam();
+  const s = e.load('steam');
+  const obsolete = { __playhubNativeActivity: true };
+  const original = { native: true };
+  const feeds = new Map([[101, obsolete], [440, original]]);
+  const store = e.window.appActivityStore = { m_mapAppActivity: feeds, GetAppActivity: id => feeds.get(id) };
+  const stop = s.installSteamPatches();
+  try {
+    assert.equal(store.GetAppActivity(101), obsolete);
+    e.window.dispatchEvent({ type: 'playhub-metadata:activity-refreshed' });
+    await e.settle();
+    assert.equal(store.GetAppActivity(101), undefined);
+    assert.equal(store.GetAppActivity(440), original);
+  } finally {
+    stop();
+  }
+});
+
 test('full Steam patch install protects shortcut achievements and restores methods',async()=>{
   const e=environment();const {apps,Overview}=e.addSteam(),s=e.load('steam');s.__test.setSettings(settings());
   const original=e.window.appDetailsStore.GetAchievements;const stop=s.installSteamPatches();

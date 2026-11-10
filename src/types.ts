@@ -75,6 +75,11 @@ export type MetadataNews = {
   news_id?: string;
   announcement_gid?: string;
   event_gid?: string;
+  clan_steamid?: string;
+  forum_topic_gid?: string;
+  upvotes?: number;
+  downvotes?: number;
+  comment_count?: number;
   body?: string;
   raw_body?: string;
   date?: number;

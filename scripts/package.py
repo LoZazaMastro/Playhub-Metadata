@@ -9,8 +9,9 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED = {'node_modules', '.git', '__pycache__', '.pytest_cache', 'build-package', 'work'}
 INSTALLER_FILES = ['main.py', 'package.json', 'plugin.json', 'LICENSE', 'NOTICE',
-                   'CHANGELOG.md', 'INSTALL_1.8.1_IT.md', 'dist/index.js',
-                   'dist/index.js.map', 'dist/BUILD_INFO.json']
+                   'dist/index.js', 'dist/BUILD_INFO.json', 'vendor/difflib.py',
+                   'vendor/PYTHON-LICENSE.txt']
+OPTIONAL_INSTALLER_FILES = ['CHANGELOG.md', 'INSTALL_1.8.1_IT.md', 'dist/index.js.map']
 
 
 def main() -> None:
@@ -31,8 +32,9 @@ def main() -> None:
     output.mkdir(parents=True, exist_ok=True)
     installer = output / f'Playhub-Metadata_{version}_Installer.zip'
     project = output / f'Playhub-Metadata_{version}_Project.zip'
+    installer_files = INSTALLER_FILES + [name for name in OPTIONAL_INSTALLER_FILES if (ROOT / name).is_file()]
     with zipfile.ZipFile(installer, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
-        for name in INSTALLER_FILES:
+        for name in installer_files:
             archive.write(ROOT / name, f'Playhub Metadata/{name}')
     with zipfile.ZipFile(project, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for path in sorted(ROOT.rglob('*')):
@@ -44,7 +46,7 @@ def main() -> None:
     with zipfile.ZipFile(installer) as a, zipfile.ZipFile(project) as b:
         if a.testzip() or b.testzip():
             raise SystemExit('ZIP CRC verification failed')
-        for name in INSTALLER_FILES:
+        for name in installer_files:
             if a.read(f'Playhub Metadata/{name}') != b.read(f'Playhub-Metadata_{version}_Project/{name}'):
                 raise SystemExit(f'Runtime differs between archives: {name}')
     for path in (installer, project):

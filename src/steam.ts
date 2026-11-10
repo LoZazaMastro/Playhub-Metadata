@@ -714,7 +714,9 @@ const steamActivityNewsItemsFromMetadata = (appId: number, metadata: MetadataDat
         id,
         news_id: steamGid || id,
         announcement_gid: steamGid || id,
-        clan_steamid: "103582791429521412",
+        event_gid: eventGid || steamGid || id,
+        clan_steamid: news.clan_steamid,
+        forum_topic_gid: news.forum_topic_gid,
         event_name: title,
         event_type: eventType,
         type: eventType,
@@ -747,9 +749,9 @@ const steamActivityNewsItemsFromMetadata = (appId: number, metadata: MetadataDat
         date,
         feedlabel: news.feedLabel || news.author || eventLabel,
         author: news.author || news.feedLabel || eventLabel,
-        comment_count: 0,
-        upvotes: 0,
-        downvotes: 0,
+        comment_count: news.comment_count || 0,
+        upvotes: news.upvotes || 0,
+        downvotes: news.downvotes || 0,
         jsondata,
         announcement_body: {
           gid: steamGid || id,
@@ -1056,18 +1058,14 @@ const clonePlayhubNativePartnerEventForRoute = (event: any, requestedKey?: unkno
   // Steam's event overlay validates with a strict `event.GID == initialEventID` check.
   // Activity cards, old announcements and Store News routes may pass either the numeric
   // announcement id or the `old_announce_<gid>` event id, so return a route-local
-  // clone whose GID matches the key Steam asked for while keeping AnnouncementGID
-  // numeric for the real announcement data.
+  // clone whose GID matches the key Steam asked for while retaining the
+  // original announcement identity for discussions and votes.
   const routeGid = raw || String(event?.GID || (numericGid ? `old_announce_${numericGid}` : "0"));
   return {
     ...event,
     GID: routeGid,
     gid: routeGid,
     event_gid: routeGid,
-    AnnouncementGID: numericGid || event?.AnnouncementGID || event?.announcement_gid || "0",
-    announcement_gid: numericGid || event?.announcement_gid || event?.AnnouncementGID || "0",
-    announcementGID: numericGid || event?.announcementGID || event?.AnnouncementGID || "0",
-    GetAnnouncementGID: () => numericGid || event?.AnnouncementGID || event?.announcement_gid || "0",
   };
 };
 
@@ -1091,7 +1089,15 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
   const body = cleanSteamNewsDisplayText(item.body || item.content || item.description || item.summary || title);
   const images = collectSteamNewsImages(steamAppId, item);
   const primaryImage = images[0] || "";
-  const clanSteamID = fakeSteamId(0, String(item.clan_steamid || "103582791429521412"));
+  const clanIdText = String(item.clan_steamid || "");
+  const clanId = /^\d{17,20}$/.test(clanIdText) ? BigInt(clanIdText) : 0n;
+  // SteamID64's account-type bits must identify a public clan (type 7).
+  const clanAccountId = (clanId >> 52n) === 0x17n ? Number(clanId & 0xffffffffn) : 0;
+  const clanSteamID = fakeSteamId(clanAccountId, clanAccountId ? clanIdText : "103582791429521412");
+  const forumTopicGid = numericSteamNewsGid(item.forum_topic_gid);
+  const forumTopicUrl = steamAppId && steamAppId !== appId && forumTopicGid
+    ? `https://steamcommunity.com/app/${steamAppId}/eventcomments/${forumTopicGid}`
+    : "";
   const type = normalizePlayhubSteamActivityType(item.event_type || item.type);
   const isPatchNote = type === 12;
   const eventLabel = playhubSteamActivityTypeLabel(type);
@@ -1118,7 +1124,9 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     GID: nativeEventGid,
     gid: nativeEventGid,
     event_gid: nativeEventGid,
-    AnnouncementGID: announcementGid || gid || "0",
+    // Steam's vote hook checks this field before issuing requests. Older cache
+    // rows have no verified clan identity, but can still display the article.
+    AnnouncementGID: clanAccountId ? announcementGid || undefined : undefined,
     announcement_gid: announcementGid || gid || "0",
     announcementGID: announcementGid || gid || "0",
     appid: appId,
@@ -1143,7 +1151,11 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     nVotesUp: Number(item.upvotes || 0) || 0,
     nVotesDown: Number(item.downvotes || 0) || 0,
     nCommentCount: Number(item.comment_count || 0) || 0,
-    forumTopicGID: item.forumTopicGID || item.forum_topic_id || "0",
+    UpdateVoteCount(vote: "up" | "down", delta: number) {
+      const field = vote === "up" ? "nVotesUp" : "nVotesDown";
+      this[field] = Math.max(0, this[field] + delta);
+    },
+    forumTopicGID: forumTopicGid,
     clanSteamID,
     announcementClanSteamID: clanSteamID,
     jsondata,
@@ -1210,8 +1222,8 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     BHasBroadcastForceBanner: () => false,
     BSaleShowBroadcastAtTopOfPage: () => false,
     GetVisibilityStartTimeAndDateUnixSeconds: () => date,
-    BHasForumTopicGID: () => false,
-    GetForumTopicURL: () => "",
+    BHasForumTopicGID: () => Boolean(forumTopicUrl),
+    GetForumTopicURL: () => forumTopicUrl,
     GetAppIDOrReferenceAppID: () => steamAppId || appId,
     GetEventType: () => type,
     BIsVisibleEvent: () => true,
@@ -1274,6 +1286,9 @@ const makePlayhubNativePartnerEvent = (appId: number, steamAppId: number, item: 
     GetLastUpdaterSteamIDStr: () => "",
     GetStoreOrCommunityURL: () => announcementUrl,
     GetCommunityDiscussionURL: () => announcementUrl,
+    GetDiscussionURL: () => forumTopicUrl || (steamAppId && steamAppId !== appId && announcementGid
+      ? `https://steamcommunity.com/games/${steamAppId}/announcements/detail/${announcementGid}`
+      : ""),
     GetStoreNewsURL: () => steamAppId && (announcementGid || eventGid || gid) ? `https://store.steampowered.com/news/app/${steamAppId}/view/${announcementGid || eventGid || gid}` : announcementUrl,
     url: announcementUrl,
   };
@@ -1285,14 +1300,29 @@ const makePlayhubNativeActivityEvent = (appId: number, metadata: MetadataData, i
   const steamAppId = Number(metadata.steam_appid || item.appid || appId) || appId;
   const partnerEvent = makePlayhubNativePartnerEvent(appId, steamAppId, item, index);
   const date = Number(partnerEvent.postTime || 0) || Math.floor(Date.now() / 1000) - index * 60;
-  const gid = numericSteamNewsGid(partnerEvent.GID || item.url) || String(date);
-  const actor = fakeSteamId(0, String(item.clan_steamid || "103582791429521412"));
+  const gid = partnerEvent.GetAnnouncementGID();
+  // Steam's PostedAnnouncement component renders this preview and navigates
+  // using the shortcut AppID and the canonical partner-event GID.
+  const preview = {
+    gid: partnerEvent.GID,
+    gidAnnouncement: gid,
+    unTimeLastMod: partnerEvent.GetLastUpdateTime(),
+    appid: appId,
+    clanAccountID: partnerEvent.clanSteamID.GetAccountID(),
+    eType: partnerEvent.type,
+    strCategory: partnerEvent.GetCategoryAsString(),
+    strTitle: partnerEvent.GetNameWithFallback(),
+    strSummary: partnerEvent.GetSummaryWithFallback(),
+    strSubTitle: partnerEvent.GetSubTitleWithLanguageFallback(),
+    rtPostTime: date,
+    rgCapsuleImages: partnerEvent.GetImageForSizeAsArrayWithFallback("capsule"),
+  };
   return {
     __playhubNativeActivityEvent: true,
     gameid: String(appId),
     unUniqueID: Number(`${String(gid).slice(-8)}${index}`.slice(-9)) || date + index,
     rtEventTime: date,
-    steamIDActor: actor,
+    steamIDActor: partnerEvent.clanSteamID,
     steamIDTarget: fakeSteamId(),
     eEventType: STEAM_POSTED_ANNOUNCEMENT_EVENT_TYPE,
     eEventSubType: 0,
@@ -1300,6 +1330,7 @@ const makePlayhubNativeActivityEvent = (appId: number, metadata: MetadataData, i
     bIsGameActivity: false,
     commentThreads: [],
     activeThread: 0,
+    preview,
     get appid() {
       return appId;
     },
@@ -1328,6 +1359,7 @@ const makePlayhubNativeActivityEvent = (appId: number, metadata: MetadataData, i
       return partnerEvent.nCommentCount;
     },
     BIsValid: () => true,
+    BCanRender: () => Boolean(preview.strTitle),
     IsEventLoaded: () => true,
     GetEvent: async () => partnerEvent,
     ReloadEvent: async () => partnerEvent,
@@ -1425,6 +1457,13 @@ const refreshPlayhubNativeActivityForApp = async (appId: number, store?: any) =>
   return native;
 };
 
+const clearPlayhubNativeActivityCache = (store = getSteamGlobal("appActivityStore")) => {
+  for (const [appId, value] of store?.m_mapAppActivity?.entries?.() ?? []) {
+    if (value?.__playhubNativeActivity) store.m_mapAppActivity.delete(appId);
+  }
+  playhubNativeActivityCache().clear();
+};
+
 const installNativeActivityStorePatch = (unpatchers: Unpatch[]) => {
   let attempts = 0;
   const tryInstall = (): boolean => {
@@ -1433,10 +1472,7 @@ const installNativeActivityStorePatch = (unpatchers: Unpatch[]) => {
     store.__playhubNativeActivityPatched = true;
     unpatchers.push(() => {
       delete store.__playhubNativeActivityPatched;
-      for (const [appId, value] of store.m_mapAppActivity?.entries?.() ?? []) {
-        if (value?.__playhubNativeActivity) store.m_mapAppActivity.delete(appId);
-      }
-      playhubNativeActivityCache().clear();
+      clearPlayhubNativeActivityCache(store);
     });
     unpatchers.push(
       patchMethod(store, "GetAppActivity", (_thisValue, original, args) => {
@@ -1584,6 +1620,22 @@ const installNativePartnerEventStorePatch = (unpatchers: Unpatch[]) => {
       const event = playhubNativePartnerEventForGid(args[0], false);
       if (event) return Promise.resolve(event);
       return original(...args);
+    });
+    maybePatch("LoadAdjacentPartnerEventsByEvent", (original, args) => {
+      const [anchor, , requestedAppId, before, after] = args;
+      const appId = Number(requestedAppId || anchor?.appid);
+      if (!anchor?.__playhubNativePartnerEvent || anchor.appid !== appId || !isNonSteamApp(getOverview(appId))) {
+        return original(...args);
+      }
+      // The shortcut has no official Steam group. The native carousel can page
+      // through the same cached announcements that are already in its feed.
+      const events = (getPlayhubNativeActivityForApp(appId)?.appActivityByDay ?? [])
+        .flatMap((day: PlayhubNativeActivityDay) => day.events.map((event) => event.eventModel));
+      const index = events.findIndex((event: any) => event.GID === anchor.GID);
+      if (index < 0) return Promise.resolve([anchor]);
+      const start = Math.max(0, index - Math.max(0, Math.trunc(Number(before) || 0)));
+      const end = index + 1 + Math.max(0, Math.trunc(Number(after) || 0));
+      return Promise.resolve(events.slice(start, end));
     });
     maybePatch("LoadAdjacentPartnerEvents", (original, args) => {
       const requestedId = args[0];
@@ -5780,7 +5832,7 @@ export const installSteamPatches = (): Unpatch => {
   installNativePartnerEventStorePatch(unpatchers);
   installPlayhubHomeActivityPatch(unpatchers);
   const activityRefreshedListener = () => {
-    playhubNativeActivityCache().clear();
+    clearPlayhubNativeActivityCache();
     playhubNativePartnerEventCache().clear();
     const appId = currentGameDetailAppId();
     void ensureMetadataCache().then(() => {

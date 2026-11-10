@@ -1,3 +1,5 @@
+﻿param([switch]$InstallerOnly)
+
 $ErrorActionPreference = "Stop"
 
 $PluginFolderName = "Playhub Metadata"
@@ -18,7 +20,9 @@ if (-not $ResolvedStaging.StartsWith($ResolvedRoot, [System.StringComparison]::O
 }
 
 if (Test-Path $StagingRoot) { Remove-Item -LiteralPath $StagingRoot -Recurse -Force }
-foreach ($OutputZip in @($InstallerZip, $ProjectZip)) {
+$OutputZips = @($InstallerZip)
+if (-not $InstallerOnly) { $OutputZips += $ProjectZip }
+foreach ($OutputZip in $OutputZips) {
   if (Test-Path $OutputZip) { Remove-Item -LiteralPath $OutputZip -Force }
 }
 
@@ -31,6 +35,11 @@ Copy-Item (Join-Path $Root "plugin.json") $StagingPlugin
 Copy-Item (Join-Path $Root "LICENSE") $StagingPlugin
 if (Test-Path (Join-Path $Root "NOTICE")) {
   Copy-Item (Join-Path $Root "NOTICE") $StagingPlugin
+}
+$VendorStage = Join-Path $StagingPlugin "vendor"
+New-Item -ItemType Directory -Path $VendorStage | Out-Null
+foreach ($RuntimeFile in @("difflib.py", "PYTHON-LICENSE.txt")) {
+  Copy-Item (Join-Path $Root "vendor\$RuntimeFile") $VendorStage
 }
 Copy-Item (Join-Path $Root "dist\index.js") (Join-Path $StagingPlugin "dist")
 if (Test-Path (Join-Path $Root "dist\index.js.map")) {
@@ -46,6 +55,7 @@ if (Test-Path (Join-Path $Root "dist\BUILD_INFO.json")) {
 
 Compress-Archive -Path (Join-Path $StagingRoot $PluginFolderName) -DestinationPath $InstallerZip -Force
 
+if (-not $InstallerOnly) {
 New-Item -ItemType Directory -Path $StagingProject | Out-Null
 $ProjectExclude = @("build-package", "node_modules", "__pycache__", "work", ".git", ".pytest_cache")
 Get-ChildItem -Path $Root -Force | Where-Object {
@@ -59,7 +69,8 @@ Get-ChildItem -Path $StagingProject -Recurse -Directory | Where-Object {
 } | ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
 
 Compress-Archive -Path $StagingProject -DestinationPath $ProjectZip -Force
+}
 Remove-Item -LiteralPath $StagingRoot -Recurse -Force
 
 Write-Host "Created $InstallerZip"
-Write-Host "Created $ProjectZip"
+if (-not $InstallerOnly) { Write-Host "Created $ProjectZip" }

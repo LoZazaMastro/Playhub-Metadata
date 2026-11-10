@@ -3,6 +3,8 @@ from __future__ import annotations
 import asyncio
 import builtins
 import importlib.util
+import io
+import ssl
 import json
 import logging
 from pathlib import Path
@@ -19,13 +21,15 @@ ROOT = Path(__file__).resolve().parents[1]
 PNG = bytes.fromhex('89504e470d0a1a0a') + b'test fixture'
 
 
-def load_backend(settings: Path):
+def load_backend(settings: Path, without_difflib=False):
     decky = types.ModuleType('decky')
     decky.DECKY_PLUGIN_SETTINGS_DIR = str(settings)
     decky.DECKY_PLUGIN_DIR = str(ROOT)
     decky.logger = logging.getLogger('playhub-metadata-tests')
     real_import = builtins.__import__
     def frozen_import(name, *args, **kwargs):
+        if without_difflib and name == 'difflib':
+            raise ModuleNotFoundError("No module named 'difflib'", name='difflib')
         if name in ('http.server', 'socketserver') or name == 'PIL' or name.startswith('PIL.'):
             raise ModuleNotFoundError(f"No module named '{name}'")
         return real_import(name, *args, **kwargs)
@@ -51,7 +55,7 @@ class BackendRegression(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.directory = Path(self.temp.name)
-        self.module = load_backend(self.directory)
+        self.module = load_backend(self.directory, without_difflib=True)
         self.plugin = self.module.Plugin()
         # Never inspect/mutate a real Steam or RPCS3 installation in these tests.
         self.plugin._cleanup_loopback_icons = lambda: None
@@ -79,6 +83,165 @@ class BackendRegression(unittest.IsolatedAsyncioTestCase):
         await writer.wait_closed()
         headers, body = result.split(b'\r\n\r\n', 1)
         return int(headers.split()[1]), headers, body
+
+    async def test_activity_search_rejects_number_in_dlc_model_or_pack(self):
+        self.plugin._http_json = lambda url, **kwargs: {"items": [
+            {"id": 4439830, "name": "Forza Horizon 6 2008 Honda Civic Type R (FD2)"},
+            {"id": 4555555, "name": "Forza Horizon 6 - Pack 2"},
+        ]}
+        self.assertEqual(self.plugin._resolve_steam_appid_for_title("Forza Horizon 2"), (None, ""))
+
+    async def test_activity_search_accepts_roman_arabic_and_edition_aliases(self):
+        terms = []
+        def fetch(url, **kwargs):
+            term = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)["term"][0]
+            terms.append(term)
+            items = [{"id": 377840, "name": "FINAL FANTASY IX"}] if term == "final fantasy 9" else []
+            return {"items": items}
+        self.plugin._http_json = fetch
+        title = "Final Fantasy 9 (USA) Complete Edition"
+        app_id, _ = self.plugin._resolve_steam_appid_for_title(title)
+        self.assertEqual(app_id, 377840)
+        self.assertEqual(terms, [title, "final fantasy 9"])
+
+    async def test_refresh_clears_proven_legacy_activity_mismatch(self):
+        app_id, wrong_id = 4064247985, 4439830
+        wrong_title = "Forza Horizon 6 2008 Honda Civic Type R (FD2)"
+        await self.plugin.save_metadata(app_id, {
+            "source": "IGN", "title": "Forza Horizon 2", "steam_appid": wrong_id,
+            "steam_store_url": f"https://store.steampowered.com/app/{wrong_id}/",
+            "steam_news": [{"title": "Forza Horizon 6 Community Calendar", "url": "https://store.steampowered.com/"}],
+            "steam_news_enriched_at": 1792105829,
+        })
+        def fetch(url, **kwargs):
+            if "/api/appdetails?" in url:
+                return {str(wrong_id): {"success": True, "data": {"steam_appid": wrong_id, "name": wrong_title}}}
+            self.assertIn("/api/storesearch/", url)
+            return {"items": [{"id": wrong_id, "name": wrong_title}]}
+        self.plugin._http_json = fetch
+        news_appids = []
+        self.plugin._steam_news_for_appid = lambda appid, *args, **kwargs: news_appids.append(appid) or []
+        await self.plugin._refresh_steam_activities([{"appid": app_id, "name": "Forza Horizon 2"}])
+        repaired = await self.plugin.get_metadata(app_id)
+        self.assertIsNone(repaired["steam_appid"])
+        self.assertEqual(repaired["steam_store_url"], "")
+        self.assertEqual(repaired["steam_news"], [])
+        self.assertEqual(repaired["steam_news_enriched_at"], 0)
+        self.assertEqual(news_appids, [])
+        self.assertEqual(repaired["title"], "Forza Horizon 2")
+
+    async def test_refresh_preserves_aliases_explicit_choices_and_lookup_failures(self):
+        requested, refreshed = [], []
+        def fetch(url, **kwargs):
+            self.assertIn("/api/appdetails?", url)
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(url).query)
+            app_id = int(query["appids"][0])
+            requested.append(app_id)
+            if app_id != 377840:
+                raise TimeoutError("simulated timeout")
+            return {str(app_id): {"success": True, "data": {"steam_appid": app_id, "name": "FINAL FANTASY IX"}}}
+        self.plugin._http_json = fetch
+        self.plugin._steam_news_for_appid = lambda appid, *args, **kwargs: refreshed.append(appid) or []
+        rows = [
+            {"title": "Final Fantasy 9", "steam_appid": 377840},
+            {"title": "Forza Horizon 2", "steam_appid": 4439830, "steam_activity_title": "Forza Horizon 6"},
+            {"title": "Forza Horizon 2", "steam_appid": 4439830,
+                "source_url": "https://store.steampowered.com/app/4439830/"},
+            {"title": "Final Fantasy V", "steam_appid": 1173810},
+        ]
+        for row in rows:
+            result = self.plugin._metadata_with_steam_news_sync({"source": "IGN", **row}, row["title"])
+            self.assertEqual(result["steam_appid"], row["steam_appid"])
+        self.assertEqual(refreshed, [377840, 4439830, 4439830, 1173810])
+        self.assertEqual(requested, [377840, 1173810])
+
+    async def test_activity_bulk_refresh_keeps_concurrent_manual_removal(self):
+        app_id = 4064247985
+        await self.plugin.save_metadata(app_id, {"title": "Forza Horizon 2", "steam_appid": 4439830})
+        entered = threading.Event()
+        release = threading.Event()
+        def refresh(metadata, title, limit):
+            entered.set()
+            if not release.wait(3):
+                raise TimeoutError("test worker not released")
+            return {**metadata, "steam_news": [{"title": "Late item", "url": "https://store.steampowered.com/"}]}
+        self.plugin._metadata_with_steam_news_sync = refresh
+        task = asyncio.create_task(self.plugin._refresh_steam_activities([{"appid": app_id}]))
+        try:
+            self.assertTrue(await asyncio.to_thread(entered.wait, 3))
+            await self.plugin.clear_steam_activity_association(app_id)
+        finally:
+            release.set()
+            await asyncio.wait_for(task, 3)
+        current = await self.plugin.get_metadata(app_id)
+        self.assertTrue(current["steam_activity_disabled"])
+        self.assertEqual(current["steam_news"], [])
+        self.assertIsNone(current["steam_appid"])
+        progress = await self.plugin.get_activity_refresh_progress()
+        self.assertEqual((progress["assigned"], progress["completed"], progress["status"]), (0, 1, "completed"))
+
+    async def test_activity_bulk_refresh_skips_bad_ids_and_finishes_valid_game(self):
+        app_id = 4064247985
+        await self.plugin.save_metadata(app_id, {"title": "Forza Horizon 2"})
+        called = []
+        def refresh(metadata, title, limit):
+            called.append(title)
+            return metadata
+        self.plugin._metadata_with_steam_news_sync = refresh
+        await self.plugin.start_refresh_steam_activities([
+            {"appid": "malformed"}, {"appid": "3.5"}, {"appid": True}, {"appid": 4294967296},
+            {"appid": str(app_id)}, {"appid": app_id},
+        ])
+        await asyncio.wait_for(self.plugin._activity_refresh_task, 3)
+        self.assertEqual(called, ["Forza Horizon 2"])
+        progress = await self.plugin.get_activity_refresh_progress()
+        self.assertEqual((progress["total"], progress["completed"], progress["running"]), (1, 1, False))
+
+    async def test_partner_activity_keeps_steam_clan_and_vote_data(self):
+        self.plugin._http_json = lambda url, **kwargs: {"events": [{
+            "gid": "532125848715658292", "event_type": 28,
+            "clan_steamid": "103582791440971704", "appid": 377840,
+            "announcement_body": {
+                "gid": "532125848715658293", "headline": "Final Fantasy IX update",
+                "posttime": 1789740525, "voteupcount": 88, "votedowncount": 9, "commentcount": 3,
+                "forum_topic_id": "805719856669524289",
+            },
+        }]}
+        [event] = self.plugin._steam_partner_events_for_appid(377840)
+        self.assertEqual(event["clan_steamid"], "103582791440971704")
+        self.assertEqual(event["forum_topic_gid"], "805719856669524289")
+        self.assertEqual((event["upvotes"], event["downvotes"], event["comment_count"]), (88, 9, 3))
+
+    async def test_authenticated_achievement_requests_validate_tls(self):
+        seen = []
+        def build_opener(*handlers):
+            tls = next(handler for handler in handlers if isinstance(handler, urllib.request.HTTPSHandler))
+            self.assertEqual(tls._context.verify_mode, ssl.CERT_REQUIRED)
+            self.assertTrue(tls._context.check_hostname)
+            def open_request(request, timeout):
+                self.assertEqual(request.type, "https")
+                seen.append(urllib.parse.urlsplit(request.full_url).path)
+                return io.BytesIO(b'{"User":"test-user","Achievements":{"1":{"Title":"Start"}}}')
+            return types.SimpleNamespace(open=open_request)
+        await self.plugin.set_retroachievements_settings(True, "test-user", "fixture-key")
+        await self.plugin.set_retroachievements_game_id(101, 123)
+        with patch('urllib.request.build_opener', side_effect=build_opener), patch('urllib.request.urlopen', side_effect=AssertionError("bypassed verified opener")):
+            self.assertTrue((await self.plugin.test_retroachievements_credentials())["ok"])
+            self.plugin._ra_request_json(self.module.RETROACHIEVEMENTS_GAME_LIST_URL, {"y": "fixture-key"})
+            self.assertEqual((await self.plugin.sync_retroachievements_progress(101))["steam"]["nTotal"], 1)
+            self.plugin._openxbl_request("/account", "fixture-key", cache_ttl=0)
+        self.assertEqual(seen, ["/API/API_GetUserProfile.php", "/API/API_GetGameList.php",
+                                "/API/API_GetGameInfoAndUserProgress.php", "/api/v2/account"])
+
+    async def test_authenticated_provider_redirect_cannot_forward_credentials_to_another_origin(self):
+        handler = self.module._AuthenticatedProviderRedirectHandler()
+        request = urllib.request.Request("https://xbl.io/api/v2/account", headers={"X-Authorization": "fixture-key"})
+        for destination in ("http://xbl.io/next", "https://elsewhere.example/next", "https://xbl.io:8443/next"):
+            with self.assertRaises(urllib.error.HTTPError):
+                handler.redirect_request(request, None, 302, "Found", {}, destination)
+        redirect = handler.redirect_request(request, None, 302, "Found", {}, "https://xbl.io:443/next")
+        self.assertEqual(redirect.full_url, "https://xbl.io:443/next")
+        self.assertEqual(redirect.get_header("X-authorization"), "fixture-key")
 
     async def test_boot_without_http_server_socketserver_and_pillow(self):
         self.assertIsNone(self.module.Image)
