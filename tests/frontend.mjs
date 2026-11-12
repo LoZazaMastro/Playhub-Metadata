@@ -464,6 +464,82 @@ test('Steam patch startup repairs a stale collection through native setters with
   assert.equal(e.window.appStore.GetAppOverviewByAppID,lookup);assert.deepEqual([...collection.apps],[101,9999]);stop();
 });
 
+
+// Feed payloads belong at Steam's direct-body wrapper, not its Axios transport.
+test('library feeds prefer steamAjaxRequest and never patch underlying Axios', async () => {
+  const e=environment(),install=e.load('steamFeeds').installSteamLibraryFeedPatches,stops=[];
+  const native={hub:[{native:true}]},custom={hub:[{mapped:true}]};let axiosCalls=0;
+  const axios={get:async()=>{axiosCalls++;return {data:native,headers:{}};},post(){},request(){},put(){}};
+  const originalAxios=axios.get;e.modules.push({axios});
+  const wrapper=e.window.steamAjaxRequest={AxiosWrapper:async request=>(await request()).data,
+    get(url,options){return this.AxiosWrapper(()=>axios.get(url,options));},post(){return Promise.resolve(native);}};
+  const original=wrapper.get;assert(install(e.dfl.findModuleChild,stops,url=>url.endsWith('/101')?Promise.resolve(custom):null));
+  assert.equal(axios.get,originalAxios);assert.equal(await wrapper.get('/library/appcommunityfeed/101',{}),custom);assert.equal(axiosCalls,0);
+  assert.equal(await wrapper.get('/library/appcommunityfeed/440',{}),native);assert.equal(axiosCalls,1);
+  stops.reverse().forEach(fn=>fn());assert.equal(wrapper.get,original);
+});
+test('library wrapper module discovery accepts function exports and skips lazy failures', () => {
+  const e=environment(),install=e.load('steamFeeds').installSteamLibraryFeedPatches,stops=[];
+  function mod(){};Object.defineProperty(mod,'late',{enumerable:true,get(){throw new Error('not ready');}});
+  mod.renamed={get(){},post(){},AxiosWrapper(){}};e.modules.push(mod);
+  const original=mod.renamed.get;assert(install(e.dfl.findModuleChild,stops,()=>null));assert.notEqual(mod.renamed.get,original);
+  stops.reverse().forEach(fn=>fn());assert.equal(mod.renamed.get,original);
+});
+test('unknown HTTP transports remain untouched instead of receiving direct-body patches', () => {
+  const e=environment(),client={get(){},post(){},request(){},put(){}},original=client.get,stops=[];
+  e.modules.push({client});e.window.steamAjaxRequest=client;
+  assert.equal(e.load('steamFeeds').installSteamLibraryFeedPatches(e.dfl.findModuleChild,stops,()=>Promise.resolve({hub:[]})),false);
+  assert.equal(client.get,original);assert.equal(stops.length,0);
+});
+test('native feed and unrelated requests preserve receiver, arguments, promise and rejection', async () => {
+  const e=environment(),stops=[],seen=[],error=new Error('native rejection'),native=Promise.resolve({hub:[]});
+  const client=e.window.steamAjaxRequest={AxiosWrapper(){},get(...args){seen.push([this,args]);return native;},post(...args){seen.push([this,args]);return Promise.reject(error);}};
+  e.load('steamFeeds').installSteamLibraryFeedPatches(e.dfl.findModuleChild,stops,()=>null);
+  const options={params:{language:'italian'},cancelToken:{}};assert.equal(client.get('/other',options),native);
+  await assert.rejects(client.post('/native',{},options),value=>value===error);
+  assert.equal(seen.length,2);assert.equal(seen[0][0],client);assert.equal(seen[0][1][1],options);assert.equal(seen[1][1][2],options);
+  stops.reverse().forEach(fn=>fn());
+});
+test('empty or failed providers fall back once and never retry a failed original request', async () => {
+  for(const provider of [()=>Promise.resolve(null),()=>Promise.reject(new Error('provider')),()=>{throw new Error('sync provider');}]){
+    const e=environment(),stops=[],error=new Error('native request'),seen=[];
+    const client=e.window.steamAjaxRequest={AxiosWrapper(){},get(...args){seen.push(args);return Promise.reject(error);},post(){}};
+    e.load('steamFeeds').installSteamLibraryFeedPatches(e.dfl.findModuleChild,stops,provider);
+    await assert.rejects(client.get('/library/appcommunityfeed/101',{}),value=>value===error);assert.equal(seen.length,1);
+    stops.reverse().forEach(fn=>fn());
+  }
+});
+test('feed unload leaves a later foreign wrapper intact and deactivates its own layer', async () => {
+  const e=environment(),stops=[];let providers=0,nativeCalls=0;
+  const native={hub:[]},client=e.window.steamAjaxRequest={AxiosWrapper(){},get(){nativeCalls++;return native;},post(){}};
+  e.load('steamFeeds').installSteamLibraryFeedPatches(e.dfl.findModuleChild,stops,()=>{providers++;return Promise.resolve({hub:[1]});});
+  const previous=client.get;client.get=function(...args){return previous.apply(this,args);};const foreign=client.get;
+  stops.reverse().forEach(fn=>fn());assert.equal(client.get,foreign);assert.equal(client.get('/library/appcommunityfeed/101'),native);
+  assert.equal(providers,0);assert.equal(nativeCalls,1);
+});
+test('actual Steam patch serves all mapped shortcut media while genuine Steam and unmapped games pass through', async () => {
+  const e=environment(),{apps,Overview}=e.addSteam();apps.push(new Overview(303));const s=e.load('steam');
+  const mapping={};for(const appId of [101,202])mapping[appId]={title:`Mapped ${appId}`,steam_appid:999+appId,
+    screenshots:[{url:`https://example.invalid/${appId}/screen.jpg`,caption:'Screenshot'}],
+    community_images:[{url:`https://example.invalid/${appId}/art.jpg`,caption:'Community image',source:'RAWG'}],
+    community_videos:[{id:'abcdefghijk',title:'Trailer',url:'https://www.youtube.com/watch?v=abcdefghijk'}],
+    community_enriched_at:Date.now()/1000,steam_news_enriched_at:Date.now()/1000};
+  e.rpc.get_all_metadata=()=>mapping;Object.assign(s.metadataCache,mapping);
+  const native={hub:[{native:true}]};let nativeCalls=0;
+  const client=e.window.steamAjaxRequest={AxiosWrapper(){},get(){nativeCalls++;return Promise.resolve(native);},post(){nativeCalls++;return Promise.resolve(native);}};
+  const stop=s.installSteamPatches();
+  try{
+    for(const appId of [101,202])for(const method of ['get','post']){
+      const payload=await client[method](`https://steamcommunity.com/library/appcommunityfeed/${appId}`,{});
+      assert.equal(payload.hub.length,3);assert(payload.hub.every(item=>item.appid===appId&&item.consumer_appid===appId));
+      assert(payload.hub.some(item=>item.youtube_video_id==='abcdefghijk'));assert(!('data' in payload));
+    }
+    assert.equal(nativeCalls,0);
+    assert.equal(await client.get('/library/appcommunityfeed/440',{}),native);
+    assert.equal(await client.get('/library/appcommunityfeed/303',{}),native);assert.equal(nativeCalls,2);
+  }finally{stop();}
+});
+
 let failures=0;
 for(const [name,fn] of tests){try{await fn();console.log(`PASS ${name}`);}catch(error){failures++;console.error(`FAIL ${name}\n${error.stack}`);}}
 console.log(`\n${tests.length-failures}/${tests.length} frontend regressions passed (${ts.version}).`);

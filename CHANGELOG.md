@@ -1,3 +1,7 @@
+## 1.8.6
+
+- Fix community content loading on non-Steam game pages with the latest Steam client.
+
 ## 1.8.5
 
 - Fixed the Activity feed and news viewer for non-Steam games in Steam Big Picture.

@@ -24,6 +24,7 @@ import {
 } from "./types";
 import { t } from "./i18n";
 import { repairLegacyCollectionCaches } from "./collectionCacheMigration";
+import { installSteamLibraryFeedPatches } from "./steamFeeds";
 
 
 type Unpatch = () => void;
@@ -6184,43 +6185,12 @@ export const installSteamPatches = (): Unpatch => {
   }
 
   try {
-    const httpClient = findModuleChild((module: any) => {
-      if (!module || typeof module !== "object") return undefined;
-      return moduleEntries(module).map(([, value]) => value).find((value: any) =>
-        typeof value?.get === "function" && typeof value?.post === "function" &&
-        (typeof value?.request === "function" || typeof value?.put === "function")
-      );
+    installSteamLibraryFeedPatches(findModuleChild, unpatchers, (url) => {
+      const activityAppId = activityAppIdFromUrl(url);
+      if (activityAppId) return steamActivityPayloadForApp(activityAppId);
+      const match = url.match(/library\/appcommunityfeed\/(\d+)/);
+      return match ? communityPayloadForApp(Number(match[1])) : null;
     });
-    const patchFeedMethod = (methodName: "get" | "post") => {
-      if (!httpClient?.[methodName]) return;
-      unpatchers.push(
-        patchMethod(
-          httpClient,
-          methodName,
-          (_thisValue, original, args) => {
-            const url = String(args[0] || "");
-            const activityAppId = activityAppIdFromUrl(url);
-            if (activityAppId) {
-              return steamActivityPayloadForApp(activityAppId).then((payload) => {
-                if (payload) return payload;
-                return original(...args);
-              });
-            }
-            const match = url.match(/library\/appcommunityfeed\/(\d+)/);
-            if (match) {
-              const appId = Number(match[1]);
-              return communityPayloadForApp(appId).then((payload) => {
-                if (payload) return payload;
-                return original(...args);
-              });
-            }
-            return original(...args);
-          }
-        )
-      );
-    };
-    patchFeedMethod("get");
-    patchFeedMethod("post");
   } catch (error) {
     console.warn("[Playhub Metadata] community feed patch skipped", error);
   }

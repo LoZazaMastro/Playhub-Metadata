@@ -1,4 +1,4 @@
-// Playhub Metadata 1.8.5: rebuilt from src with TypeScript 5.9.3.
+// Playhub Metadata 1.8.6: rebuilt from src with TypeScript 5.9.3.
 const index = (() => {
 const factories = Object.create(null);
 factories["backend"] = function(module, exports, require) {
@@ -2961,6 +2961,7 @@ const backend_1 = require("./backend");
 const types_1 = require("./types");
 const i18n_1 = require("./i18n");
 const collectionCacheMigration_1 = require("./collectionCacheMigration");
+const steamFeeds_1 = require("./steamFeeds");
 exports.metadataCache = {};
 exports.achievementsCache = {};
 const NON_STEAM_APP_TYPE = 1073741824;
@@ -8886,39 +8887,13 @@ const installSteamPatches = () => {
         console.warn("[Playhub Metadata] app details sections patch skipped", error);
     }
     try {
-        const httpClient = (0, ui_1.findModuleChild)((module) => {
-            if (!module || typeof module !== "object")
-                return undefined;
-            return (0, compat_1.moduleEntries)(module).map(([, value]) => value).find((value) => typeof value?.get === "function" && typeof value?.post === "function" &&
-                (typeof value?.request === "function" || typeof value?.put === "function"));
+        (0, steamFeeds_1.installSteamLibraryFeedPatches)(ui_1.findModuleChild, unpatchers, (url) => {
+            const activityAppId = activityAppIdFromUrl(url);
+            if (activityAppId)
+                return steamActivityPayloadForApp(activityAppId);
+            const match = url.match(/library\/appcommunityfeed\/(\d+)/);
+            return match ? communityPayloadForApp(Number(match[1])) : null;
         });
-        const patchFeedMethod = (methodName) => {
-            if (!httpClient?.[methodName])
-                return;
-            unpatchers.push((0, compat_1.patchMethod)(httpClient, methodName, (_thisValue, original, args) => {
-                const url = String(args[0] || "");
-                const activityAppId = activityAppIdFromUrl(url);
-                if (activityAppId) {
-                    return steamActivityPayloadForApp(activityAppId).then((payload) => {
-                        if (payload)
-                            return payload;
-                        return original(...args);
-                    });
-                }
-                const match = url.match(/library\/appcommunityfeed\/(\d+)/);
-                if (match) {
-                    const appId = Number(match[1]);
-                    return communityPayloadForApp(appId).then((payload) => {
-                        if (payload)
-                            return payload;
-                        return original(...args);
-                    });
-                }
-                return original(...args);
-            }));
-        };
-        patchFeedMethod("get");
-        patchFeedMethod("post");
     }
     catch (error) {
         console.warn("[Playhub Metadata] community feed patch skipped", error);
@@ -9134,6 +9109,54 @@ const cleanupRetiredRpcs3ControllerOverrides = async () => {
     }
 };
 exports.cleanupRetiredRpcs3ControllerOverrides = cleanupRetiredRpcs3ControllerOverrides;
+};
+factories["steamFeeds"] = function(module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.installSteamLibraryFeedPatches = void 0;
+/** Playhub Metadata — GPL-3.0-or-later. See LICENSE and NOTICE. */
+const compat_1 = require("./compat");
+// Steam's wrapper unwraps AxiosResponse.data before library feed consumers read
+// it. Patching Axios itself with a direct {hub} body breaks AxiosWrapper.
+const isSteamBodyClient = (value) => {
+    try {
+        return typeof value?.get === "function" && typeof value?.post === "function" &&
+            typeof value?.AxiosWrapper === "function";
+    }
+    catch (_error) {
+        return false;
+    }
+};
+const installSteamLibraryFeedPatches = (findModuleChild, unpatchers, payloadForUrl) => {
+    const globalClient = (0, compat_1.getSteamGlobal)("steamAjaxRequest");
+    const client = isSteamBodyClient(globalClient) ? globalClient : findModuleChild((module) => {
+        if (isSteamBodyClient(module))
+            return module;
+        return (0, compat_1.moduleEntries)(module).map(([, value]) => value).find(isSteamBodyClient);
+    });
+    // An unknown transport is safer left untouched than treating Axios envelopes
+    // as feed bodies. Native Steam requests continue through their own methods.
+    if (!client)
+        return false;
+    for (const method of ["get", "post"]) {
+        unpatchers.push((0, compat_1.patchMethod)(client, method, (_receiver, original, args) => {
+            let pending;
+            try {
+                pending = payloadForUrl(String(args[0] || ""));
+            }
+            catch (_error) {
+                return original(...args);
+            }
+            if (!pending)
+                return original(...args);
+            // Handle only provider failure here: an original Steam request rejection
+            // must propagate unchanged, without issuing the native request twice.
+            return Promise.resolve(pending).then((payload) => payload || original(...args), () => original(...args));
+        }));
+    }
+    return true;
+};
+exports.installSteamLibraryFeedPatches = installSteamLibraryFeedPatches;
 };
 factories["types"] = function(module, exports, require) {
 "use strict";

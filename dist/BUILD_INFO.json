@@ -1,5 +1,5 @@
 {
-  "version": "1.8.5",
+  "version": "1.8.6",
   "build": "offline-source-rebuild",
   "compiler": "TypeScript 5.9.3",
   "sources": {
@@ -11,9 +11,10 @@
     "src/i18n.ts": "cfc7ae6e07f82aa34aa0c96e7157885bd8a148ffbb470d478fcbdad3948b1dcf",
     "src/index.tsx": "a1f84309a5eefb362fe3854c4c0573935abc5e6f2e3a4e5e856111a7eab376a1",
     "src/pluginMenuSection.ts": "552b4dc8e544faa81460a8400f534642b308b7717c680515c57ae5d19a127530",
-    "src/steam.ts": "34b88544d5891fe755265f8a65682eb5a34f76de9ab227e161c16ec6f1342d9f",
+    "src/steam.ts": "3d70da8a18470b64f0d279285facaa1b74a03b0ddacb56ba1c1fe8df0bd2d188",
+    "src/steamFeeds.ts": "c25f2e059113388e7b6f837c524f36e3989496d243d5a679c50ec537978e759c",
     "src/types.ts": "a26355e0fb23dd4b8f492d257b00f02d4fa168ba4b06b9c0b861d8c28c37a440",
     "vendor/runtime-deps.cjs": "1bc89de8d7d8b6b0b5d4252c21a09890633f63bc0a07ce2c6bf2b7bebba21f78"
   },
-  "bundle_sha256": "fba01414eea12513588e9f8deaf6448b0de4a01502d0a2464e0bf15ea67d5902"
+  "bundle_sha256": "723256448fc4a6871b0d1af05fb81af8552b5ac0988899e4972eca8fd3d7667b"
 }
