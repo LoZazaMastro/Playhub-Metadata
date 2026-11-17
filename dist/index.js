@@ -1,10 +1,10 @@
-// Playhub Metadata 1.8.6: rebuilt from src with TypeScript 5.9.3.
+// Playhub Metadata 1.8.13: rebuilt from src with TypeScript 5.9.3.
 const index = (() => {
 const factories = Object.create(null);
 factories["backend"] = function(module, exports, require) {
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.clearRpcs3Associations = exports.syncRpcs3Progress = exports.searchRpcs3TrophySets = exports.resolveRpcs3FromShortcut = exports.setRpcs3TrophyId = exports.setRpcs3DataPath = exports.getRpcs3Settings = exports.setScraperSettings = exports.setScraperLanguageOverride = exports.getScraperSettings = exports.searchRetroAchievementsGames = exports.resolveRetroAchievementsFromPath = exports.syncRetroAchievementsProgress = exports.syncTrueAchievementsProgress = exports.fetchAchievements = exports.setRetroAchievementsGameId = exports.testRetroAchievementsCredentials = exports.setRetroAchievementsSettings = exports.getRetroAchievementsSettings = exports.searchXboxTitles = exports.resolveXboxFromShortcut = exports.setAchievementCachePolicy = exports.setAchievementSource = exports.setXboxTitleId = exports.clearRetroAchievementsAssociations = exports.clearXboxAssociations = exports.testOpenXblCredentials = exports.loginTrueAchievements = exports.setXboxSettings = exports.getXboxSettings = exports.getAchievementSettings = exports.getLocalShortcuts = exports.setSteamActivityEnabled = exports.clearSteamActivityAssociation = exports.refetchSteamActivityAssociation = exports.getActivityRefreshProgress = exports.startRefreshSteamActivities = exports.getScanProgress = exports.startScanMissing = exports.enrichCommunityMedia = exports.autoFetchMetadata = exports.fetchMetadata = exports.searchMetadata = exports.clearAllMetadata = exports.removeMetadata = exports.saveMetadata = exports.getMetadata = exports.getAllMetadata = void 0;
+exports.clearRpcs3Associations = exports.syncRpcs3Progress = exports.searchRpcs3TrophySets = exports.resolveRpcs3FromShortcut = exports.setRpcs3TrophyId = exports.setRpcs3DataPath = exports.getRpcs3Settings = exports.setScraperSettings = exports.setScraperLanguageOverride = exports.getScraperSettings = exports.searchRetroAchievementsGames = exports.resolveRetroAchievementsFromPath = exports.syncRetroAchievementsProgress = exports.syncTrueAchievementsProgress = exports.normalizeStoreXboxAchievements = exports.fetchAchievements = exports.setRetroAchievementsGameId = exports.testRetroAchievementsCredentials = exports.setRetroAchievementsSettings = exports.getRetroAchievementsSettings = exports.searchXboxTitles = exports.resolveXboxFromShortcut = exports.setAchievementCachePolicy = exports.setAchievementSource = exports.setXboxTitleId = exports.clearRetroAchievementsAssociations = exports.clearXboxAssociations = exports.testOpenXblCredentials = exports.loginTrueAchievements = exports.setXboxSettings = exports.getXboxSettings = exports.getAchievementSettings = exports.getLocalShortcuts = exports.setSteamActivityEnabled = exports.clearSteamActivityAssociation = exports.refetchSteamActivityAssociation = exports.getActivityRefreshProgress = exports.startRefreshSteamActivities = exports.getScanProgress = exports.startScanMissing = exports.enrichCommunityMedia = exports.autoFetchMetadata = exports.fetchMetadata = exports.searchMetadata = exports.clearAllMetadata = exports.removeMetadata = exports.saveMetadata = exports.getMetadata = exports.getAllMetadata = void 0;
 const api_1 = require("@decky/api");
 exports.getAllMetadata = (0, api_1.callable)("get_all_metadata");
 exports.getMetadata = (0, api_1.callable)("get_metadata");
@@ -40,6 +40,7 @@ exports.setRetroAchievementsSettings = (0, api_1.callable)("set_retroachievement
 exports.testRetroAchievementsCredentials = (0, api_1.callable)("test_retroachievements_credentials");
 exports.setRetroAchievementsGameId = (0, api_1.callable)("set_retroachievements_game_id");
 exports.fetchAchievements = (0, api_1.callable)("fetch_achievements");
+exports.normalizeStoreXboxAchievements = (0, api_1.callable)("normalize_store_xbox_achievements");
 exports.syncTrueAchievementsProgress = (0, api_1.callable)("sync_trueachievements_progress");
 exports.syncRetroAchievementsProgress = (0, api_1.callable)("sync_retroachievements_progress");
 exports.resolveRetroAchievementsFromPath = (0, api_1.callable)("resolve_retroachievements_from_path");
@@ -1086,13 +1087,6 @@ const Content = () => {
             body: result.ok ? (0, i18n_1.t)("retroLoginOk") : result.message || (0, i18n_1.t)("retroLoginFailed"),
         });
     };
-    const saveXboxSettings = async (next) => {
-        const merged = { ...xbox, ...next };
-        setXbox(merged);
-        const saved = await (0, backend_1.setXboxSettings)(merged.enabled, merged.api_key || "");
-        setXbox(saved);
-        await (0, steam_1.refreshRaSettings)();
-    };
     const saveAchievementCachePolicy = async (provider, policy) => {
         if (provider === "retroachievements")
             setRetroAchievementCachePolicyState(policy);
@@ -1128,20 +1122,6 @@ const Content = () => {
         await (0, steam_1.refreshRaSettings)();
         window.dispatchEvent(new Event("playhub-metadata:achievement-cache-policy-changed"));
     };
-    const testXboxLogin = async () => {
-        if (!xbox.api_key.trim()) {
-            const saved = await (0, backend_1.setXboxSettings)(true, xbox.api_key || "");
-            setXbox(saved);
-            await (0, steam_1.refreshRaSettings)();
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxLoginNeedsProfile") });
-            return;
-        }
-        const result = await (0, backend_1.testOpenXblCredentials)(xbox.api_key || "");
-        const refreshed = await (0, backend_1.getAchievementSettings)();
-        setXbox(refreshed.xbox);
-        await (0, steam_1.refreshRaSettings)();
-        api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: result.ok ? (0, i18n_1.t)("xboxLoginOk") : result.message || (0, i18n_1.t)("xboxLoginFailed") });
-    };
     const openExternalUrl = (url) => {
         try {
             const steamClient = window?.SteamClient;
@@ -1160,23 +1140,6 @@ const Content = () => {
         window.open(url, "_blank", "noopener,noreferrer");
     };
     const openRetroAchievements = () => openExternalUrl("https://retroachievements.org/");
-    const openOpenXbl = () => openExternalUrl("https://xbl.io/");
-    const clearAllXboxMatches = async () => {
-        if (xboxBulkBusy || busy)
-            return;
-        setXboxBulkBusy(true);
-        try {
-            const saved = await (0, backend_1.clearXboxAssociations)();
-            setXbox(saved);
-            (0, steam_1.clearAchievementsForApps)(games.map((game) => game.appid));
-            await (0, steam_1.refreshRaSettings)();
-            setXboxBulkMessage((0, i18n_1.t)("xboxClearAllDone"));
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxClearAllDone") });
-        }
-        finally {
-            setXboxBulkBusy(false);
-        }
-    };
     const clearAllRetroAchievementsMatches = async () => {
         if (raBulkBusy || busy)
             return;
@@ -1191,115 +1154,6 @@ const Content = () => {
         }
         finally {
             setRaBulkBusy(false);
-        }
-    };
-    const bulkApplyXboxAchievements = async () => {
-        if (xboxBulkBusy || busy)
-            return;
-        if (!xbox.enabled) {
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxLoginFailed") });
-            return;
-        }
-        const targets = games.filter((game) => (0, steam_1.isUwphookGameOption)(game) && !xbox.title_ids[String(game.appid)]);
-        if (!targets.length) {
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxBulkNothing") });
-            return;
-        }
-        setXboxBulkBusy(true);
-        setXboxBulkMessage(`${(0, i18n_1.t)("xboxBulkScanning")}: 0/${targets.length}`);
-        let assigned = 0;
-        let skipped = 0;
-        try {
-            for (let index = 0; index < targets.length; index += 1) {
-                const game = targets[index];
-                const prefix = `${index + 1}/${targets.length} - ${game.name}`;
-                setBulkProgress({ completed: index, total: targets.length });
-                setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSearching")}`);
-                try {
-                    const results = await (0, backend_1.searchXboxTitles)(game.name, 5, game.appid, false);
-                    const best = results.find((item) => item.total == null || item.total > 0) || results[0];
-                    if (!best || best.score < 0.82) {
-                        skipped += 1;
-                        setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSkippedOne")}`);
-                        continue;
-                    }
-                    setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkApplying")}`);
-                    await (0, backend_1.setXboxTitleId)(game.appid, best.id);
-                    await (0, backend_1.setAchievementSource)(game.appid, "xbox");
-                    (0, steam_1.clearAchievementsForApp)(game.appid);
-                    const payload = await (0, backend_1.fetchAchievements)(game.appid);
-                    if (payload?.steam?.nTotal) {
-                        (0, steam_1.applyAchievementPayload)(game.appid, payload);
-                        assigned += 1;
-                        setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkAppliedOne")}`);
-                    }
-                    else {
-                        skipped += 1;
-                        setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSkippedOne")}`);
-                    }
-                }
-                catch (_error) {
-                    skipped += 1;
-                    setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSkippedOne")}`);
-                }
-            }
-            const refreshed = await (0, backend_1.getAchievementSettings)();
-            setXbox(refreshed.xbox);
-            await (0, steam_1.refreshRaSettings)();
-            setXboxBulkMessage(`${(0, i18n_1.t)("xboxBulkDone")}: ${assigned} ${(0, i18n_1.t)("xboxBulkApplied")}, ${skipped} ${(0, i18n_1.t)("xboxBulkSkipped")}`);
-            api_1.toaster.toast({
-                title: (0, i18n_1.t)("pluginName"),
-                body: `${(0, i18n_1.t)("xboxBulkDone")}: ${assigned} ${(0, i18n_1.t)("xboxBulkApplied")}, ${skipped} ${(0, i18n_1.t)("xboxBulkSkipped")}`,
-            });
-        }
-        finally {
-            setXboxBulkBusy(false);
-        }
-    };
-    const syncMatchedTrueAchievementsProgress = async () => {
-        if (xboxBulkBusy || busy)
-            return;
-        if (!xbox.enabled || !xbox.api_key.trim()) {
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxSyncProgressFailed") });
-            return;
-        }
-        const targets = games.filter((game) => (0, steam_1.isUwphookGameOption)(game) && !!xbox.title_ids[String(game.appid)]);
-        if (!targets.length) {
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("xboxBulkNothing") });
-            return;
-        }
-        setXboxBulkBusy(true);
-        let synced = 0;
-        let skipped = 0;
-        try {
-            for (let index = 0; index < targets.length; index += 1) {
-                const game = targets[index];
-                const prefix = `${index + 1}/${targets.length} - ${game.name}`;
-                setBulkProgress({ completed: index, total: targets.length });
-                setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxSyncingProgress")}`);
-                try {
-                    const payload = await (0, backend_1.syncTrueAchievementsProgress)(game.appid);
-                    if (payload?.steam?.nTotal) {
-                        (0, steam_1.applyAchievementPayload)(game.appid, payload);
-                        synced += 1;
-                        setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkAppliedOne")}`);
-                    }
-                    else {
-                        skipped += 1;
-                        setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSkippedOne")}`);
-                    }
-                }
-                catch (_error) {
-                    skipped += 1;
-                    setXboxBulkMessage(`${prefix}: ${(0, i18n_1.t)("xboxBulkSkippedOne")}`);
-                }
-            }
-            await (0, steam_1.refreshRaSettings)();
-            setXboxBulkMessage(`${(0, i18n_1.t)("xboxSyncProgressOk")}: ${synced}, ${(0, i18n_1.t)("xboxBulkSkipped")}: ${skipped}`);
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: `${(0, i18n_1.t)("xboxSyncProgressOk")}: ${synced}` });
-        }
-        finally {
-            setXboxBulkBusy(false);
         }
     };
     const scanRpcs3Trophies = async () => {
@@ -1509,10 +1363,7 @@ const Content = () => {
                         } }) }) }), (0, jsx_runtime_1.jsx)(ui_1.PanelSectionRow, { children: (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaTrophy, { size: 13 }), accent: PLAYHUB_ACCENTS.ra, title: "RetroAchievements", hint: (0, i18n_1.t)("retroLoginHint"), style: qamCardSpacingStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.ToggleField, { bottomSeparator: "none", label: (0, i18n_1.t)("retroEnabled"), checked: ra.enabled, onChange: (checked) => void saveRaSettings({ enabled: checked }) }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroUser") }), (0, jsx_runtime_1.jsx)(ui_1.TextField, { value: ra.username, onChange: (e) => setRa((prev) => ({ ...prev, username: e.target.value })), onBlur: () => void saveRaSettings({ username: ra.username }), style: fieldStyle }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroKey") }), (0, jsx_runtime_1.jsx)(ui_1.TextField, { value: ra.api_key, onChange: (e) => setRa((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveRaSettings({ api_key: ra.api_key }), style: fieldStyle }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: testRaLogin, children: (0, i18n_1.t)("retroLogin") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: openRetroAchievements, children: (0, i18n_1.t)("retroCreateAccount") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: scanRetroAchievements, children: raBulkBusy ? (0, i18n_1.t)("retroBulkScanning") : (0, i18n_1.t)("retroBulkScan") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !ra.enabled || !ra.api_key.trim(), onClick: syncMatchedRetroAchievementsProgress, children: (0, i18n_1.t)("retroSyncProgress") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: clearAllRetroAchievementsMatches, children: (0, i18n_1.t)("retroClearAll") }), raBulkBusy ? ((0, jsx_runtime_1.jsx)(PlayhubProgressBar, { label: raBulkMessage || (0, i18n_1.t)("retroBulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: raBulkBusy, accent: PLAYHUB_ACCENTS.ra })) : raBulkMessage ? ((0, jsx_runtime_1.jsx)("div", { style: inlineStatusStyle, children: raBulkMessage })) : null, (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("achievementCacheRetroTitle") }), (0, jsx_runtime_1.jsx)(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
                                 data: policy,
                                 label: (0, i18n_1.t)(`achievementCache_${policy}`),
-                            })), selectedOption: retroAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("retroachievements", option.data) })] }) }), (0, jsx_runtime_1.jsx)(ui_1.PanelSectionRow, { children: (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaXbox, { size: 13 }), accent: PLAYHUB_ACCENTS.xbox, title: (0, i18n_1.t)("xboxTitle"), style: qamCardSpacingStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.ToggleField, { bottomSeparator: "none", label: (0, i18n_1.t)("xboxEnabled"), checked: xbox.enabled, onChange: (checked) => void saveXboxSettings({ enabled: checked }) }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("xboxProfile") }), (0, jsx_runtime_1.jsx)(ui_1.TextField, { value: xbox.api_key, onChange: (e) => setXbox((prev) => ({ ...prev, api_key: e.target.value })), onBlur: () => void saveXboxSettings({ api_key: xbox.api_key }), style: fieldStyle }), xbox.ta_logged_in ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: xbox.gamertag ? `${(0, i18n_1.t)("xboxLoggedIn")}: ${xbox.gamertag}` : (0, i18n_1.t)("xboxLoggedIn") })) : null, (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: testXboxLogin, children: (0, i18n_1.t)("xboxLogin") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: openOpenXbl, children: (0, i18n_1.t)("xboxOpenOpenXbl") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: bulkApplyXboxAchievements, children: xboxBulkBusy ? (0, i18n_1.t)("xboxBulkScanning") : (0, i18n_1.t)("xboxBulkScan") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !xbox.api_key.trim(), onClick: syncMatchedTrueAchievementsProgress, children: (0, i18n_1.t)("xboxSyncAllProgress") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length, onClick: clearAllXboxMatches, children: (0, i18n_1.t)("xboxClearAll") }), xboxBulkBusy ? ((0, jsx_runtime_1.jsx)(PlayhubProgressBar, { label: xboxBulkMessage || (0, i18n_1.t)("xboxBulkScanning"), completed: bulkProgress.completed, total: bulkProgress.total, busy: xboxBulkBusy, accent: PLAYHUB_ACCENTS.xbox })) : xboxBulkMessage ? ((0, jsx_runtime_1.jsx)("div", { style: inlineStatusStyle, children: xboxBulkMessage })) : null, (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("achievementCacheXboxTitle") }), (0, jsx_runtime_1.jsx)(QamDropdown, { rgOptions: achievementCachePolicies.map((policy) => ({
-                                data: policy,
-                                label: (0, i18n_1.t)(`achievementCache_${policy}`),
-                            })), selectedOption: xboxAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("xbox", option.data) })] }) }), (0, jsx_runtime_1.jsx)(ui_1.PanelSectionRow, { children: (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: (0, i18n_1.t)("rpcs3Title"), hint: (0, i18n_1.t)("rpcs3SettingsHint"), style: qamCardSpacingStyle, children: [(0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("rpcs3DataPath") }), (0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("rpcs3DataPathHint") }), (0, jsx_runtime_1.jsx)(ui_1.TextField, { value: rpcs3PathDraft, disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onChange: (event) => setRpcs3PathDraft(event.target.value) }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onClick: chooseRpcs3DataPath, children: (0, i18n_1.t)("rpcs3ChooseDataPath") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy ||
+                            })), selectedOption: retroAchievementCachePolicy, onChange: (option) => void saveAchievementCachePolicy("retroachievements", option.data) })] }) }), (0, jsx_runtime_1.jsx)(ui_1.PanelSectionRow, { children: (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: (0, i18n_1.t)("rpcs3Title"), hint: (0, i18n_1.t)("rpcs3SettingsHint"), style: qamCardSpacingStyle, children: [(0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("rpcs3DataPath") }), (0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("rpcs3DataPathHint") }), (0, jsx_runtime_1.jsx)(ui_1.TextField, { value: rpcs3PathDraft, disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onChange: (event) => setRpcs3PathDraft(event.target.value) }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onClick: chooseRpcs3DataPath, children: (0, i18n_1.t)("rpcs3ChooseDataPath") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy ||
                                 rpcs3BulkBusy ||
                                 busy ||
                                 rpcs3PathDraft.trim() === (rpcs3Settings.data_path || ""), onClick: () => void applyRpcs3DataPath(rpcs3PathDraft), children: (0, i18n_1.t)("rpcs3SaveDataPath") }), rpcs3Settings.data_path ? ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3PathBusy || rpcs3BulkBusy || busy, onClick: () => void applyRpcs3DataPath(""), children: (0, i18n_1.t)("rpcs3ResetDataPath") })) : null, (0, jsx_runtime_1.jsx)("div", { style: inlineStatusStyle, children: rpcs3Settings.automatic
@@ -1770,92 +1621,6 @@ const MetadataPage = () => {
                 : (0, i18n_1.t)("saved"),
         });
     };
-    const saveXboxMatchManual = async () => {
-        const manual = xboxTitleId.trim();
-        if (!manual) {
-            await clearXboxMatch();
-            return;
-        }
-        const currentSettings = await (0, backend_1.getAchievementSettings)();
-        await (0, backend_1.setXboxSettings)(true, currentSettings.xbox.api_key || "");
-        const ids = await (0, backend_1.setXboxTitleId)(appId, manual);
-        const nextId = ids[String(appId)] || manual;
-        setXboxTitleIdState(nextId);
-        await saveAchievementSource("xbox");
-        await (0, steam_1.refreshRaSettings)();
-        const payload = await (0, backend_1.fetchAchievements)(appId);
-        (0, steam_1.applyAchievementPayload)(appId, payload);
-        api_1.toaster.toast({
-            title: (0, i18n_1.t)("pluginName"),
-            body: payload?.steam?.nTotal
-                ? `${(0, i18n_1.t)("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-                : (0, i18n_1.t)("xboxGameFailed"),
-        });
-    };
-    const autoDetectXboxAchievements = async () => {
-        const currentSettings = await (0, backend_1.getAchievementSettings)();
-        await (0, backend_1.setXboxSettings)(true, currentSettings.xbox.api_key || "");
-        const details = await (0, steam_1.getAppDetails)(appId);
-        const launchPath = `${details?.strShortcutExe || ""} ${details?.strShortcutLaunchOptions || ""}`;
-        const payload = await (0, backend_1.resolveXboxFromShortcut)(appId, (0, steam_1.appName)(appId), launchPath);
-        (0, steam_1.applyAchievementPayload)(appId, payload);
-        if (payload?.steam?.nTotal) {
-            await saveAchievementSource("xbox");
-            const settings = await (0, backend_1.getAchievementSettings)();
-            setXboxTitleIdState(settings.xbox.title_ids[String(appId)] || "");
-            await (0, steam_1.refreshRaSettings)();
-        }
-        api_1.toaster.toast({
-            title: (0, i18n_1.t)("pluginName"),
-            body: payload?.steam?.nTotal
-                ? `${(0, i18n_1.t)("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-                : (0, i18n_1.t)("xboxDetectFailed"),
-        });
-    };
-    const clearXboxMatch = async () => {
-        const ids = await (0, backend_1.setXboxTitleId)(appId, null);
-        setXboxTitleIdState(ids[String(appId)] || "");
-        (0, steam_1.clearAchievementsForApp)(appId);
-        if (achievementSource === "xbox") {
-            await saveAchievementSource("auto");
-        }
-        await (0, steam_1.refreshRaSettings)();
-        api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: (0, i18n_1.t)("saved") });
-    };
-    const searchXbox = async () => {
-        setXboxSearching(true);
-        try {
-            const results = await (0, backend_1.searchXboxTitles)(xboxQuery || (0, steam_1.appName)(appId), 12, appId, true);
-            setXboxResults(results);
-        }
-        catch (error) {
-            api_1.toaster.toast({ title: (0, i18n_1.t)("pluginName"), body: String(error) });
-        }
-        finally {
-            setXboxSearching(false);
-        }
-    };
-    const useXboxResult = async (result) => {
-        const currentSettings = await (0, backend_1.getAchievementSettings)();
-        await (0, backend_1.setXboxSettings)(true, currentSettings.xbox.api_key || "");
-        const ids = await (0, backend_1.setXboxTitleId)(appId, result.id);
-        setXboxTitleIdState(ids[String(appId)] || result.id);
-        await saveAchievementSource("xbox");
-        await (0, steam_1.refreshRaSettings)();
-        const payload = await (0, backend_1.fetchAchievements)(appId);
-        (0, steam_1.applyAchievementPayload)(appId, payload);
-        if (!payload?.steam?.nTotal) {
-            const cleared = await (0, backend_1.setXboxTitleId)(appId, null);
-            setXboxTitleIdState(cleared[String(appId)] || "");
-            await saveAchievementSource("auto");
-        }
-        api_1.toaster.toast({
-            title: (0, i18n_1.t)("pluginName"),
-            body: payload?.steam?.nTotal
-                ? `${(0, i18n_1.t)("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-                : (0, i18n_1.t)("xboxGameFailed"),
-        });
-    };
     const autoDetectRpcs3Trophies = async () => {
         const details = await (0, steam_1.getAppDetails)(appId);
         const launchPath = `${details?.strShortcutExe || ""} ${details?.strShortcutLaunchOptions || ""} ${details?.strShortcutStartDir || ""}`;
@@ -1919,16 +1684,6 @@ const MetadataPage = () => {
             body: payload?.steam?.nTotal
                 ? `${(0, i18n_1.t)("rpcs3SyncProgressOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
                 : (0, i18n_1.t)("rpcs3SyncProgressFailed"),
-        });
-    };
-    const syncXboxProgress = async () => {
-        const payload = await (0, backend_1.syncTrueAchievementsProgress)(appId);
-        (0, steam_1.applyAchievementPayload)(appId, payload);
-        api_1.toaster.toast({
-            title: (0, i18n_1.t)("pluginName"),
-            body: payload?.steam?.nTotal
-                ? `${(0, i18n_1.t)("xboxSyncProgressOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-                : (0, i18n_1.t)("xboxSyncProgressFailed"),
         });
     };
     const refetchSteamActivityMatch = async () => {
@@ -2044,9 +1799,7 @@ const MetadataPage = () => {
                                                         ? (0, i18n_1.t)("steamActivityDisabled")
                                                         : metadata.steam_appid
                                                             ? `${(0, i18n_1.t)("steamActivityCurrentMatch")}: ${metadata.steam_appid}${metadata.steam_news?.length ? ` - ${metadata.steam_news.length} ${(0, i18n_1.t)("steamActivityItems")}` : ""}`
-                                                            : (0, i18n_1.t)("steamActivityNoCurrentMatch") }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("steamActivitySearchTitle") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: steamActivityQuery, onChange: (e) => setSteamActivityQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy, onClick: refetchSteamActivityMatch, children: steamActivityBusy ? (0, i18n_1.t)("refreshingActivities") : (0, i18n_1.t)("steamActivityRefetch") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled), onClick: clearSteamActivityMatch, children: (0, i18n_1.t)("steamActivityClear") })] })] })] }), (0, jsx_runtime_1.jsxs)(ui_1.Focusable, { className: "phCol", "flow-children": "vertical", children: [(0, jsx_runtime_1.jsx)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaBolt, { size: 13 }), accent: PLAYHUB_ACCENTS.achievements, title: (0, i18n_1.t)("achievementSourceTitle"), hint: (0, i18n_1.t)("achievementSourceHint"), children: ["auto", "retroachievements", "xbox", "rpcs3", "disabled"].map((source) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: { ...optionButtonStyle, opacity: achievementSource === source ? 1 : 0.6 }, children: (0, jsx_runtime_1.jsxs)("span", { style: optionContentStyle, children: [(0, jsx_runtime_1.jsx)("span", { children: (0, i18n_1.t)(`achievementSource_${source}`) }), (0, jsx_runtime_1.jsx)("span", { style: { marginLeft: "auto" }, children: achievementSource === source ? (0, jsx_runtime_1.jsx)(fa_1.FaCheck, {}) : null })] }) }, source))) }), (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaTrophy, { size: 13 }), accent: PLAYHUB_ACCENTS.ra, title: "RetroAchievements", hint: (0, i18n_1.t)("retroHint"), children: [raSettings && !raSettings.enabled ? ((0, jsx_runtime_1.jsxs)("div", { style: cardHintStyle, children: [(0, i18n_1.t)("retroEnabled"), ": Off"] })) : null, (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroGameId") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: raGameId, onChange: (e) => setRaGameId(e.target.value), style: { ...flexFieldStyle, minWidth: "8rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: saveRaGameId, children: (0, i18n_1.t)("save") })] }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: autoDetectAchievements, children: (0, i18n_1.t)("retroGameDetect") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: testAchievements, children: (0, i18n_1.t)("retroGameTest") })] }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroGameSearchHint") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: raQuery, onChange: (e) => setRaQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: raSearching, onClick: searchAchievements, children: raSearching ? (0, i18n_1.t)("searching") : (0, i18n_1.t)("retroGameSearch") })] }), (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [raSearching ? (0, jsx_runtime_1.jsx)(ui_1.Spinner, {}) : null, !raSearching && !raResults.length ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("retroGameNoMatches") })) : null, raResults.map((result) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void useAchievementResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [(0, jsx_runtime_1.jsx)("b", { children: result.title }), (0, jsx_runtime_1.jsxs)("span", { style: compactTextStyle, children: [result.console ? `${result.console} - ` : "", Math.round(result.score * 100), "% match"] })] }) }, result.id)))] })] }), (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaXbox, { size: 13 }), accent: PLAYHUB_ACCENTS.xbox, title: (0, i18n_1.t)("xboxPerGameTitle"), hint: (0, i18n_1.t)("xboxHint"), children: [(0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("xboxCurrentMatch") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: xboxTitleId, onChange: (e) => setXboxTitleIdState(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: saveXboxMatchManual, children: (0, i18n_1.t)("save") })] }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: autoDetectXboxAchievements, children: (0, i18n_1.t)("xboxGameDetect") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: !xboxTitleId, onClick: syncXboxProgress, children: (0, i18n_1.t)("xboxSyncProgress") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: clearXboxMatch, children: (0, i18n_1.t)("xboxClearMatch") })] }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("xboxGameSearchHint") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: xboxQuery, onChange: (e) => setXboxQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: xboxSearching, onClick: searchXbox, children: xboxSearching ? (0, i18n_1.t)("searching") : (0, i18n_1.t)("xboxGameSearch") })] }), (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [xboxSearching ? (0, jsx_runtime_1.jsx)(ui_1.Spinner, {}) : null, !xboxSearching && !xboxResults.length ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("xboxGameNoMatches") })) : null, xboxResults.map((result) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void useXboxResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [(0, jsx_runtime_1.jsx)("b", { children: result.title }), (0, jsx_runtime_1.jsxs)("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", result.unlocked != null && result.total != null
-                                                                                ? ` - ${result.unlocked}/${result.total}`
-                                                                                : "", result.gamerscore != null ? ` - ${result.gamerscore}G` : "", ` - ${result.source || "TrueAchievements"} - ${result.id}`] })] }) }, result.id)))] })] }), (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: (0, i18n_1.t)("rpcs3PerGameTitle"), hint: (0, i18n_1.t)("rpcs3Hint"), children: [(0, jsx_runtime_1.jsxs)("div", { style: cardSubheadingStyle, children: [(0, i18n_1.t)("rpcs3CurrentMatch"), ": ", rpcs3TrophyId || (0, i18n_1.t)("none")] }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: autoDetectRpcs3Trophies, children: (0, i18n_1.t)("rpcs3GameDetect") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: !rpcs3TrophyId, onClick: syncRpcs3ProgressForApp, children: (0, i18n_1.t)("rpcs3SyncProgress") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: clearRpcs3Match, children: (0, i18n_1.t)("rpcs3ClearMatch") })] }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("rpcs3GameSearchHint") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: rpcs3Query, onChange: (e) => setRpcs3Query(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3Searching, onClick: searchRpcs3, children: rpcs3Searching ? (0, i18n_1.t)("searching") : (0, i18n_1.t)("rpcs3GameSearch") })] }), (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [rpcs3Searching ? (0, jsx_runtime_1.jsx)(ui_1.Spinner, {}) : null, !rpcs3Searching && !rpcs3Results.length ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("rpcs3GameNoMatches") })) : null, rpcs3Results.map((result) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void useRpcs3Result(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [(0, jsx_runtime_1.jsx)("b", { children: result.title }), (0, jsx_runtime_1.jsxs)("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", ` - ${result.unlocked}/${result.total}`, ` - ${result.id}`] })] }) }, result.path)))] })] })] })] })] })] }) }));
+                                                            : (0, i18n_1.t)("steamActivityNoCurrentMatch") }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("steamActivitySearchTitle") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: steamActivityQuery, onChange: (e) => setSteamActivityQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "12rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy, onClick: refetchSteamActivityMatch, children: steamActivityBusy ? (0, i18n_1.t)("refreshingActivities") : (0, i18n_1.t)("steamActivityRefetch") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: steamActivityBusy || (!metadata.steam_appid && !metadata.steam_news?.length && !!metadata.steam_activity_disabled), onClick: clearSteamActivityMatch, children: (0, i18n_1.t)("steamActivityClear") })] })] })] }), (0, jsx_runtime_1.jsxs)(ui_1.Focusable, { className: "phCol", "flow-children": "vertical", children: [(0, jsx_runtime_1.jsx)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaBolt, { size: 13 }), accent: PLAYHUB_ACCENTS.achievements, title: (0, i18n_1.t)("achievementSourceTitle"), hint: (0, i18n_1.t)("achievementSourceHint"), children: ["auto", "retroachievements", "rpcs3", "disabled"].map((source) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void saveAchievementSource(source), style: { ...optionButtonStyle, opacity: achievementSource === source ? 1 : 0.6 }, children: (0, jsx_runtime_1.jsxs)("span", { style: optionContentStyle, children: [(0, jsx_runtime_1.jsx)("span", { children: (0, i18n_1.t)(`achievementSource_${source}`) }), (0, jsx_runtime_1.jsx)("span", { style: { marginLeft: "auto" }, children: achievementSource === source ? (0, jsx_runtime_1.jsx)(fa_1.FaCheck, {}) : null })] }) }, source))) }), (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaTrophy, { size: 13 }), accent: PLAYHUB_ACCENTS.ra, title: "RetroAchievements", hint: (0, i18n_1.t)("retroHint"), children: [raSettings && !raSettings.enabled ? ((0, jsx_runtime_1.jsxs)("div", { style: cardHintStyle, children: [(0, i18n_1.t)("retroEnabled"), ": Off"] })) : null, (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroGameId") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: raGameId, onChange: (e) => setRaGameId(e.target.value), style: { ...flexFieldStyle, minWidth: "8rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: saveRaGameId, children: (0, i18n_1.t)("save") })] }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: autoDetectAchievements, children: (0, i18n_1.t)("retroGameDetect") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: testAchievements, children: (0, i18n_1.t)("retroGameTest") })] }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("retroGameSearchHint") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: raQuery, onChange: (e) => setRaQuery(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: raSearching, onClick: searchAchievements, children: raSearching ? (0, i18n_1.t)("searching") : (0, i18n_1.t)("retroGameSearch") })] }), (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [raSearching ? (0, jsx_runtime_1.jsx)(ui_1.Spinner, {}) : null, !raSearching && !raResults.length ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("retroGameNoMatches") })) : null, raResults.map((result) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void useAchievementResult(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [(0, jsx_runtime_1.jsx)("b", { children: result.title }), (0, jsx_runtime_1.jsxs)("span", { style: compactTextStyle, children: [result.console ? `${result.console} - ` : "", Math.round(result.score * 100), "% match"] })] }) }, result.id)))] })] }), (0, jsx_runtime_1.jsxs)(PlayhubCard, { icon: (0, jsx_runtime_1.jsx)(fa_1.FaPlaystation, { size: 13 }), accent: PLAYHUB_ACCENTS.ps3, title: (0, i18n_1.t)("rpcs3PerGameTitle"), hint: (0, i18n_1.t)("rpcs3Hint"), children: [(0, jsx_runtime_1.jsxs)("div", { style: cardSubheadingStyle, children: [(0, i18n_1.t)("rpcs3CurrentMatch"), ": ", rpcs3TrophyId || (0, i18n_1.t)("none")] }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: autoDetectRpcs3Trophies, children: (0, i18n_1.t)("rpcs3GameDetect") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: !rpcs3TrophyId, onClick: syncRpcs3ProgressForApp, children: (0, i18n_1.t)("rpcs3SyncProgress") }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: clearRpcs3Match, children: (0, i18n_1.t)("rpcs3ClearMatch") })] }), (0, jsx_runtime_1.jsx)("div", { style: fieldLabelStyle, children: (0, i18n_1.t)("rpcs3GameSearchHint") }), (0, jsx_runtime_1.jsxs)("div", { style: buttonRowStyle, children: [(0, jsx_runtime_1.jsx)(ui_1.TextField, { value: rpcs3Query, onChange: (e) => setRpcs3Query(e.target.value), style: { ...flexFieldStyle, minWidth: "10rem" } }), (0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", disabled: rpcs3Searching, onClick: searchRpcs3, children: rpcs3Searching ? (0, i18n_1.t)("searching") : (0, i18n_1.t)("rpcs3GameSearch") })] }), (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [rpcs3Searching ? (0, jsx_runtime_1.jsx)(ui_1.Spinner, {}) : null, !rpcs3Searching && !rpcs3Results.length ? ((0, jsx_runtime_1.jsx)("div", { style: cardHintStyle, children: (0, i18n_1.t)("rpcs3GameNoMatches") })) : null, rpcs3Results.map((result) => ((0, jsx_runtime_1.jsx)(FocusableButton, { className: "DialogButton", onClick: () => void useRpcs3Result(result), style: { justifyContent: "flex-start", textAlign: "left" }, children: (0, jsx_runtime_1.jsxs)("div", { style: rowStackStyle, children: [(0, jsx_runtime_1.jsx)("b", { children: result.title }), (0, jsx_runtime_1.jsxs)("span", { style: compactTextStyle, children: [Math.round(result.score * 100), "% match", ` - ${result.unlocked}/${result.total}`, ` - ${result.id}`] })] }) }, result.path)))] })] })] })] })] })] }) }));
 };
 exports.MetadataPage = MetadataPage;
 };
@@ -2207,6 +1960,21 @@ const contextMenuPatch = (initialClass) => {
         } };
 };
 exports.default = contextMenuPatch;
+};
+factories["digitalStoreAchievements"] = function(module, exports, require) {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.isDigitalStoreAchievementApp = isDigitalStoreAchievementApp;
+/** Digital Stores owns store achievements. Metadata must preserve its native data. */
+function isDigitalStoreAchievementApp(id) {
+    try {
+        const root = globalThis, bridge = root[Symbol.for("playhub.store.achievements.v1")] ?? root.window?.[Symbol.for("playhub.store.achievements.v1")];
+        return bridge?.protocol === 1 && bridge.isManagedApp?.(id) === true;
+    }
+    catch {
+        return false;
+    }
+}
 };
 factories["i18n"] = function(module, exports, require) {
 "use strict";
@@ -2371,7 +2139,7 @@ const STRINGS = {
         qamAchievementsTitle: "Achievements",
         metadataFieldsTitle: "Game details",
         achievementSourceTitle: "Achievement source",
-        achievementSourceHint: "Auto keeps RetroAchievements for ROM/emulator shortcuts, reads local RPCS3 trophies for PS3 shortcuts and uses OpenXBL only for likely Xbox/UWPHook shortcuts.",
+        achievementSourceHint: "Auto uses RetroAchievements for ROM/emulator shortcuts and reads local RPCS3 trophies for PS3 shortcuts. Store achievements are managed by Digital Stores.",
         achievementSource_auto: "Auto",
         achievementSource_retroachievements: "RetroAchievements",
         achievementSource_xbox: "Xbox",
@@ -2601,7 +2369,7 @@ const STRINGS = {
         qamAchievementsTitle: "Obiettivi",
         metadataFieldsTitle: "Dati del gioco",
         achievementSourceTitle: "Fonte obiettivi",
-        achievementSourceHint: "Auto mantiene RetroAchievements per ROM/emulatori, legge i trofei locali di RPCS3 per i collegamenti PS3 e usa OpenXBL solo per collegamenti probabilmente Xbox/UWPHook.",
+        achievementSourceHint: "Auto usa RetroAchievements per ROM/emulatori e legge i trofei locali di RPCS3 per i collegamenti PS3. Gli obiettivi degli store sono gestiti da Store digitali.",
         achievementSource_auto: "Auto",
         achievementSource_retroachievements: "RetroAchievements",
         achievementSource_xbox: "Xbox",
@@ -2962,6 +2730,7 @@ const types_1 = require("./types");
 const i18n_1 = require("./i18n");
 const collectionCacheMigration_1 = require("./collectionCacheMigration");
 const steamFeeds_1 = require("./steamFeeds");
+const digitalStoreAchievements_1 = require("./digitalStoreAchievements");
 exports.metadataCache = {};
 exports.achievementsCache = {};
 const NON_STEAM_APP_TYPE = 1073741824;
@@ -2990,6 +2759,7 @@ exports.PLAYHUB_ACHIEVEMENTS_ROUTE = "/playhub-metadata/achievements/:appid";
 let achievementSettingsCache = null;
 let bypassCounter = 0;
 let bypassBypass = 0;
+let nativeIdentityDepth = 0;
 let metadataLoaded = false;
 let metadataLoadPromise = null;
 const loadingMetadata = new Set();
@@ -3064,19 +2834,19 @@ const readPlayhubHomeActivityShuffleSeed = () => {
 };
 const shouldShowAchievements = (appId) => {
     const key = String(appId);
+    if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId))
+        return false;
     if (achievementSettingsCache?.achievement_sources?.[key] === "disabled")
         return false;
     if (exports.achievementsCache[key]?.steam?.nTotal)
         return true;
     if (achievementSettingsCache?.retroachievements?.game_ids?.[key])
         return true;
-    if (achievementSettingsCache?.xbox?.title_ids?.[key])
-        return true;
     if (achievementSettingsCache?.rpcs3?.trophy_ids?.[key])
         return true;
     const source = achievementSettingsCache?.achievement_sources?.[key] ?? "auto";
     if (source === "xbox")
-        return !!achievementSettingsCache?.xbox?.enabled;
+        return false;
     if (source === "retroachievements")
         return !!achievementSettingsCache?.retroachievements?.enabled;
     if (source === "rpcs3")
@@ -3085,7 +2855,7 @@ const shouldShowAchievements = (appId) => {
     // otherwise Xbox/UWPHook auto-detection never gets a chance to run. The backend
     // still refuses non-UWPHook Xbox calls and avoids RetroAchievements network
     // calls unless a RA id/hash was resolved.
-    return !!achievementSettingsCache?.xbox?.enabled || !!achievementSettingsCache?.retroachievements?.enabled;
+    return !!achievementSettingsCache?.retroachievements?.enabled;
 };
 const cleanTitle = (value) => String(value || "")
     .replace(/[\u2122\u00ae\u00a9]/g, "")
@@ -7153,7 +6923,7 @@ const achievementSyncProviderForGame = (game, settings, allowedProviders, option
     const xboxIds = settings.xbox?.title_ids || {};
     const rpcs3Ids = settings.rpcs3?.trophy_ids || {};
     const source = sources[key] || "auto";
-    if (source === "disabled")
+    if (source === "disabled" || source === "xbox" || (0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(game.appid))
         return null;
     // Only the post-session path enables this option. A clearly identified
     // RPCS3 shortcut must be checked even when it had no trophy association
@@ -7164,15 +6934,9 @@ const achievementSyncProviderForGame = (game, settings, allowedProviders, option
         isRpcs3GameOption(game)) {
         return "rpcs3";
     }
-    const hasXbox = Boolean(xboxIds[key]);
+    const hasXbox = false;
     const hasRa = Boolean(raIds[key]);
     const hasRpcs3 = Boolean(rpcs3Ids[key]);
-    if ((!allowedProviders || allowedProviders.has("xbox")) &&
-        (source === "xbox" || (source === "auto" && hasXbox)) &&
-        hasXbox &&
-        (0, exports.isUwphookGameOption)(game)) {
-        return "xbox";
-    }
     if ((!allowedProviders || allowedProviders.has("rpcs3")) &&
         (source === "rpcs3" || (source === "auto" && !hasXbox && hasRpcs3)) &&
         hasRpcs3) {
@@ -7218,9 +6982,6 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
         if (backgroundAchievementSyncIsDue("retroachievements", policies.retroachievements)) {
             dueProviders.add("retroachievements");
         }
-        if (backgroundAchievementSyncIsDue("xbox", policies.xbox)) {
-            dueProviders.add("xbox");
-        }
         if (backgroundAchievementSyncIsDue("rpcs3", policies.rpcs3)) {
             dueProviders.add("rpcs3");
         }
@@ -7239,7 +7000,7 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
         const rpcs3Count = targets.filter((target) => target.provider === "rpcs3").length;
         api_1.toaster.toast({
             title: (0, i18n_1.t)("pluginName"),
-            body: `${(0, i18n_1.t)("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}, PS3 ${rpcs3Count}`,
+            body: `${(0, i18n_1.t)("backgroundSyncStarted")}: RA ${raCount}, PS3 ${rpcs3Count}`,
         });
         for (const target of targets) {
             try {
@@ -7497,7 +7258,7 @@ const queuePostPlaySync = (target) => {
 };
 const postPlayAllowedProviders = (settings) => {
     const allowed = new Set();
-    for (const provider of ["xbox", "retroachievements", "rpcs3"]) {
+    for (const provider of ["retroachievements", "rpcs3"]) {
         if (providerPolicyFromSettings(provider, settings) !== "manual") {
             allowed.add(provider);
         }
@@ -7684,7 +7445,7 @@ const startBackgroundAchievementSync = () => {
 };
 exports.startBackgroundAchievementSync = startBackgroundAchievementSync;
 const applyAchievementPayload = (appId, payload) => {
-    if (!payload?.steam?.nTotal)
+    if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId) || payload?.provider === "xbox" || !payload?.steam?.nTotal)
         return;
     const sortedPayload = sortedAchievementPayloadForNative(payload);
     clearAchievementStoreMapsForApp(appId);
@@ -7764,6 +7525,10 @@ const clearAchievementStoreMapsForApp = (appId) => {
     }
 };
 const clearAchievementsForApp = (appId) => {
+    if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId)) {
+        delete exports.achievementsCache[String(appId)];
+        return;
+    }
     const key = String(appId);
     delete exports.achievementsCache[key];
     const empty = emptySteamAchievementsPayload();
@@ -7807,20 +7572,6 @@ const isUwphookGameOption = (game) => {
     return text.includes("uwphook.exe") || text.includes("/uwphook/uwphook.exe") || text.includes("briano/uwphook");
 };
 exports.isUwphookGameOption = isUwphookGameOption;
-const flushTrueAchievementsNativeCache = async () => {
-    try {
-        const settings = achievementSettingsCache ?? (await (0, exports.refreshRaSettings)());
-        const ids = settings?.xbox?.title_ids || {};
-        Object.keys(ids).forEach((key) => {
-            const appId = Number(key);
-            if (appId)
-                (0, exports.clearAchievementsForApp)(appId);
-        });
-    }
-    catch (error) {
-        console.warn("[Playhub Metadata] failed to flush stale achievement cache", error);
-    }
-};
 const primeAchievementStore = (store, appId, payload) => {
     const sortedPayload = payload ? sortedAchievementPayloadForNative(payload) : {
         user: emptyAchievementUserPayload(), global: { loading: false, data: {} },
@@ -7972,6 +7723,8 @@ const loadAchievementsForApp = (appId) => {
     return request;
 };
 const fetchAchievementPayloadForApp = async (appId) => {
+    if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId))
+        return null;
     if (exports.achievementsCache[String(appId)]) {
         return exports.achievementsCache[String(appId)];
     }
@@ -7983,7 +7736,6 @@ const fetchAchievementPayloadForApp = async (appId) => {
     if (appSource === "disabled")
         return null;
     const hasAnyProvider = !!settings?.retroachievements?.enabled ||
-        !!settings?.xbox?.enabled ||
         !!settings?.rpcs3?.trophy_ids?.[String(appId)] ||
         appSource === "rpcs3";
     if (!hasAnyProvider)
@@ -8047,7 +7799,7 @@ const tryInstallAchievementStorePatch = (unpatchers) => {
         if (achievementsStore?.LoadMyAchievements || proto?.LoadMyAchievements) {
             unpatchers.push((0, compat_1.patchMethod)(proto, "LoadMyAchievements", (thisValue, original, args) => {
                 const appId = Number(args[0]);
-                if (!(0, exports.isNonSteamApp)((0, exports.getOverview)(appId))) {
+                if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId) || !(0, exports.isNonSteamApp)((0, exports.getOverview)(appId))) {
                     return original(...args);
                 }
                 if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
@@ -8080,7 +7832,7 @@ const tryInstallAchievementStorePatch = (unpatchers) => {
                 continue;
             unpatchers.push((0, compat_1.patchMethod)(proto, methodName, (thisValue, original, args) => {
                 const appId = Number(args[0]);
-                if (!(0, exports.isNonSteamApp)((0, exports.getOverview)(appId))) {
+                if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId) || !(0, exports.isNonSteamApp)((0, exports.getOverview)(appId))) {
                     return original(...args);
                 }
                 if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
@@ -8542,7 +8294,6 @@ const installSteamPatches = () => {
     let patchesActive = true;
     (0, collectionCacheMigration_1.repairLegacyCollectionCaches)((0, compat_1.getSteamGlobal)("collectionStore"), (0, compat_1.getSteamGlobal)("appStore"));
     const unpatchers = [];
-    installAchievementImageCoverPatch(unpatchers);
     // Activity news now use Steam's own AppActivityStore and native Activity
     // renderer. Do not mount Playhub overlay/DOM UI here: those paths are kept in
     // source only as old fallbacks, but the integration attempt for this build is
@@ -8561,9 +8312,7 @@ const installSteamPatches = () => {
     };
     window.addEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener);
     unpatchers.push(() => window.removeEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener));
-    void flushTrueAchievementsNativeCache();
-    const flushTimer = window.setTimeout(() => void flushTrueAchievementsNativeCache(), 2500);
-    unpatchers.push(() => window.clearTimeout(flushTimer));
+    // Digital Stores owns Xbox/store achievement data and its account-scoped cache.
     const redirectAchievementTarget = (target) => {
         const raw = String(target || "");
         if (raw.includes("/playhub-metadata/achievements/"))
@@ -8759,8 +8508,17 @@ const installSteamPatches = () => {
         }
         return originalResult;
     }));
-    unpatchers.push((0, compat_1.patchMethod)(detailsProto, "GetAchievements", (_thisValue, original, args) => {
+    unpatchers.push((0, compat_1.patchMethod)(detailsProto, "GetAchievements", (thisValue, original, args) => {
         const appId = Number(args[0]);
+        if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(appId)) {
+            // Metadata wraps the store instance, while Digital Stores owns its
+            // prototype loader. Resolve that loader now: a captured method may
+            // predate Digital Stores when the plugins mount in the other order.
+            const loader = Object.getPrototypeOf(thisValue)?.GetAchievements;
+            if (typeof loader === "function")
+                return loader.apply(thisValue, args);
+            return original(...args);
+        }
         if ((0, exports.isNonSteamApp)((0, exports.getOverview)(appId))) {
             const payload = exports.achievementsCache[String(appId)];
             if (payload?.steam && shouldShowAchievements(appId))
@@ -8787,9 +8545,30 @@ const installSteamPatches = () => {
         return original(...args);
     }));
     if (overviewProto?.BIsModOrShortcut) {
-        unpatchers.push((0, ui_1.afterPatch)(overviewProto, "BIsModOrShortcut", function (_args, ret) {
-            if (!isNonSteamAppWithoutPatchedMethod(this) || ret !== true)
+        unpatchers.push((0, compat_1.patchMethod)(overviewProto, "BIsModOrShortcut", (overview, original, args) => {
+            // Native GameID/primary-ID methods must read Steam's real flags. An
+            // older presentation hook can remain underneath a later plugin after
+            // reload; reading these flags first also prevents that hook hiding the
+            // shortcut. The native identity method itself is never replaced.
+            if (nativeIdentityDepth > 0 && (overview?.third_party_mod ||
+                Number(overview?.app_type) === NON_STEAM_APP_TYPE || overview?.BIsShortcut?.() === true))
+                return true;
+            const ret = original(...args);
+            // Digital Stores is the sole owner of its achievement presentation.
+            if ((0, digitalStoreAchievements_1.isDigitalStoreAchievementApp)(Number(overview?.appid)))
                 return ret;
+            if (!isNonSteamAppWithoutPatchedMethod(overview) || ret !== true)
+                return ret;
+            // Identity queries must remain native even on Home. Returning false
+            // here makes Steam turn a shortcut's 64-bit GameID into an AppID,
+            // leaving Play on a newly imported game waiting indefinitely.
+            if (bypassCounter === -1)
+                return true;
+            // Steam's active-session model, controller routing and launch controls
+            // must see the real shortcut classification throughout its lifetime.
+            const running = (0, compat_1.getSteamGlobal)("SteamUIStore")?.m_runningAppIDs;
+            if (running?.has?.(Number(overview.appid)) === true)
+                return true;
             if (bypassBypass > 0) {
                 bypassBypass -= 1;
                 return false;
@@ -8800,7 +8579,7 @@ const installSteamPatches = () => {
             if (bypassCounter > 0)
                 bypassCounter -= 1;
             return bypassCounter === -1 || bypassCounter > 0;
-        }).unpatch);
+        }));
     }
     if (detailsProto?.BHasRecentlyLaunched) {
         unpatchers.push((0, ui_1.afterPatch)(detailsProto, "BHasRecentlyLaunched", (_args, ret) => {
@@ -8813,11 +8592,13 @@ const installSteamPatches = () => {
             return;
         unpatchers.push((0, compat_1.patchMethod)(overviewProto, methodName, (_thisValue, original, args) => {
             const previous = bypassCounter;
+            nativeIdentityDepth += 1;
             bypassCounter = -1;
             try {
                 return original(...args);
             }
             finally {
+                nativeIdentityDepth -= 1;
                 bypassCounter = previous;
             }
         }));

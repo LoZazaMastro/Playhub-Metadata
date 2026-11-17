@@ -171,7 +171,7 @@ const STRINGS = {
     metadataFieldsTitle: "Game details",
     achievementSourceTitle: "Achievement source",
     achievementSourceHint:
-      "Auto keeps RetroAchievements for ROM/emulator shortcuts, reads local RPCS3 trophies for PS3 shortcuts and uses OpenXBL only for likely Xbox/UWPHook shortcuts.",
+      "Auto uses RetroAchievements for ROM/emulator shortcuts and reads local RPCS3 trophies for PS3 shortcuts. Store achievements are managed by Digital Stores.",
     achievementSource_auto: "Auto",
     achievementSource_retroachievements: "RetroAchievements",
     achievementSource_xbox: "Xbox",
@@ -422,7 +422,7 @@ const STRINGS = {
     metadataFieldsTitle: "Dati del gioco",
     achievementSourceTitle: "Fonte obiettivi",
     achievementSourceHint:
-      "Auto mantiene RetroAchievements per ROM/emulatori, legge i trofei locali di RPCS3 per i collegamenti PS3 e usa OpenXBL solo per collegamenti probabilmente Xbox/UWPHook.",
+      "Auto usa RetroAchievements per ROM/emulatori e legge i trofei locali di RPCS3 per i collegamenti PS3. Gli obiettivi degli store sono gestiti da Store digitali.",
     achievementSource_auto: "Auto",
     achievementSource_retroachievements: "RetroAchievements",
     achievementSource_xbox: "Xbox",

@@ -25,10 +25,9 @@ Playhub Metadata enriches non-Steam shortcuts without creating a parallel interf
 
 ## Achievements and trophies
 
-The plugin can display three sources on non-Steam game pages:
+The plugin can display two sources on non-Steam game pages:
 
 - **RetroAchievements** for ROMs and emulator shortcuts;
-- **Xbox / OpenXBL** for PC Xbox, Game Pass, and Microsoft Store games imported via UWPHook;
 - **RPCS3** for PS3 trophies read directly from local emulator data.
 
 For each title, you can choose automatic detection, select a specific source, or disable achievements entirely. The data is displayed within Steam but does not become official achievements on your Steam account.
@@ -39,9 +38,7 @@ For each title, you can choose automatic detection, select a specific source, or
 
 Enter your username and Web API key from your RetroAchievements account settings, then log in via the QAM. The plugin attempts to automatically match the ROM and still allows for manual search.
 
-### Xbox / OpenXBL
-
-Create a key on [OpenXBL](https://xbl.io), enter it in the settings, and start the scan. OpenXBL limits are respected through caching and conservative updates. To properly recognize Microsoft games, they must be imported into Steam using UWPHook.
+Xbox, Epic and GOG achievement accounts and progress are managed by **Digital Stores** in Playhub, including their native Steam page integration. Metadata does not run a second store achievement service.
 
 ### RPCS3
 

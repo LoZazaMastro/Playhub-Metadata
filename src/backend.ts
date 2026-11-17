@@ -146,6 +146,7 @@ export const fetchAchievements = callable<
   [appId: number],
   AchievementsResponse | null
 >("fetch_achievements");
+export const normalizeStoreXboxAchievements = callable<[appId: number, snapshot: unknown], AchievementsResponse | null>("normalize_store_xbox_achievements");
 export const syncTrueAchievementsProgress = callable<
   [appId: number],
   AchievementsResponse | null

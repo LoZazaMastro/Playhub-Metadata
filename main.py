@@ -1072,6 +1072,53 @@ class Plugin:
     async def fetch_achievements(self, app_id: int) -> dict[str, Any] | None:
         return await asyncio.to_thread(self._fetch_achievements_sync, app_id)
 
+    async def normalize_store_xbox_achievements(self, app_id: int, snapshot: dict[str, Any]) -> dict[str, Any] | None:
+        return await asyncio.to_thread(self._normalize_store_xbox_achievements, app_id, snapshot)
+
+    def _normalize_store_xbox_achievements(self, app_id: int, snapshot: dict[str, Any]) -> dict[str, Any] | None:
+        # Conversion only. The connected account and credentials stay inside
+        # the native Digital Stores broker; this plugin receives no tokens.
+        if type(app_id) is not int or not 0 < app_id <= 0xffffffff or not isinstance(snapshot, dict):
+            return None
+        title_id = str(snapshot.get("titleId") or "")
+        revision = snapshot.get("accountRevision")
+        rows = snapshot.get("achievements")
+        if (not title_id.isdigit() or not 0 < int(title_id) <= 0xffffffff
+                or type(revision) is not int or revision < 1 or not isinstance(rows, list) or len(rows) > 500):
+            return None
+        allowed = {"images-eds-ssl.xboxlive.com", "images-eds.xboxlive.com", "store-images.s-microsoft.com"}
+        clean = []
+        for row in rows:
+            if not isinstance(row, dict) or row.get("achievementType") != "Persistent":
+                continue
+            associations = row.get("titleAssociations")
+            if not isinstance(associations, list) or not any(isinstance(t, dict) and str(t.get("id")) == title_id for t in associations):
+                continue
+            if any(not isinstance(row.get(k), str) or len(row[k]) > cap for k, cap in (("id", 128), ("name", 512), ("description", 4096), ("lockedDescription", 4096))):
+                continue
+            safe = {k: row[k] for k in ("id", "name", "description", "lockedDescription", "achievementType")}
+            safe["progressState"] = "Achieved" if row.get("progressState") == "Achieved" and row.get("isRevoked") is not True else "NotStarted"
+            safe["isSecret"] = row.get("isSecret") is True
+            safe["progression"] = row.get("progression") if safe["progressState"] == "Achieved" and isinstance(row.get("progression"), dict) else {}
+            safe["rarity"] = row.get("rarity") if isinstance(row.get("rarity"), dict) else {}
+            safe["mediaAssets"] = []
+            media = row.get("mediaAssets")
+            for asset in media[:20] if isinstance(media, list) else []:
+                if not isinstance(asset, dict) or asset.get("type") != "Icon" or not isinstance(asset.get("url"), str) or len(asset["url"]) > 2048:
+                    continue
+                try:
+                    url = urllib.parse.urlsplit(asset["url"])
+                    if url.scheme == "https" and url.hostname in allowed and not url.username and not url.password and url.port in (None, 443):
+                        safe["mediaAssets"].append({"type": "Icon", "url": asset["url"]})
+                except ValueError:
+                    continue
+            clean.append(safe)
+        payload = self._xbox_payload_to_steam({"title": str(snapshot.get("title") or "")[:512], "achievements": clean, "_playhubSource": "xboxlive"}, title_id)
+        if payload:
+            payload["playhubAccountRevision"] = revision
+            payload["playhubXboxScope"] = str(snapshot.get("scope") or "")[:160]
+        return payload
+
     async def sync_trueachievements_progress(self, app_id: int) -> dict[str, Any] | None:
         return await asyncio.to_thread(self._sync_trueachievements_progress_sync, app_id)
 
@@ -1112,20 +1159,13 @@ class Plugin:
                 "api_key": str(ra.get("api_key", "")),
                 "game_ids": self._data["ra_game_ids"],
             },
-                "xbox": {
-                    "enabled": bool(xbox.get("enabled", False)),
-                    "api_key": str(xbox.get("api_key") or ""),
-                    "xuid": str(xbox.get("xuid") or ""),
-                    "gamertag": str(xbox.get("gamertag") or ""),
-                    "ta_logged_in": bool(xbox.get("xuid") or xbox.get("ta_logged_in")),
-                    "title_ids": self._data["xbox_title_ids"],
-                },
+                "xbox": {"enabled": False, "api_key": "", "xuid": "", "gamertag": "", "ta_logged_in": False, "title_ids": {}},
             "rpcs3": {
                 "enabled": True,
                 "trophy_ids": self._data["rpcs3_trophy_ids"],
                 "data_path": str(rpcs3.get("data_path") or ""),
             },
-            "achievement_sources": self._data["achievement_sources"],
+            "achievement_sources": {key: ("auto" if value == "xbox" else value) for key, value in self._data["achievement_sources"].items()},
             "achievement_cache": {
                 "policy": self._normalise_achievement_cache_policy(achievement_cache.get("policy")),
                 "retroachievements_policy": self._normalise_achievement_cache_policy(
@@ -3228,28 +3268,8 @@ class Plugin:
         return xbox, str(xbox.get("api_key") or "").strip()
 
     def _test_openxbl_credentials_sync(self, api_key: str = "") -> dict[str, Any]:
-        self._load_data()
-        clean_key = str(api_key or (self._data.get("settings", {}).get("xbox") or {}).get("api_key") or "").strip()
-        if not clean_key:
-            return {"ok": False, "message": "Inserisci la chiave API OpenXBL."}
-        try:
-            payload = self._openxbl_request("/account", clean_key, timeout=22, cache_ttl=0)
-            xuid, gamertag = self._extract_openxbl_identity(payload)
-        except Exception as error:
-            return {"ok": False, "message": f"OpenXBL non verificato: {error}"}
-        if not xuid:
-            return {"ok": False, "message": "OpenXBL non verificato: XUID non trovato."}
-        self._data["settings"]["xbox"] = {
-            "enabled": True,
-            "api_key": clean_key,
-            "xuid": xuid,
-            "gamertag": gamertag,
-            "ta_cookies": "",
-            "ta_logged_in": True,
-            "ta_session_source": "openxbl",
-        }
-        self._save_data()
-        return {"ok": True, "message": "OpenXBL verificato.", "gamertag": gamertag, "xuid": xuid}
+        # Xbox achievements moved to Digital Stores. No duplicate account/progress engine.
+        return {"ok": False, "message": "Xbox achievements are managed by Digital Stores."}
 
     def _openxbl_request(
         self,
@@ -3559,65 +3579,7 @@ class Plugin:
     def _fetch_xbox_achievements_sync(
         self, app_id: int, auto_resolve: bool = False
     ) -> dict[str, Any] | None:
-        self._load_data()
-        shortcut = self._shortcut_for_app(app_id)
-        shortcut_text = " ".join(
-            str(shortcut.get(item_key) or "")
-            for item_key in ("exe", "launch_options", "start_dir", "shortcut_path", "name")
-        ) if shortcut else ""
-        if not self._is_uwphook_shortcut(app_id, shortcut_text):
-            return None
-        xbox = self._data["settings"].get("xbox") or {}
-        if not xbox.get("enabled"):
-            return None
-
-        key = str(app_id)
-        match_id = self._normalise_xbox_or_ta_match_id(
-            self._data.get("xbox_title_ids", {}).get(key)
-        )
-
-        if match_id:
-            persisted = self._persisted_xbox_achievement_payload(app_id, match_id)
-            if persisted:
-                return persisted
-            if match_id.startswith("ta:"):
-                payload = self._fetch_trueachievements_achievements(match_id)
-                if payload and payload.get("steam", {}).get("nTotal"):
-                    self._save_persisted_xbox_achievement_payload(app_id, match_id, payload)
-                    return payload
-                return self._persisted_xbox_achievement_payload(app_id, match_id)
-            xbox, api_key = self._openxbl_settings()
-            if not api_key:
-                return None
-            try:
-                xuid = self._get_openxbl_xuid(api_key)
-                if not xuid:
-                    return None
-                raw_payload = self._fetch_openxbl_title_achievements(api_key, xuid, match_id)
-                payload = self._xbox_payload_to_steam(
-                    raw_payload,
-                    match_id,
-                    title_hint=str(shortcut.get("name") or "") if shortcut else "",
-                )
-                if payload and payload.get("steam", {}).get("nTotal"):
-                    self._save_persisted_xbox_achievement_payload(app_id, match_id, payload)
-                    return payload
-            except Exception as error:
-                decky.logger.error(f"OpenXBL achievement fetch failed for {match_id}: {error}")
-            return self._persisted_xbox_achievement_payload(app_id, match_id)
-
-        if auto_resolve:
-            title = str(shortcut.get("name") or "") if shortcut else ""
-            # Auto mode stays conservative: only UWPHook/Xbox App shortcuts get
-            # Xbox matches, and the resolver uses cached/user-scoped OpenXBL data.
-            if self._is_uwphook_shortcut(app_id, shortcut_text):
-                matched = self._resolve_xbox_title_id_by_title(title, app_id=app_id, validate=True)
-                if matched:
-                    match_id = self._normalise_xbox_or_ta_match_id(matched.get("id"))
-                    if match_id:
-                        self._data["xbox_title_ids"][key] = match_id
-                        self._save_data()
-                        return self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
+        # Xbox achievements moved to Digital Stores. No duplicate account/progress engine.
         return None
 
     def _fetch_openxbl_title_achievements(
@@ -3916,71 +3878,8 @@ class Plugin:
     def _search_xbox_titles_sync(
         self, query: str, limit: int = 8, app_id: int = 0, include_catalog: bool = True
     ) -> list[dict[str, Any]]:
-        self._load_data()
-        if app_id and not self._is_uwphook_shortcut(app_id):
-            return []
-        _, api_key = self._openxbl_settings()
-        if not api_key:
-            return []
-        try:
-            xuid = self._get_openxbl_xuid(api_key)
-        except Exception as error:
-            decky.logger.error(f"OpenXBL account lookup failed during title search: {error}")
-            xuid = ""
-        # Manual searches use exactly the text typed by the user. Older builds
-        # mixed in shortcut paths, which produced poor candidates.
-        explicit_query = self._clean_game_title(str(query or ""))
-        if explicit_query:
-            queries = [explicit_query]
-        elif app_id:
-            queries = self._xbox_title_candidates(app_id, "", "")[:3]
-        else:
-            queries = []
-        targets = [self._normalise_match_title(value) for value in queries]
-        targets = [value for value in dict.fromkeys(targets) if value]
-        if not targets:
-            return []
-        rows: dict[str, dict[str, Any]] = {}
-
-        def add_candidate(item: dict[str, Any]) -> None:
-            candidates = [self._normalise_match_title(str(item.get("title") or ""))]
-            candidates.extend(self._normalise_match_title(str(alias or "")) for alias in item.get("aliases") or [])
-            candidates = [candidate for candidate in dict.fromkeys(candidates) if candidate]
-            if not candidates:
-                return
-            score = max(
-                self._title_match_score(target, candidate)
-                for target in targets
-                for candidate in candidates
-            )
-            if score < 0.50:
-                return
-            title_id = self._normalise_xbox_or_ta_match_id(item.get("id"))
-            if not title_id:
-                return
-            row = {
-                "id": title_id,
-                "title": item.get("title") or "",
-                "source": item.get("source") or "OpenXBL",
-                "score": round(score, 4),
-                "unlocked": item.get("unlocked"),
-                "total": item.get("total"),
-                "gamerscore": item.get("gamerscore"),
-                "has_achievements": item.get("has_achievements"),
-            }
-            if row["id"] and (row["id"] not in rows or self._xbox_search_result_quality(row) > self._xbox_search_result_quality(rows[row["id"]])):
-                rows[row["id"]] = row
-
-        for item in self._load_xbox_title_index(api_key, xuid=xuid, include_catalog=False):
-            add_candidate(item)
-
-        if include_catalog and explicit_query:
-            for item in self._search_microsoft_store_xbox_titles(explicit_query, api_key, limit=max(8, int(limit or 8))):
-                add_candidate(item)
-
-        result = list(rows.values())
-        result.sort(key=self._xbox_search_result_quality, reverse=True)
-        return result[: max(1, min(int(limit or 8), 24))]
+        # Xbox achievements moved to Digital Stores. No duplicate account/progress engine.
+        return []
 
     @staticmethod
     def _xbox_search_result_quality(item: dict[str, Any]) -> tuple[float, int, int, int, int, int]:
@@ -4465,52 +4364,8 @@ class Plugin:
         return f"{TRUEACHIEVEMENTS_BASE_URL}/gamer/{urllib.parse.quote(cleaned.replace(' ', '+'))}"
 
     def _sync_trueachievements_progress_sync(self, app_id: int) -> dict[str, Any] | None:
-        self._load_data()
-        xbox = self._data.get("settings", {}).get("xbox") or {}
-        if not xbox.get("enabled"):
-            return None
-        if not self._is_uwphook_shortcut(app_id):
-            return None
-        key = str(app_id)
-        match_id = self._normalise_xbox_or_ta_match_id((self._data.get("xbox_title_ids") or {}).get(key))
-        if not match_id:
-            payload = self._fetch_xbox_achievements_sync(app_id, auto_resolve=True)
-            self._load_data()
-            match_id = self._normalise_xbox_or_ta_match_id((self._data.get("xbox_title_ids") or {}).get(key))
-            if not match_id:
-                return payload
-
-        if not match_id.startswith("ta:"):
-            _, api_key = self._openxbl_settings()
-            if not api_key:
-                return self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
-            try:
-                xuid = self._get_openxbl_xuid(api_key)
-                if not xuid:
-                    return self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
-                raw_payload = self._fetch_openxbl_title_achievements(api_key, xuid, match_id, force_refresh=True)
-                payload = self._xbox_payload_to_steam(raw_payload, match_id)
-                if payload and payload.get("steam", {}).get("nTotal"):
-                    self._save_persisted_xbox_achievement_payload(app_id, match_id, payload)
-                    return payload
-            except Exception as error:
-                decky.logger.error(f"OpenXBL progress sync failed for {match_id}: {error}")
-            return self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
-
-        profile = self._normalise_trueachievements_profile(xbox.get("gamertag") or "")
-        if not profile:
-            return self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
-        payload = self._fetch_xbox_achievements_sync(app_id, auto_resolve=False)
-        if not payload or not payload.get("steam", {}).get("nTotal"):
-            return payload
-        progress = self._fetch_trueachievements_profile_progress(match_id, profile)
-        if not progress:
-            return payload
-        synced = self._apply_trueachievements_progress_to_steam_payload(payload, progress)
-        if synced and synced.get("steam", {}).get("nTotal"):
-            self._save_persisted_xbox_achievement_payload(app_id, match_id, synced)
-            return synced
-        return payload
+        # Xbox achievements moved to Digital Stores. No duplicate account/progress engine.
+        return None
 
     def _fetch_trueachievements_profile_progress(self, ta_id: str, profile: str) -> dict[str, Any]:
         game_url = self._trueachievements_url(ta_id)
@@ -6555,7 +6410,7 @@ class Plugin:
                     title = self._xbox_title_from_achievement(raw)
                     if title:
                         break
-        achievement_source = "trueachievements" if str(title_id).startswith("ta:") else "openxbl"
+        achievement_source = "xboxlive" if isinstance(payload, dict) and payload.get("_playhubSource") == "xboxlive" else "trueachievements" if str(title_id).startswith("ta:") else "openxbl"
         image_diagnostics: dict[str, Any] = {}
         if achievement_source == "openxbl":
             achievements, image_diagnostics = self._enrich_openxbl_achievement_images_from_trueachievements(
@@ -6582,6 +6437,9 @@ class Plugin:
             if not isinstance(raw, dict):
                 continue
             steam = self._xbox_achievement_to_steam(raw)
+            if achievement_source == "xboxlive":
+                rarity = raw.get("rarity", {}).get("currentPercentage")
+                steam["flAchieved"] = rarity if type(rarity) in (int, float) and 0 <= rarity <= 100 else None
             if not steam["strID"]:
                 continue
             if not title:
@@ -6592,7 +6450,8 @@ class Plugin:
                 hidden[steam["strID"]] = steam
             else:
                 unachieved[steam["strID"]] = steam
-            global_data[steam["strID"]] = steam["flAchieved"]
+            if steam["flAchieved"] is not None:
+                global_data[steam["strID"]] = steam["flAchieved"]
         total = len(achieved) + len(unachieved) + len(hidden)
         if total <= 0:
             return None

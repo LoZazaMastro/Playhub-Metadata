@@ -72,6 +72,59 @@ class BackendRegression(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.failures, [], f'Unhandled asynchronous errors: {self.failures}')
         self.temp.cleanup()
 
+    async def test_retired_xbox_settings_and_provider_cannot_compete_with_digital_stores(self):
+        self.plugin._data['settings']['xbox'] = {'enabled': True, 'api_key': 'fixture-legacy-key', 'xuid': '12345'}
+        self.plugin._data['xbox_title_ids'] = {'101': '1234'}
+        self.plugin._data['achievement_sources']['101'] = 'xbox'
+        self.plugin._save_data()
+        settings = await self.plugin.get_achievement_settings()
+        self.assertEqual(settings['xbox'], {'enabled': False, 'api_key': '', 'xuid': '', 'gamertag': '', 'ta_logged_in': False, 'title_ids': {}})
+        self.assertEqual(settings['achievement_sources']['101'], 'auto')
+        self.plugin._openxbl_request = lambda *args, **kwargs: self.fail('Metadata must not fetch Xbox progress')
+        self.assertIsNone(self.plugin._fetch_xbox_achievements_sync(101, True))
+        self.assertIsNone(self.plugin._sync_trueachievements_progress_sync(101))
+        self.assertEqual(self.plugin._search_xbox_titles_sync('Fixture', 8, 101), [])
+        self.assertFalse(self.plugin._test_openxbl_credentials_sync('fixture-legacy-key')['ok'])
+
+    async def test_connected_xbox_live_conversion_uses_current_profile_without_openxbl(self):
+        self.plugin._prefetch_xbox_loopback_icons = lambda _: None
+        self.plugin._xbox_achievement_playhub_image = lambda url: url
+        self.plugin._enrich_openxbl_achievement_images_from_trueachievements = lambda *_args, **_kwargs: self.fail('Connected Xbox Live must not consult another profile service')
+        row = {"id": "1", "name": "Fixture", "description": "Unlocked", "lockedDescription": "Locked", "achievementType": "Persistent", "progressState": "Achieved", "progression": {"timeUnlocked": "2020-01-01T12:00:00Z"}, "titleAssociations": [{"id": "1234"}], "mediaAssets": [{"type": "Icon", "url": "https://images-eds-ssl.xboxlive.com/image/fixture"}]}
+        snapshot = {"titleId": "1234", "accountRevision": 4, "scope": "9AAA00000001:4", "title": "Fixture Xbox", "achievements": [row, {**row, "id": "2", "isRevoked": True}]}
+        payload = await self.plugin.normalize_store_xbox_achievements(101, snapshot)
+        self.assertEqual(payload['provider'], 'xbox')
+        self.assertEqual(payload['playhubAchievementSource'], 'xboxlive')
+        self.assertEqual(payload['steam']['nTotal'], 2)
+        self.assertEqual(payload['steam']['nAchieved'], 1)
+        self.assertEqual(payload['playhubXboxScope'], snapshot['scope'])
+        self.assertFalse(payload['user']['data']['unachieved']['2']['bAchieved'])
+        self.assertNotIn('xuid', json.dumps(payload))
+        self.assertIsNone(payload['user']['data']['achieved']['1']['flAchieved'])
+        self.assertNotIn('1', payload['global']['data'])
+        row['rarity'] = {'currentPercentage': 12.5}
+        payload = await self.plugin.normalize_store_xbox_achievements(101, snapshot)
+        self.assertEqual(payload['user']['data']['achieved']['1']['flAchieved'], 12.5)
+        self.assertEqual(payload['global']['data']['1'], 12.5)
+        self.assertEqual(payload['steam']['nAchieved'], 1)
+
+    async def test_connected_xbox_conversion_refuses_cross_title_and_bad_account_revision(self):
+        self.assertIsNone(await self.plugin.normalize_store_xbox_achievements(101, {"titleId": "1234", "accountRevision": True, "achievements": []}))
+        row = {"id": "1", "name": "Foreign", "description": "", "lockedDescription": "", "achievementType": "Persistent", "titleAssociations": [{"id": "9999"}]}
+        self.assertIsNone(await self.plugin.normalize_store_xbox_achievements(101, {"titleId": "1234", "accountRevision": 4, "achievements": [row]}))
+        self.assertIsNone(await self.plugin.normalize_store_xbox_achievements(101, {"titleId": "1234", "accountRevision": 4, "achievements": [row] * 501}))
+
+    async def test_connected_xbox_icons_cannot_request_local_or_authenticated_urls(self):
+        seen = []
+        self.plugin._prefetch_xbox_loopback_icons = lambda urls: seen.extend(urls)
+        self.plugin._xbox_achievement_playhub_image = lambda url: url
+        for url in ('http://127.0.0.1/private', 'https://images-eds-ssl.xboxlive.com:8443/private', 'https://secret@images-eds-ssl.xboxlive.com/private', 'https://evil.invalid/icon'):
+            row = {"id": "1", "name": "Fixture", "description": "", "lockedDescription": "", "achievementType": "Persistent", "progressState": "NotStarted", "titleAssociations": [{"id": "1234"}], "mediaAssets": [{"type": "Icon", "url": url}]}
+            payload = await self.plugin.normalize_store_xbox_achievements(101, {"titleId": "1234", "accountRevision": 4, "achievements": [row]})
+            self.assertEqual(payload['steam']['nTotal'], 1)
+            self.assertFalse(payload['user']['data']['unachieved']['1']['strImage'])
+        self.assertFalse(any(seen))
+
     async def request(self, target, method='GET', extra='', host=None):
         port = self.plugin._image_proxy_port
         reader, writer = await asyncio.open_connection('127.0.0.1', port)

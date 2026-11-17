@@ -25,6 +25,7 @@ import {
 import { t } from "./i18n";
 import { repairLegacyCollectionCaches } from "./collectionCacheMigration";
 import { installSteamLibraryFeedPatches } from "./steamFeeds";
+import { isDigitalStoreAchievementApp } from "./digitalStoreAchievements";
 
 
 type Unpatch = () => void;
@@ -60,6 +61,7 @@ export const PLAYHUB_ACHIEVEMENTS_ROUTE = "/playhub-metadata/achievements/:appid
 let achievementSettingsCache: AchievementSettings | null = null;
 let bypassCounter = 0;
 let bypassBypass = 0;
+let nativeIdentityDepth = 0;
 let metadataLoaded = false;
 let metadataLoadPromise: Promise<void> | null = null;
 const loadingMetadata = new Set<number>();
@@ -140,14 +142,14 @@ const readPlayhubHomeActivityShuffleSeed = () => {
 
 const shouldShowAchievements = (appId: number) => {
   const key = String(appId);
+  if (isDigitalStoreAchievementApp(appId)) return false;
   if (achievementSettingsCache?.achievement_sources?.[key] === "disabled") return false;
   if (achievementsCache[key]?.steam?.nTotal) return true;
   if (achievementSettingsCache?.retroachievements?.game_ids?.[key]) return true;
-  if (achievementSettingsCache?.xbox?.title_ids?.[key]) return true;
   if (achievementSettingsCache?.rpcs3?.trophy_ids?.[key]) return true;
 
   const source = achievementSettingsCache?.achievement_sources?.[key] ?? "auto";
-  if (source === "xbox") return !!achievementSettingsCache?.xbox?.enabled;
+  if (source === "xbox") return false;
   if (source === "retroachievements") return !!achievementSettingsCache?.retroachievements?.enabled;
   if (source === "rpcs3") return true;
 
@@ -155,7 +157,7 @@ const shouldShowAchievements = (appId: number) => {
   // otherwise Xbox/UWPHook auto-detection never gets a chance to run. The backend
   // still refuses non-UWPHook Xbox calls and avoids RetroAchievements network
   // calls unless a RA id/hash was resolved.
-  return !!achievementSettingsCache?.xbox?.enabled || !!achievementSettingsCache?.retroachievements?.enabled;
+  return !!achievementSettingsCache?.retroachievements?.enabled;
 };
 
 export const cleanTitle = (value: string) =>
@@ -4354,7 +4356,7 @@ const achievementSyncProviderForGame = (
   const xboxIds = settings.xbox?.title_ids || {};
   const rpcs3Ids = settings.rpcs3?.trophy_ids || {};
   const source = sources[key] || "auto";
-  if (source === "disabled") return null;
+  if (source === "disabled" || source === "xbox" || isDigitalStoreAchievementApp(game.appid)) return null;
   // Only the post-session path enables this option. A clearly identified
   // RPCS3 shortcut must be checked even when it had no trophy association
   // before launch: ISO games often create their local trophy data only after
@@ -4366,17 +4368,9 @@ const achievementSyncProviderForGame = (
   ) {
     return "rpcs3";
   }
-  const hasXbox = Boolean(xboxIds[key]);
+  const hasXbox = false;
   const hasRa = Boolean(raIds[key]);
   const hasRpcs3 = Boolean(rpcs3Ids[key]);
-  if (
-    (!allowedProviders || allowedProviders.has("xbox")) &&
-    (source === "xbox" || (source === "auto" && hasXbox)) &&
-    hasXbox &&
-    isUwphookGameOption(game)
-  ) {
-    return "xbox";
-  }
   if (
     (!allowedProviders || allowedProviders.has("rpcs3")) &&
     (source === "rpcs3" || (source === "auto" && !hasXbox && hasRpcs3)) &&
@@ -4429,9 +4423,6 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
     if (backgroundAchievementSyncIsDue("retroachievements", policies.retroachievements)) {
       dueProviders.add("retroachievements");
     }
-    if (backgroundAchievementSyncIsDue("xbox", policies.xbox)) {
-      dueProviders.add("xbox");
-    }
     if (backgroundAchievementSyncIsDue("rpcs3", policies.rpcs3)) {
       dueProviders.add("rpcs3");
     }
@@ -4449,7 +4440,7 @@ const runBackgroundAchievementSync = async (reason = "scheduled") => {
     const rpcs3Count = targets.filter((target) => target.provider === "rpcs3").length;
     toaster.toast({
       title: t("pluginName"),
-      body: `${t("backgroundSyncStarted")}: RA ${raCount}, Xbox ${xboxCount}, PS3 ${rpcs3Count}`,
+      body: `${t("backgroundSyncStarted")}: RA ${raCount}, PS3 ${rpcs3Count}`,
     });
     for (const target of targets) {
       try {
@@ -4692,7 +4683,7 @@ const queuePostPlaySync = (target: { appid: number; name: string; provider: Achi
 
 const postPlayAllowedProviders = (settings: AchievementSettings | null) => {
   const allowed = new Set<AchievementProvider>();
-  for (const provider of ["xbox", "retroachievements", "rpcs3"] as AchievementProvider[]) {
+  for (const provider of ["retroachievements", "rpcs3"] as AchievementProvider[]) {
     if (providerPolicyFromSettings(provider, settings) !== "manual") {
       allowed.add(provider);
     }
@@ -4879,7 +4870,7 @@ export const applyAchievementPayload = (
   appId: number,
   payload: AchievementsResponse | null
 ) => {
-  if (!payload?.steam?.nTotal) return;
+  if (isDigitalStoreAchievementApp(appId) || payload?.provider === "xbox" || !payload?.steam?.nTotal) return;
   const sortedPayload = sortedAchievementPayloadForNative(payload);
   clearAchievementStoreMapsForApp(appId);
   achievementsCache[String(appId)] = sortedPayload;
@@ -4959,6 +4950,7 @@ const clearAchievementStoreMapsForApp = (appId: number) => {
 };
 
 export const clearAchievementsForApp = (appId: number) => {
+  if (isDigitalStoreAchievementApp(appId)) { delete achievementsCache[String(appId)]; return; }
   const key = String(appId);
   delete achievementsCache[key];
   const empty = emptySteamAchievementsPayload();
@@ -4996,19 +4988,6 @@ export const clearAchievementsForApps = (appIds: number[]) => {
 export const isUwphookGameOption = (game: { exe?: string; start_dir?: string; launch_options?: string; shortcut_path?: string; name?: string }) => {
   const text = `${game?.exe || ""} ${game?.start_dir || ""} ${game?.launch_options || ""} ${game?.shortcut_path || ""} ${game?.name || ""}`.toLowerCase().replace(/\\/g, "/");
   return text.includes("uwphook.exe") || text.includes("/uwphook/uwphook.exe") || text.includes("briano/uwphook");
-};
-
-const flushTrueAchievementsNativeCache = async () => {
-  try {
-    const settings = achievementSettingsCache ?? (await refreshRaSettings());
-    const ids = settings?.xbox?.title_ids || {};
-    Object.keys(ids).forEach((key) => {
-      const appId = Number(key);
-      if (appId) clearAchievementsForApp(appId);
-    });
-  } catch (error) {
-    console.warn("[Playhub Metadata] failed to flush stale achievement cache", error);
-  }
 };
 
 const primeAchievementStore = (store: any, appId: number, payload: AchievementsResponse | null) => {
@@ -5164,6 +5143,7 @@ const loadAchievementsForApp = (appId: number): Promise<AchievementsResponse | n
 };
 
 const fetchAchievementPayloadForApp = async (appId: number) => {
+  if (isDigitalStoreAchievementApp(appId)) return null;
   if (achievementsCache[String(appId)]) {
     return achievementsCache[String(appId)];
   }
@@ -5174,7 +5154,6 @@ const fetchAchievementPayloadForApp = async (appId: number) => {
   if (appSource === "disabled") return null;
   const hasAnyProvider =
     !!settings?.retroachievements?.enabled ||
-    !!settings?.xbox?.enabled ||
     !!settings?.rpcs3?.trophy_ids?.[String(appId)] ||
     appSource === "rpcs3";
   if (!hasAnyProvider) return null;
@@ -5245,7 +5224,7 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
           "LoadMyAchievements",
           (thisValue, original, args) => {
             const appId = Number(args[0]);
-            if (!isNonSteamApp(getOverview(appId))) {
+            if (isDigitalStoreAchievementApp(appId) || !isNonSteamApp(getOverview(appId))) {
               return original(...args);
             }
             if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
@@ -5281,7 +5260,7 @@ const tryInstallAchievementStorePatch = (unpatchers: Unpatch[]): boolean => {
       unpatchers.push(
         patchMethod(proto, methodName, (thisValue, original, args) => {
           const appId = Number(args[0]);
-          if (!isNonSteamApp(getOverview(appId))) {
+          if (isDigitalStoreAchievementApp(appId) || !isNonSteamApp(getOverview(appId))) {
             return original(...args);
           }
           if (achievementSettingsCache?.achievement_sources?.[String(appId)] === "disabled") {
@@ -5824,7 +5803,6 @@ export const installSteamPatches = (): Unpatch => {
   let patchesActive = true;
   repairLegacyCollectionCaches(getSteamGlobal("collectionStore"), getSteamGlobal("appStore"));
   const unpatchers: Unpatch[] = [];
-  installAchievementImageCoverPatch(unpatchers);
   // Activity news now use Steam's own AppActivityStore and native Activity
   // renderer. Do not mount Playhub overlay/DOM UI here: those paths are kept in
   // source only as old fallbacks, but the integration attempt for this build is
@@ -5842,9 +5820,7 @@ export const installSteamPatches = (): Unpatch => {
   };
   window.addEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener);
   unpatchers.push(() => window.removeEventListener("playhub-metadata:activity-refreshed", activityRefreshedListener));
-  void flushTrueAchievementsNativeCache();
-  const flushTimer = window.setTimeout(() => void flushTrueAchievementsNativeCache(), 2500);
-  unpatchers.push(() => window.clearTimeout(flushTimer));
+  // Digital Stores owns Xbox/store achievement data and its account-scoped cache.
 
   const redirectAchievementTarget = (target: any): string => {
     const raw = String(target || "");
@@ -6045,8 +6021,16 @@ export const installSteamPatches = (): Unpatch => {
   );
 
   unpatchers.push(
-    patchMethod(detailsProto, "GetAchievements", (_thisValue, original, args) => {
+    patchMethod(detailsProto, "GetAchievements", (thisValue, original, args) => {
       const appId = Number(args[0]);
+      if (isDigitalStoreAchievementApp(appId)) {
+        // Metadata wraps the store instance, while Digital Stores owns its
+        // prototype loader. Resolve that loader now: a captured method may
+        // predate Digital Stores when the plugins mount in the other order.
+        const loader = Object.getPrototypeOf(thisValue)?.GetAchievements;
+        if (typeof loader === "function") return loader.apply(thisValue, args);
+        return original(...args);
+      }
       if (isNonSteamApp(getOverview(appId))) {
         const payload = achievementsCache[String(appId)];
         if (payload?.steam && shouldShowAchievements(appId)) return payload.steam;
@@ -6078,8 +6062,25 @@ export const installSteamPatches = (): Unpatch => {
 
   if (overviewProto?.BIsModOrShortcut) {
     unpatchers.push(
-      afterPatch(overviewProto, "BIsModOrShortcut", function (this: any, _args: any[], ret: any) {
-        if (!isNonSteamAppWithoutPatchedMethod(this) || ret !== true) return ret;
+      patchMethod(overviewProto, "BIsModOrShortcut", (overview, original, args) => {
+        // Native GameID/primary-ID methods must read Steam's real flags. An
+        // older presentation hook can remain underneath a later plugin after
+        // reload; reading these flags first also prevents that hook hiding the
+        // shortcut. The native identity method itself is never replaced.
+        if (nativeIdentityDepth > 0 && (overview?.third_party_mod ||
+            Number(overview?.app_type) === NON_STEAM_APP_TYPE || overview?.BIsShortcut?.() === true)) return true;
+        const ret = original(...args);
+        // Digital Stores is the sole owner of its achievement presentation.
+        if (isDigitalStoreAchievementApp(Number(overview?.appid))) return ret;
+        if (!isNonSteamAppWithoutPatchedMethod(overview) || ret !== true) return ret;
+        // Identity queries must remain native even on Home. Returning false
+        // here makes Steam turn a shortcut's 64-bit GameID into an AppID,
+        // leaving Play on a newly imported game waiting indefinitely.
+        if (bypassCounter === -1) return true;
+        // Steam's active-session model, controller routing and launch controls
+        // must see the real shortcut classification throughout its lifetime.
+        const running=getSteamGlobal("SteamUIStore")?.m_runningAppIDs;
+        if(running?.has?.(Number(overview.appid))===true)return true;
         if (bypassBypass > 0) {
           bypassBypass -= 1;
           return false;
@@ -6088,7 +6089,7 @@ export const installSteamPatches = (): Unpatch => {
         if (isLibraryHomeRoute()) return false;
         if (bypassCounter > 0) bypassCounter -= 1;
         return bypassCounter === -1 || bypassCounter > 0;
-      }).unpatch
+      })
     );
   }
 
@@ -6106,9 +6107,10 @@ export const installSteamPatches = (): Unpatch => {
     unpatchers.push(
       patchMethod(overviewProto, methodName, (_thisValue, original, args) => {
         const previous = bypassCounter;
+        nativeIdentityDepth += 1;
         bypassCounter = -1;
         try { return original(...args); }
-        finally { bypassCounter = previous; }
+        finally { nativeIdentityDepth -= 1; bypassCounter = previous; }
       })
     );
   });

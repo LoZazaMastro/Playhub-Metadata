@@ -1153,14 +1153,6 @@ export const Content = () => {
     });
   };
 
-  const saveXboxSettings = async (next: Partial<XboxSettings>) => {
-    const merged = { ...xbox, ...next };
-    setXbox(merged);
-    const saved = await setXboxSettings(merged.enabled, merged.api_key || "");
-    setXbox(saved);
-    await refreshRaSettings();
-  };
-
   const saveAchievementCachePolicy = async (
     provider: "retroachievements" | "xbox" | "rpcs3",
     policy: AchievementCachePolicy
@@ -1204,21 +1196,6 @@ export const Content = () => {
     window.dispatchEvent(new Event("playhub-metadata:achievement-cache-policy-changed"));
   };
 
-  const testXboxLogin = async () => {
-    if (!xbox.api_key.trim()) {
-      const saved = await setXboxSettings(true, xbox.api_key || "");
-      setXbox(saved);
-      await refreshRaSettings();
-      toaster.toast({ title: t("pluginName"), body: t("xboxLoginNeedsProfile") });
-      return;
-    }
-    const result = await testOpenXblCredentials(xbox.api_key || "");
-    const refreshed = await getAchievementSettings();
-    setXbox(refreshed.xbox);
-    await refreshRaSettings();
-    toaster.toast({ title: t("pluginName"), body: result.ok ? t("xboxLoginOk") : result.message || t("xboxLoginFailed") });
-  };
-
   const openExternalUrl = (url: string) => {
     try {
       const steamClient = (window as any)?.SteamClient;
@@ -1237,22 +1214,6 @@ export const Content = () => {
   };
 
   const openRetroAchievements = () => openExternalUrl("https://retroachievements.org/");
-  const openOpenXbl = () => openExternalUrl("https://xbl.io/");
-
-  const clearAllXboxMatches = async () => {
-    if (xboxBulkBusy || busy) return;
-    setXboxBulkBusy(true);
-    try {
-      const saved = await clearXboxAssociations();
-      setXbox(saved);
-      clearAchievementsForApps(games.map((game) => game.appid));
-      await refreshRaSettings();
-      setXboxBulkMessage(t("xboxClearAllDone"));
-      toaster.toast({ title: t("pluginName"), body: t("xboxClearAllDone") });
-    } finally {
-      setXboxBulkBusy(false);
-    }
-  };
 
   const clearAllRetroAchievementsMatches = async () => {
     if (raBulkBusy || busy) return;
@@ -1266,109 +1227,6 @@ export const Content = () => {
       toaster.toast({ title: t("pluginName"), body: t("retroClearAllDone") });
     } finally {
       setRaBulkBusy(false);
-    }
-  };
-
-  const bulkApplyXboxAchievements = async () => {
-    if (xboxBulkBusy || busy) return;
-    if (!xbox.enabled) {
-      toaster.toast({ title: t("pluginName"), body: t("xboxLoginFailed") });
-      return;
-    }
-    const targets = games.filter((game) => isUwphookGameOption(game) && !xbox.title_ids[String(game.appid)]);
-    if (!targets.length) {
-      toaster.toast({ title: t("pluginName"), body: t("xboxBulkNothing") });
-      return;
-    }
-    setXboxBulkBusy(true);
-    setXboxBulkMessage(`${t("xboxBulkScanning")}: 0/${targets.length}`);
-    let assigned = 0;
-    let skipped = 0;
-    try {
-      for (let index = 0; index < targets.length; index += 1) {
-        const game = targets[index];
-        const prefix = `${index + 1}/${targets.length} - ${game.name}`;
-        setBulkProgress({ completed: index, total: targets.length });
-        setXboxBulkMessage(`${prefix}: ${t("xboxBulkSearching")}`);
-        try {
-          const results = await searchXboxTitles(game.name, 5, game.appid, false);
-          const best = results.find((item) => item.total == null || item.total > 0) || results[0];
-          if (!best || best.score < 0.82) {
-            skipped += 1;
-            setXboxBulkMessage(`${prefix}: ${t("xboxBulkSkippedOne")}`);
-            continue;
-          }
-          setXboxBulkMessage(`${prefix}: ${t("xboxBulkApplying")}`);
-          await setXboxTitleId(game.appid, best.id);
-          await setAchievementSource(game.appid, "xbox");
-          clearAchievementsForApp(game.appid);
-          const payload = await fetchAchievements(game.appid);
-          if (payload?.steam?.nTotal) {
-            applyAchievementPayload(game.appid, payload);
-            assigned += 1;
-            setXboxBulkMessage(`${prefix}: ${t("xboxBulkAppliedOne")}`);
-          } else {
-            skipped += 1;
-            setXboxBulkMessage(`${prefix}: ${t("xboxBulkSkippedOne")}`);
-          }
-        } catch (_error) {
-          skipped += 1;
-          setXboxBulkMessage(`${prefix}: ${t("xboxBulkSkippedOne")}`);
-        }
-      }
-      const refreshed = await getAchievementSettings();
-      setXbox(refreshed.xbox);
-      await refreshRaSettings();
-      setXboxBulkMessage(`${t("xboxBulkDone")}: ${assigned} ${t("xboxBulkApplied")}, ${skipped} ${t("xboxBulkSkipped")}`);
-      toaster.toast({
-        title: t("pluginName"),
-        body: `${t("xboxBulkDone")}: ${assigned} ${t("xboxBulkApplied")}, ${skipped} ${t("xboxBulkSkipped")}`,
-      });
-    } finally {
-      setXboxBulkBusy(false);
-    }
-  };
-
-  const syncMatchedTrueAchievementsProgress = async () => {
-    if (xboxBulkBusy || busy) return;
-    if (!xbox.enabled || !xbox.api_key.trim()) {
-      toaster.toast({ title: t("pluginName"), body: t("xboxSyncProgressFailed") });
-      return;
-    }
-    const targets = games.filter((game) => isUwphookGameOption(game) && !!xbox.title_ids[String(game.appid)]);
-    if (!targets.length) {
-      toaster.toast({ title: t("pluginName"), body: t("xboxBulkNothing") });
-      return;
-    }
-    setXboxBulkBusy(true);
-    let synced = 0;
-    let skipped = 0;
-    try {
-      for (let index = 0; index < targets.length; index += 1) {
-        const game = targets[index];
-        const prefix = `${index + 1}/${targets.length} - ${game.name}`;
-        setBulkProgress({ completed: index, total: targets.length });
-        setXboxBulkMessage(`${prefix}: ${t("xboxSyncingProgress")}`);
-        try {
-          const payload = await syncTrueAchievementsProgress(game.appid);
-          if (payload?.steam?.nTotal) {
-            applyAchievementPayload(game.appid, payload);
-            synced += 1;
-            setXboxBulkMessage(`${prefix}: ${t("xboxBulkAppliedOne")}`);
-          } else {
-            skipped += 1;
-            setXboxBulkMessage(`${prefix}: ${t("xboxBulkSkippedOne")}`);
-          }
-        } catch (_error) {
-          skipped += 1;
-          setXboxBulkMessage(`${prefix}: ${t("xboxBulkSkippedOne")}`);
-        }
-      }
-      await refreshRaSettings();
-      setXboxBulkMessage(`${t("xboxSyncProgressOk")}: ${synced}, ${t("xboxBulkSkipped")}: ${skipped}`);
-      toaster.toast({ title: t("pluginName"), body: `${t("xboxSyncProgressOk")}: ${synced}` });
-    } finally {
-      setXboxBulkBusy(false);
     }
   };
 
@@ -1751,75 +1609,7 @@ export const Content = () => {
         </PlayhubCard>
       </PanelSectionRow>
 
-      <PanelSectionRow>
-        <PlayhubCard icon={<FaXbox size={13} />} accent={PLAYHUB_ACCENTS.xbox} title={t("xboxTitle")} style={qamCardSpacingStyle}>
-          <ToggleField
-            bottomSeparator="none"
-            label={t("xboxEnabled")}
-            checked={xbox.enabled}
-            onChange={(checked) => void saveXboxSettings({ enabled: checked })}
-          />
-          <div style={fieldLabelStyle}>{t("xboxProfile")}</div>
-          <TextField
-            value={xbox.api_key}
-            onChange={(e) => setXbox((prev) => ({ ...prev, api_key: e.target.value }))}
-            onBlur={() => void saveXboxSettings({ api_key: xbox.api_key })}
-            style={fieldStyle}
-          />
-          {xbox.ta_logged_in ? (
-            <div style={cardHintStyle}>
-              {xbox.gamertag ? `${t("xboxLoggedIn")}: ${xbox.gamertag}` : t("xboxLoggedIn")}
-            </div>
-          ) : null}
-          <FocusableButton className="DialogButton" onClick={testXboxLogin}>
-            {t("xboxLogin")}
-          </FocusableButton>
-          <FocusableButton className="DialogButton" onClick={openOpenXbl}>
-            {t("xboxOpenOpenXbl")}
-          </FocusableButton>
-          <FocusableButton
-            className="DialogButton"
-            disabled={busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length}
-            onClick={bulkApplyXboxAchievements}
-          >
-            {xboxBulkBusy ? t("xboxBulkScanning") : t("xboxBulkScan")}
-          </FocusableButton>
-          <FocusableButton
-            className="DialogButton"
-            disabled={busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length || !xbox.api_key.trim()}
-            onClick={syncMatchedTrueAchievementsProgress}
-          >
-            {t("xboxSyncAllProgress")}
-          </FocusableButton>
-          <FocusableButton
-            className="DialogButton"
-            disabled={busy || xboxBulkBusy || raBulkBusy || rpcs3BulkBusy || !games.length}
-            onClick={clearAllXboxMatches}
-          >
-            {t("xboxClearAll")}
-          </FocusableButton>
-          {xboxBulkBusy ? (
-            <PlayhubProgressBar
-              label={xboxBulkMessage || t("xboxBulkScanning")}
-              completed={bulkProgress.completed}
-              total={bulkProgress.total}
-              busy={xboxBulkBusy}
-              accent={PLAYHUB_ACCENTS.xbox}
-            />
-          ) : xboxBulkMessage ? (
-            <div style={inlineStatusStyle}>{xboxBulkMessage}</div>
-          ) : null}
-          <div style={fieldLabelStyle}>{t("achievementCacheXboxTitle")}</div>
-          <QamDropdown
-            rgOptions={achievementCachePolicies.map((policy) => ({
-              data: policy,
-              label: t(`achievementCache_${policy}` as any),
-            }))}
-            selectedOption={xboxAchievementCachePolicy}
-            onChange={(option: any) => void saveAchievementCachePolicy("xbox", option.data)}
-          />
-        </PlayhubCard>
-      </PanelSectionRow>
+
 
       <PanelSectionRow>
         <PlayhubCard icon={<FaPlaystation size={13} />} accent={PLAYHUB_ACCENTS.ps3} title={t("rpcs3Title")} hint={t("rpcs3SettingsHint")} style={qamCardSpacingStyle}>
@@ -2205,101 +1995,6 @@ export const MetadataPage = () => {
     });
   };
 
-  const saveXboxMatchManual = async () => {
-    const manual = xboxTitleId.trim();
-    if (!manual) {
-      await clearXboxMatch();
-      return;
-    }
-    const currentSettings = await getAchievementSettings();
-    await setXboxSettings(true, currentSettings.xbox.api_key || "");
-    const ids = await setXboxTitleId(appId, manual);
-    const nextId = ids[String(appId)] || manual;
-    setXboxTitleIdState(nextId);
-    await saveAchievementSource("xbox");
-    await refreshRaSettings();
-    const payload = await fetchAchievements(appId);
-    applyAchievementPayload(appId, payload);
-    toaster.toast({
-      title: t("pluginName"),
-      body: payload?.steam?.nTotal
-        ? `${t("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-        : t("xboxGameFailed"),
-    });
-  };
-
-  const autoDetectXboxAchievements = async () => {
-    const currentSettings = await getAchievementSettings();
-    await setXboxSettings(true, currentSettings.xbox.api_key || "");
-    const details = await getAppDetails(appId);
-    const launchPath = `${details?.strShortcutExe || ""} ${
-      details?.strShortcutLaunchOptions || ""
-    }`;
-    const payload = await resolveXboxFromShortcut(
-      appId,
-      appName(appId),
-      launchPath
-    );
-    applyAchievementPayload(appId, payload);
-    if (payload?.steam?.nTotal) {
-      await saveAchievementSource("xbox");
-      const settings = await getAchievementSettings();
-      setXboxTitleIdState(settings.xbox.title_ids[String(appId)] || "");
-      await refreshRaSettings();
-    }
-    toaster.toast({
-      title: t("pluginName"),
-      body: payload?.steam?.nTotal
-        ? `${t("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-        : t("xboxDetectFailed"),
-    });
-  };
-
-  const clearXboxMatch = async () => {
-    const ids = await setXboxTitleId(appId, null);
-    setXboxTitleIdState(ids[String(appId)] || "");
-    clearAchievementsForApp(appId);
-    if (achievementSource === "xbox") {
-      await saveAchievementSource("auto");
-    }
-    await refreshRaSettings();
-    toaster.toast({ title: t("pluginName"), body: t("saved") });
-  };
-
-  const searchXbox = async () => {
-    setXboxSearching(true);
-    try {
-      const results = await searchXboxTitles(xboxQuery || appName(appId), 12, appId, true);
-      setXboxResults(results);
-    } catch (error) {
-      toaster.toast({ title: t("pluginName"), body: String(error) });
-    } finally {
-      setXboxSearching(false);
-    }
-  };
-
-  const useXboxResult = async (result: XboxTitleResult) => {
-    const currentSettings = await getAchievementSettings();
-    await setXboxSettings(true, currentSettings.xbox.api_key || "");
-    const ids = await setXboxTitleId(appId, result.id);
-    setXboxTitleIdState(ids[String(appId)] || result.id);
-    await saveAchievementSource("xbox");
-    await refreshRaSettings();
-    const payload = await fetchAchievements(appId);
-    applyAchievementPayload(appId, payload);
-    if (!payload?.steam?.nTotal) {
-      const cleared = await setXboxTitleId(appId, null);
-      setXboxTitleIdState(cleared[String(appId)] || "");
-      await saveAchievementSource("auto");
-    }
-    toaster.toast({
-      title: t("pluginName"),
-      body: payload?.steam?.nTotal
-        ? `${t("xboxGameOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-        : t("xboxGameFailed"),
-    });
-  };
-
   const autoDetectRpcs3Trophies = async () => {
     const details = await getAppDetails(appId);
     const launchPath = `${details?.strShortcutExe || ""} ${
@@ -2373,17 +2068,6 @@ export const MetadataPage = () => {
       body: payload?.steam?.nTotal
         ? `${t("rpcs3SyncProgressOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
         : t("rpcs3SyncProgressFailed"),
-    });
-  };
-
-  const syncXboxProgress = async () => {
-    const payload = await syncTrueAchievementsProgress(appId);
-    applyAchievementPayload(appId, payload);
-    toaster.toast({
-      title: t("pluginName"),
-      body: payload?.steam?.nTotal
-        ? `${t("xboxSyncProgressOk")}: ${payload.steam.nAchieved}/${payload.steam.nTotal}`
-        : t("xboxSyncProgressFailed"),
     });
   };
 
@@ -2681,7 +2365,7 @@ export const MetadataPage = () => {
 
             <Focusable className="phCol" flow-children="vertical">
               <PlayhubCard icon={<FaBolt size={13} />} accent={PLAYHUB_ACCENTS.achievements} title={t("achievementSourceTitle")} hint={t("achievementSourceHint")}>
-                {(["auto", "retroachievements", "xbox", "rpcs3", "disabled"] as AchievementSource[]).map((source) => (
+                {(["auto", "retroachievements", "rpcs3", "disabled"] as AchievementSource[]).map((source) => (
                   <FocusableButton
                     key={source}
                     className="DialogButton"
@@ -2756,71 +2440,7 @@ export const MetadataPage = () => {
                 </div>
               </PlayhubCard>
 
-              <PlayhubCard icon={<FaXbox size={13} />} accent={PLAYHUB_ACCENTS.xbox} title={t("xboxPerGameTitle")} hint={t("xboxHint")}>
-                <div style={fieldLabelStyle}>{t("xboxCurrentMatch")}</div>
-                <div style={buttonRowStyle}>
-                  <TextField
-                    value={xboxTitleId}
-                    onChange={(e) => setXboxTitleIdState(e.target.value)}
-                    style={{ ...flexFieldStyle, minWidth: "12rem" }}
-                  />
-                  <FocusableButton className="DialogButton" onClick={saveXboxMatchManual}>
-                    {t("save")}
-                  </FocusableButton>
-                </div>
-                <div style={buttonRowStyle}>
-                  <FocusableButton className="DialogButton" onClick={autoDetectXboxAchievements}>
-                    {t("xboxGameDetect")}
-                  </FocusableButton>
-                  <FocusableButton
-                    className="DialogButton"
-                    disabled={!xboxTitleId}
-                    onClick={syncXboxProgress}
-                  >
-                    {t("xboxSyncProgress")}
-                  </FocusableButton>
-                  <FocusableButton className="DialogButton" onClick={clearXboxMatch}>
-                    {t("xboxClearMatch")}
-                  </FocusableButton>
-                </div>
-                <div style={fieldLabelStyle}>{t("xboxGameSearchHint")}</div>
-                <div style={buttonRowStyle}>
-                  <TextField
-                    value={xboxQuery}
-                    onChange={(e) => setXboxQuery(e.target.value)}
-                    style={{ ...flexFieldStyle, minWidth: "10rem" }}
-                  />
-                  <FocusableButton className="DialogButton" disabled={xboxSearching} onClick={searchXbox}>
-                    {xboxSearching ? t("searching") : t("xboxGameSearch")}
-                  </FocusableButton>
-                </div>
-                <div style={rowStackStyle}>
-                  {xboxSearching ? <Spinner /> : null}
-                  {!xboxSearching && !xboxResults.length ? (
-                    <div style={cardHintStyle}>{t("xboxGameNoMatches")}</div>
-                  ) : null}
-                  {xboxResults.map((result) => (
-                    <FocusableButton
-                      key={result.id}
-                      className="DialogButton"
-                      onClick={() => void useXboxResult(result)}
-                      style={{ justifyContent: "flex-start", textAlign: "left" }}
-                    >
-                      <div style={rowStackStyle}>
-                        <b>{result.title}</b>
-                        <span style={compactTextStyle}>
-                          {Math.round(result.score * 100)}% match
-                          {result.unlocked != null && result.total != null
-                            ? ` - ${result.unlocked}/${result.total}`
-                            : ""}
-                          {result.gamerscore != null ? ` - ${result.gamerscore}G` : ""}
-                          {` - ${result.source || "TrueAchievements"} - ${result.id}`}
-                        </span>
-                      </div>
-                    </FocusableButton>
-                  ))}
-                </div>
-              </PlayhubCard>
+
 
               <PlayhubCard icon={<FaPlaystation size={13} />} accent={PLAYHUB_ACCENTS.ps3} title={t("rpcs3PerGameTitle")} hint={t("rpcs3Hint")}>
                 <div style={cardSubheadingStyle}>

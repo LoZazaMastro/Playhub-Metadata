@@ -24,7 +24,7 @@ for (const filename of fs.readdirSync(path.join(root, 'src')).filter(x => /\.tsx
   assert.equal(errors.length, 0, `${filename}: ${errors.map(e => ts.flattenDiagnosticMessageText(e.messageText,' '))}`);
   compiled.set(filename.replace(/\.tsx?$/, ''), result.outputText);
 }
-function environment() {
+function environment({installedPatcher=false}={}) {
   const timers = new Map(), listeners = new Map(), routes = new Map(), routePatches = new Map();
   const calls = [], warnings = [], modules = [], rpc = {}, cache = {};
   let id = 0;
@@ -77,12 +77,13 @@ function environment() {
   }, {get:(target,key)=>key in target?target[key]:(props=>makeElement(String(key),props))});
   const icons = new Proxy({}, {get:(_,key)=>props=>makeElement(String(key),props)});
   const context = vm.createContext({ window,document:doc,localStorage:window.localStorage,sessionStorage:window.sessionStorage,
-    SP_REACT:React,DFL:dfl,console:{log:()=>{},warn:(...args)=>warnings.push(args),error:(...args)=>warnings.push(args)},
+    SP_REACT:React,DFL:dfl,console:{log:()=>{},debug:()=>{},warn:(...args)=>warnings.push(args),error:(...args)=>warnings.push(args)},
     setTimeout:window.setTimeout.bind(window),clearTimeout:window.clearTimeout.bind(window),
     setInterval:window.setInterval.bind(window),clearInterval:window.clearInterval.bind(window),
     Event:class{constructor(type){this.type=type;}},CustomEvent:class{constructor(type,options){this.type=type;this.detail=options?.detail;}},
     HTMLElement:class{},Element:class{},ShadowRoot:class{},Node:class{},MutationObserver:class{observe(){}disconnect(){}},
-    URL,URLSearchParams,TextEncoder,TextDecoder, navigator:{language:'en-US'},performance:{now:()=>0} });
+    URL,URLSearchParams,TextEncoder,TextDecoder,queueMicrotask, navigator:{language:'en-US'},performance:{now:()=>0} });
+  if(installedPatcher){const exports={};const text=fs.readFileSync(path.join(root,'node_modules/@decky/ui/dist/utils/patcher.js'),'utf8');vm.runInContext(`(function(exports){${ts.transpileModule(text,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText}})`,context)(exports);dfl.afterPatch=exports.afterPatch;}
   function load(name){
     name=name.replace(/^\.\//,'');
     if(name==='react')return React;
@@ -224,7 +225,7 @@ test('disabled achievements override stale cached payload and mappings',async()=
   assert.equal(s.__test.shouldShowAchievements(101),false);assert.equal(await s.__test.loadAchievementsForApp(101),null);assert.equal(e.calls.length,0);
 });
 test('concurrent per-game achievement loads share one request, including settings load',async()=>{
-  const e=environment();e.addSteam();const s=e.load('steam'),cfg=settings();cfg.xbox.enabled=true;cfg.xbox.title_ids['101']='123';e.rpc.get_achievement_settings=()=>cfg;
+  const e=environment();e.addSteam();const s=e.load('steam'),cfg=settings();cfg.retroachievements.enabled=true;cfg.retroachievements.game_ids['101']=123;e.rpc.get_achievement_settings=()=>cfg;
   let release; e.rpc.fetch_achievements=()=>new Promise(resolve=>release=resolve);
   const first=s.__test.loadAchievementsForApp(101),second=s.__test.loadAchievementsForApp(101);assert.equal(first,second);await e.settle();
   assert.equal(e.calls.filter(x=>x.name==='get_achievement_settings').length,1);assert.equal(e.calls.filter(x=>x.name==='fetch_achievements').length,1);
@@ -368,6 +369,66 @@ test('metadata never aliases a missing store ID to a shortcut in Steam collectio
   assert.equal(e.window.appStore.GetAppOverviewByAppID,lookup);
   const collection=[101,999].map(id=>e.window.appStore.GetAppOverviewByAppID(id)).filter(Boolean);
   assert.equal(collection.length,1);stop();
+});
+
+test('Home presentation cannot replace a shortcut native GameID during launch identity queries',()=>{
+  const e=environment();const {apps,Overview}=e.addSteam(),s=e.load('steam');s.__test.setSettings(settings());
+  Overview.prototype.GetGameID=function(){return this.BIsModOrShortcut()?((BigInt(this.appid)<<32n)|0x02000000n).toString():String(this.appid);};
+  Overview.prototype.GetPrimaryAppID=function(){return this.BIsModOrShortcut()?this.appid:0;};
+  const stop=s.installSteamPatches();
+  try{
+    assert.equal(apps[0].BIsModOrShortcut(),false,'Home still renders the metadata layout');
+    assert.equal(apps[0].GetGameID(),((101n<<32n)|0x02000000n).toString(),'launch receives the complete native shortcut identity');
+    assert.equal(apps[0].GetPrimaryAppID(),101,'nested primary identity retains the shortcut');
+    assert.equal(apps[2].GetGameID(),'440','official Steam games retain their original identity');
+    assert.equal(apps[0].BIsModOrShortcut(),false,'identity query restores Home presentation afterward');
+  }finally{stop();}
+});
+
+test('an active shortcut keeps native classification through launch and in-game while Home metadata remains available for stopped games',()=>{
+  const e=environment();const {apps}=e.addSteam(),s=e.load('steam');s.__test.setSettings(settings());
+  const running=new Set();e.window.SteamUIStore={m_runningAppIDs:running};const stop=s.installSteamPatches();
+  try{assert.equal(apps[0].BIsModOrShortcut(),false);running.add(101);assert.equal(apps[0].BIsModOrShortcut(),true);assert.equal(apps[1].BIsModOrShortcut(),false);running.delete(101);assert.equal(apps[0].BIsModOrShortcut(),false);assert.equal(apps[2].BIsModOrShortcut(),false);}finally{stop();}
+});
+
+test('actual Steam identity methods survive both runtime load orders, a retained old presentation hook and Metadata reload',async()=>{
+  const steamFile=process.env.PLAYHUB_STEAM_SNAPSHOT||'C:/Program Files (x86)/Steam/steamui/sp.js';
+  const nativeText=fs.readFileSync(steamFile,'utf8'),methodNames=['BIsShortcut','BIsModOrShortcut','GetGameID','GetPrimaryAppID'];
+  const overviewStart=nativeText.indexOf('BIsModOrShortcut(){');assert(overviewStart>0);const overviewSource=nativeText.slice(overviewStart,overviewStart+1800);
+  const methods=methodNames.map(name=>{const pattern=new RegExp(name+'\\(\\)\\{[^}]*\\}');const match=overviewSource.match(pattern);assert(match,'installed Steam '+name);return match[0];});
+  assert.ok(methods.find(method=>method.startsWith('GetGameID')).includes('this.m_gameid'),'native GameID comes from Steam rather than a reconstructed number');
+  const runtimeSource=fs.readFileSync(path.resolve(root,'../../Playhub/Source/GamingModeDeckyPlugin/src/StoreAchievementsRuntime.ts'),'utf8');
+  for(const order of ['metadata-first','stores-first']){
+    const e=environment({installedPatcher:true}),{apps,Overview}=e.addSteam();
+    const native={};vm.runInContext(`(function(exports){const c={Pe:1073741824};class SnapshotOverview{${methods.join('')}}exports.Overview=SnapshotOverview;})`,e.context)(native);
+    for(const name of methodNames)Overview.prototype[name]=native.Overview.prototype[name];
+    apps[0].m_gameid='13049534362515668992';apps[0].m_ulGameId={low:0x02000000};apps[1].m_gameid='13866673885107191808';apps[1].m_ulGameId={low:0x02000000};
+    // Model the stale pre-fix Decky callback left beneath another plugin. It
+    // alters presentation only; our identity guard must not trust its result.
+    e.dfl.afterPatch(Overview.prototype,'BIsModOrShortcut',function(_args,ret){return this.BIsShortcut()?false:ret;});
+    const s=e.load('steam');s.__test.setSettings(settings());
+    Object.assign(e.context,{appStore:e.window.appStore,appDetailsStore:e.window.appDetailsStore,SteamUIStore:{m_runningAppIDs:new Set()}});
+    const runtime={};const require=name=>name==='./decky'?{DFL:e.dfl,toaster:{toast(){}},routerHook:{addPatch(){},removePatch(){}}}:name==='./StoreDigitalSteamLocale'?{getSteamLocale:()=> 'en'}:{};
+    vm.runInContext(`(function(exports,require){${ts.transpileModule(runtimeSource,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2020}}).outputText}})`,e.context)(runtime,require);
+    const row={appId:101,key:{store:'xbox',id:'fixture'},accountCurrent:true,title:'Fixture',game:{isInstalled:true,accountRevision:4}},rows=new Map([[101,row]]);
+    const snapshot={key:row.key,accountRevision:4,scope:'xbox:fixture:4:en-US',title:'Fixture',observedAt:new Date().toISOString(),achievements:[{key:'one',name:'One',description:'Test',imageUnlocked:null,imageLocked:null,hidden:false,unlocked:true,unlockedAt:1700000000,rarity:null}]};
+    let stopMetadata,stopStores;
+    const startStores=()=>runtime.installStoreAchievementsRuntime({rows:()=>rows,subscribe:()=>()=>{},request:async()=>snapshot});
+    if(order==='metadata-first'){stopMetadata=s.installSteamPatches();stopStores=startStores();}else{stopStores=startStores();stopMetadata=s.installSteamPatches();}
+    try{
+      await e.settle();
+      for(let generation=0;generation<2;generation++){
+        assert.equal(apps[0].BIsModOrShortcut(),false,order+' store presentation still uses native achievements');
+        assert.equal(apps[0].GetGameID(),apps[0].m_gameid,order+' managed shortcut retains the exact native GameID');
+        assert.equal(apps[0].GetPrimaryAppID(),0,order+' native primary-id method remains native');
+        assert.equal(apps[1].GetGameID(),apps[1].m_gameid,order+' other shortcuts also retain identity');
+        assert.equal(apps[2].GetGameID(),'440',order+' Steam games retain their own identity');
+        assert.equal(e.window.appDetailsStore.GetAchievements(101).nTotal,1,order+' Your stuff payload remains owned by Digital Stores');
+        assert.equal(apps[0].BHasStoreCategory(22),true,order+' native achievement category remains available');
+        stopMetadata();stopMetadata=s.installSteamPatches();await e.settle();
+      }
+    }finally{stopMetadata?.();stopStores?.();}
+  }
 });
 
 test('enriched shortcut details retain shortcut identity with installed or absent store games',()=>{
@@ -538,6 +599,30 @@ test('actual Steam patch serves all mapped shortcut media while genuine Steam an
     assert.equal(await client.get('/library/appcommunityfeed/440',{}),native);
     assert.equal(await client.get('/library/appcommunityfeed/303',{}),native);assert.equal(nativeCalls,2);
   }finally{stop();}
+});
+
+const connectedXboxPayload=(scope,names)=>{
+  const all=Object.fromEntries(names.map(name=>[name,{strID:name,strName:name,strDescription:'Fixture',bAchieved:true,rtUnlocked:1700000000,strImage:'',bHidden:false,flMinProgress:0,flCurrentProgress:1,flMaxProgress:1,flAchieved:20}]));
+  return{provider:'xbox',game_id:'1234',title:'Fixture Xbox',playhubXboxScope:scope,steam:{nTotal:5,nAchieved:names.length,vecAchievedHidden:[],vecHighlight:Object.values(all),vecUnachieved:[]},user:{loading:false,data:{achieved:all,hidden:{},unachieved:{}}},global:{loading:false,data:{}},progress:{total:5,achieved:names.length,percentage:names.length*20}};
+};
+test('Digital Stores owns its achievements and Metadata preserves native progress and loaders',async()=>{
+ const e=environment();const {Details}=e.addSteam();const own={nTotal:42,nAchieved:11};
+ Details.prototype.GetAchievements=()=>own;
+ e.window[Symbol.for('playhub.store.achievements.v1')]={protocol:1,isManagedApp:id=>id===101};
+ const s=e.load('steam');s.__test.setSettings({...settings(),xbox:{enabled:true,title_ids:{101:'123'}},retroachievements:{enabled:true,game_ids:{101:99}}});
+ e.window.appDetailsStore.GetAppData(101).details.achievements=own;
+ const stop=s.installSteamPatches();
+ assert.equal(s.__test.shouldShowAchievements(101),false);assert.equal(await s.__test.loadAchievementsForApp(101),null);
+ assert.equal(e.window.appDetailsStore.GetAchievements(101),own);
+ s.clearAchievementsForApp(101);assert.equal(e.window.appDetailsStore.GetAppData(101).details.achievements,own);
+ s.applyAchievementPayload(101,connectedXboxPayload('old',['First']));assert.equal(s.achievementsCache['101'],undefined);
+ assert.equal(e.calls.filter(c=>['fetch_achievements','normalize_store_xbox_achievements'].includes(c.name)).length,0);
+ stop();
+});
+test('Metadata cannot reactivate the retired Xbox provider through old per-game settings',async()=>{
+ const e=environment();e.addSteam();const s=e.load('steam');s.__test.setSettings({...settings(),xbox:{enabled:true,title_ids:{101:'123'}},achievement_sources:{101:'xbox'}});
+ assert.equal(s.__test.shouldShowAchievements(101),false);assert.equal(await s.__test.loadAchievementsForApp(101),null);
+ assert.equal(e.calls.filter(c=>c.name==='normalize_store_xbox_achievements').length,0);
 });
 
 let failures=0;
